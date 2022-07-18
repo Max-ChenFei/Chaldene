@@ -259,6 +259,7 @@ define([
             '#to_code': 'change-cell-to-code',
             '#to_markdown': 'change-cell-to-markdown',
             '#to_raw': 'change-cell-to-raw',
+            '#to_imageprocessingcell': 'change-cell-to-imageprocessing',
             '#toggle_current_output': 'toggle-cell-output-collapsed',
             '#toggle_current_output_scroll': 'toggle-cell-output-scrolled',
             '#clear_current_output': 'clear-cell-output',

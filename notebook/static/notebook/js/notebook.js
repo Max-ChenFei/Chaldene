@@ -16,6 +16,7 @@ define([
     './cell',
     './textcell',
     './codecell',
+    './imageprocessingcell',
     'moment',
     'services/config',
     'services/sessions/session',
@@ -44,6 +45,7 @@ define([
     cellmod,
     textcell,
     codecell,
+    imageprocessingcell,
     moment,
     configmod,
     session,
@@ -93,6 +95,7 @@ define([
         this.base_url = options.base_url;
         this.notebook_path = options.notebook_path;
         this.notebook_name = options.notebook_name;
+        // console.log(options.events);
         this.events = options.events;
         this.keyboard_manager = options.keyboard_manager;
         this.contents = options.contents;
@@ -446,7 +449,7 @@ define([
         // This statement is used simply so that message extraction
         // will pick up the strings.  The actual setting of the text
         // for the button is in dialog.js.
-        var button_labels = [ 
+        var button_labels = [
             i18n.msg._("OK"),
             i18n.msg._("Restart and Run All Cells"),
             i18n.msg._("Restart and Clear All Outputs"),
@@ -457,7 +460,7 @@ define([
             i18n.msg._("Overwrite"),
             i18n.msg._("Trust"),
             i18n.msg._("Revert")];
-        
+
         dialog.modal({
             notebook: this,
             keyboard_manager: this.keyboard_manager,
@@ -943,6 +946,10 @@ define([
     Notebook.prototype.command_mode = function () {
         var cell = this.get_cell(this.get_edit_index());
         if (cell && this.mode !== 'command') {
+            if(cell.cell_type === 'imageprocessingcell') {
+                this.handle_command_mode(cell);
+                return;
+            }
             // We don't call cell.command_mode, but rather blur the CM editor
             // which will trigger the call to handle_command_mode.
             cell.code_mirror.getInputField().blur();
@@ -970,6 +977,11 @@ define([
     Notebook.prototype.edit_mode = function () {
         this._contract_selection();
         var cell = this.get_selected_cell();
+        if(cell.cell_type === 'imageprocessingcell')
+        {
+            this.handle_edit_mode(cell);
+            return;
+        }
         if (cell && this.mode !== 'edit') {
             cell.unrender();
             cell.focus_editor();
@@ -1311,6 +1323,10 @@ define([
             case 'raw':
                 cell = new textcell.RawCell(cell_options);
                 break;
+            case 'imageprocessingcell':
+                cell = new imageprocessingcell.ImageProcessingCell(this.kernel, cell_options);
+                cell.set_input_prompt();
+                break;
             default:
                 console.log("Unrecognized cell type: ", type, cellmod);
                 cell = new cellmod.UnrecognizedCell(cell_options);
@@ -1427,9 +1443,9 @@ define([
         target_cell.set_text(text);
         // make this value the starting point, so that we can only undo
         // to this state, instead of a blank cell
-        target_cell.code_mirror.clearHistory();
+        target_cell.clearHistory();
         source_cell.element.remove();
-    }
+    };
     
     /**
      * Turn one or more cells into code.
@@ -1597,6 +1613,43 @@ define([
         }
     };
 
+    /**
+     * Turn one or more cells into a image processing cell.
+     *
+     * @param {Array} indices - cell indices to convert
+     */
+     Notebook.prototype.cells_to_imageprocessing = function (indices) {
+        if (indices === undefined) {
+            indices = this.get_selected_cells_indices();
+        }
+
+        for(var i=0; i < indices.length; i++) {
+            this.to_imageprocessingcell(indices[i]);
+        }
+     };
+
+    /**
+     * Turn a cell into a image processing cell.
+     *
+     * @param {integer} [index] - cell index
+     */
+     Notebook.prototype.to_imageprocessingcell = function (index) {
+        var i = this.index_or_selected(index);
+        if (this.is_valid_cell_index(i)) {
+            var source_cell = this.get_cell(i);
+            //todo 111
+            if (!(source_cell instanceof textcell.RawCell) && source_cell.is_editable()) {
+                var target_cell = this.insert_cell_below('imageprocessingcell', i);
+
+                this.transfer_to_new_cell(source_cell, target_cell);
+                this.select(i);
+
+                var cursor = source_cell.getCursor();
+                target_cell.setCursor(cursor);
+                this.set_dirty(true);
+            }
+        }
+     };
 
     // Cut/Copy/Paste
 
@@ -1958,7 +2011,7 @@ define([
     Notebook.prototype.collapse_output = function (index) {
         var i = this.index_or_selected(index);
         var cell = this.get_cell(i);
-        if (cell !== null && (cell instanceof codecell.CodeCell)) {
+        if (cell !== null && (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell)) {
             cell.collapse_output();
             this.set_dirty(true);
         }
@@ -1969,7 +2022,7 @@ define([
      */
     Notebook.prototype.collapse_all_output = function () {
         this.get_cells().map(function (cell) {
-            if (cell instanceof codecell.CodeCell) {
+            if (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell) {
                 cell.collapse_output();
             }
         });
@@ -1985,7 +2038,7 @@ define([
     Notebook.prototype.expand_output = function (index) {
         var i = this.index_or_selected(index);
         var cell = this.get_cell(i);
-        if (cell !== null && (cell instanceof codecell.CodeCell)) {
+        if (cell !== null && (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell)) {
             cell.expand_output();
             this.set_dirty(true);
         }
@@ -1996,7 +2049,7 @@ define([
      */
     Notebook.prototype.expand_all_output = function () {
         this.get_cells().map(function (cell) {
-            if (cell instanceof codecell.CodeCell) {
+            if (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell) {
                 cell.expand_output();
             }
         });
@@ -2012,7 +2065,7 @@ define([
     Notebook.prototype.clear_output = function (index) {
         var i = this.index_or_selected(index);
         var cell = this.get_cell(i);
-        if (cell !== null && (cell instanceof codecell.CodeCell)) {
+        if (cell !== null && (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell)) {
             cell.clear_output();
             this.set_dirty(true);
         }
@@ -2037,7 +2090,7 @@ define([
      */
     Notebook.prototype.clear_all_output = function () {
         this.get_cells().map(function (cell) {
-            if (cell instanceof codecell.CodeCell) {
+            if (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell) {
                 cell.clear_output();
             }
         });
@@ -2052,7 +2105,7 @@ define([
     Notebook.prototype.scroll_output = function (index) {
         var i = this.index_or_selected(index);
         var cell = this.get_cell(i);
-        if (cell !== null && (cell instanceof codecell.CodeCell)) {
+        if (cell !== null && (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell)) {
             cell.scroll_output();
             this.set_dirty(true);
         }
@@ -2063,7 +2116,7 @@ define([
      */
     Notebook.prototype.scroll_all_output = function () {
         this.get_cells().map(function (cell, i) {
-            if (cell instanceof codecell.CodeCell) {
+            if (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell) {
                 cell.scroll_output();
             }
         });
@@ -2079,7 +2132,7 @@ define([
     Notebook.prototype.toggle_output = function (index) {
         var i = this.index_or_selected(index);
         var cell = this.get_cell(i);
-        if (cell !== null && (cell instanceof codecell.CodeCell)) {
+        if (cell !== null && (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell)) {
             cell.toggle_output();
             this.set_dirty(true);
         }
@@ -2105,7 +2158,7 @@ define([
      */
     Notebook.prototype.toggle_all_output = function () {
         this.get_cells().map(function (cell) {
-            if (cell instanceof codecell.CodeCell) {
+            if (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell) {
                 cell.toggle_output();
             }
         });
@@ -2121,7 +2174,7 @@ define([
     Notebook.prototype.toggle_output_scroll = function (index) {
         var i = this.index_or_selected(index);
         var cell = this.get_cell(i);
-        if (cell !== null && (cell instanceof codecell.CodeCell)) {
+        if (cell !== null && (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell)) {
             cell.toggle_output_scroll();
             this.set_dirty(true);
         }
@@ -2147,7 +2200,7 @@ define([
      */
     Notebook.prototype.toggle_all_output_scroll = function () {
         this.get_cells().map(function (cell) {
-            if (cell instanceof codecell.CodeCell) {
+            if (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell) {
                 cell.toggle_output_scroll();
             }
         });
@@ -2252,7 +2305,7 @@ define([
         var ncells = this.ncells();
         for (var i=0; i<ncells; i++) {
             var cell = this.get_cell(i);
-            if (cell instanceof codecell.CodeCell) {
+            if (cell instanceof codecell.CodeCell || cell instanceof imageprocessingcell.ImageProcessingCell) {
                 cell.set_kernel(this.session.kernel);
             }
         }
@@ -2830,6 +2883,7 @@ define([
         this.last_modified = new Date(data.last_modified);
         // debug 484
         this._last_modified = 'save-success:'+data.last_modified;
+        data.message = null;
         if (data.message) {
             // save succeeded, but validation failed.
             var body = $("<div>");
@@ -3137,6 +3191,7 @@ define([
      * @param {object} data JSON representation of a notebook
      */
     Notebook.prototype.load_notebook_success = function (data) {
+        data.message = null;
         var failed, msg;
         try {
             this.fromJSON(data);

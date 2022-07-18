@@ -330,6 +330,10 @@ define([
         return;
     };
 
+    Cell.prototype.clearHistory = function(){
+      this.code_mirror.clearHistory();
+    };
+
     /**
      * handle cell level logic when a cell is rendered
      * @method render
@@ -727,6 +731,9 @@ define([
             this.code_mirror.setOption('mode', mode);
             return;
         }
+        if(this.code_mirror === null || this.code_mirror === undefined)
+            return;
+
         var current_mode = this.code_mirror.getOption('mode', mode);
         var first_line = this.code_mirror.getLine(0);
         // loop on every pairs
@@ -804,6 +811,14 @@ define([
             return;
         }
         this.code_mirror.setOption('mode', default_mode);
+    };
+
+    Cell.prototype.getCursor = function(){
+        return this.code_mirror.getCursor();
+    };
+
+    Cell.prototype.setCursor = function(cursor){
+        this.code_mirror.setCursor(cursor);
     };
 
     var UnrecognizedCell = function (options) {

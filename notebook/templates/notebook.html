@@ -15,6 +15,8 @@ window.mathjax_url = "{{mathjax_url}}";
 
 <link rel="stylesheet" href="{{ static_url("components/bootstrap-tour/build/css/bootstrap-tour.min.css") }}" type="text/css" />
 <link rel="stylesheet" href="{{ static_url("components/codemirror/lib/codemirror.css") }}">
+<link rel="stylesheet" href="{{ static_url("components/litegraph/litegraph.css") }}" type="text/css" />
+<link rel="stylesheet" href="{{ static_url("components/draggable-resizable-dialog/draggable-resizable-dialog.css") }}" type="text/css" />
 
 {{super()}}
 
@@ -219,6 +221,9 @@ data-notebook-path="{{notebook_path | urlencode}}"
                               <li id="to_raw"
                                   title="{% trans %}Contents will pass through nbconvert unmodified{% endtrans %}">
                                   <a href="#">{% trans %}Raw NBConvert{% endtrans %}</a></li>
+                              <li id="to_imageprocessingcell"
+                                  title="{% trans %}Contents will be sent to the kernel for execution, and output will display in the footer of cell{% endtrans %}">
+                                  <a href="#">{% trans %}Image Processing Cell{% endtrans %}</a></li>
                             </ul>
                         </li>
                         <li class="divider" role="none"></li>

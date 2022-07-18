@@ -97,6 +97,7 @@ requirejs([
         contents: contents,
         session_list:  session_list},
         common_options));
+    console.log(notebook_list);
     var kernel_list = new kernellist.KernelList('#running_list',  $.extend({
         session_list:  session_list},
         common_options));

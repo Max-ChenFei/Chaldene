@@ -358,6 +358,11 @@ msgstr ""
 msgid "change cell to code"
 msgstr ""
 
+#: notebook/static/notebook/js/actions.js:365
+#: notebook/static/notebook/js/actions.js:366
+msgid "change cell to imageprocessing"
+msgstr ""
+
 #: notebook/static/notebook/js/actions.js:373
 #: notebook/static/notebook/js/actions.js:374
 msgid "change cell to markdown"

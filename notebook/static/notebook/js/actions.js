@@ -397,6 +397,15 @@ define([
                 env.notebook.cells_to_code();
             }
         },
+        'change-cell-to-imageprocessing' : {
+            cmd: i18n.msg._('change cell to imageprocessing'),
+            help    : i18n.msg._('change cell to imageprocessing'),
+            help_index : 'cg',
+            handler : function (env) {
+                env.notebook.cells_to_imageprocessing();
+            }
+        },
+
         'change-cell-to-markdown' : {
             cmd: i18n.msg._('change cell to markdown'),
             help    : i18n.msg._('change cell to markdown'),
