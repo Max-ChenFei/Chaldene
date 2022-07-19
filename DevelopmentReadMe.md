@@ -7,10 +7,9 @@ conda install -c conda-forge nodejs
 ```
 
 ### Installing the Jupyter Notebook
-switch to the notebook directory and run the install command
+Go the home direcoty of project and run the install command
 ```
 pip install --upgrade setuptools
-cd notebook
 pip install -e .
 ```
 ## Launching the Jupyter Notebook
