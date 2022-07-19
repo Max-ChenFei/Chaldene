@@ -8,7 +8,9 @@ docs/source/config.rst
 docs/gh-pages
 notebook/i18n/*/LC_MESSAGES/*.mo
 notebook/i18n/*/LC_MESSAGES/nbjs.json
-notebook/static/components
+notebook/static/components/*
+!notebook/static/components/draggable-resizable-dialog
+!notebook/static/components/litegraph
 notebook/static/style/*.min.css*
 notebook/static/*/js/built/
 notebook/static/*/built/
