@@ -1,19 +1,19 @@
 # Chaldene: Towards Visual Programming Image Processing in Jupyter Notebooks
-##　Setting Up a Development Environment
-###　Installing Node.js and npm
+## Setting Up a Development Environment
+### Installing Node.js and npm
 We suggest installing conda firstly, and then you can get them with:
 ```
 conda install -c conda-forge nodejs
 ```
 
-###　Installing the Jupyter Notebook
+### Installing the Jupyter Notebook
 switch to the notebook directory and run the install command
 ```
-pip install --upgrade setuptools pip
+pip install --upgrade setuptools
 cd notebook
 pip install -e .
 ```
-##　Launching the Jupyter Notebook
+## Launching the Jupyter Notebook
 run the following in the Anaconda Prompt and you will see the Jupyter Notebook user interface.
 
 ```
