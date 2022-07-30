@@ -10448,6 +10448,10 @@ LGraphNode.prototype.executeAction = function(action)
 
     LGraphCanvas.onMenuCollapseAll = function() {};
 
+	LGraphCanvas.onMenuArrange = function() {
+		LGraphCanvas.active_canvas.graph.arrange();
+	}
+
     LGraphCanvas.onMenuNodeEdit = function() {};
 
     LGraphCanvas.showMenuNodeOptionalInputs = function(
@@ -12976,7 +12980,7 @@ LGraphNode.prototype.executeAction = function(action)
                     callback: LGraphCanvas.onMenuAdd
                 },
                 { content: "Add Group", callback: LGraphCanvas.onGroupAdd },
-				//{ content: "Arrange", callback: that.graph.arrange },
+				{ content: "Arrange", callback: LGraphCanvas.onMenuArrange }
                 //{content:"Collapse All", callback: LGraphCanvas.onMenuCollapseAll }
             ];
             /*if (LiteGraph.showCanvasOptions){
