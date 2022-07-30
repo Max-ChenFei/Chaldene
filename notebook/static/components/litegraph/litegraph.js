@@ -8025,6 +8025,111 @@ LGraphNode.prototype.executeAction = function(action)
             }
 
             ctx.restore();
+
+            {
+            // draw minimap
+            // TODO: move minimap variables outside, create a function for
+            // drawing minimap
+			// TODO: remove duplicated code
+            // TODO: draw current view on minimap
+
+            ctx.save();
+
+            ctx.beginPath();
+            var viewport =
+                this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
+            // TODO: clip path and get correct transform
+            let vwidth = viewport[2] - viewport[0];
+            let vheight = viewport[3] - viewport[1];
+
+            let minimap_margins = [0.7, 0.05, 0.05, 0.7];
+            let minimap_vp = [
+				viewport[0] + vwidth * minimap_margins[0],
+				viewport[1] + vheight * minimap_margins[1],
+				vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
+				vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0)
+            ];
+
+            ctx.rect(
+                viewport[0] + vwidth * minimap_margins[0],
+                viewport[1] + vheight * minimap_margins[1],
+                vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
+                vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0));
+
+            // TODO: proper minimap background
+            ctx.fillStyle = 'red';
+            ctx.clip();
+            ctx.fill();
+
+            // scale the minimap
+            // TODO: replace with max inf and min inf, respectively
+            // TODO: account for node header
+            // TODO: draw background connections
+            let bbox = [100000, 100000, -100000, -100000];
+			var visible_nodes = this.graph._nodes;
+            for (var i = 0; i < visible_nodes.length; ++i) {
+            let node = visible_nodes[i];
+
+            bbox[0] = Math.min(bbox[0], node.pos[0]);
+            bbox[1] = Math.min(bbox[1], node.pos[1]);
+            bbox[2] = Math.max(bbox[2], node.pos[0] + node.size[0]);
+            bbox[3] = Math.max(bbox[3], node.pos[1] + node.size[1]);
+            }
+            // enlarge the box by 10%
+            bbox[0] = bbox[0] - (bbox[2] - bbox[0]) * 0.05;
+            bbox[1] = bbox[1] - (bbox[3] - bbox[1]) * 0.05;
+            bbox[2] = bbox[2] + (bbox[2] - bbox[0]) * 0.05;
+            bbox[3] = bbox[3] + (bbox[3] - bbox[1]) * 0.05;
+
+            // we match the width or height depending on ratios
+            let bbox_ratio = (bbox[2] - bbox[0]) / (bbox[3] - bbox[1]);
+            let minimap_ratio = minimap_vp[2] / minimap_vp[3];
+            let scale = 1.0;
+            if (minimap_ratio < bbox_ratio) {
+            scale = (bbox[2] - bbox[0]) / minimap_vp[2];
+            } else {
+            scale = (bbox[3] - bbox[1]) / minimap_vp[3];
+            }
+            ctx.scale(1.0 / scale, 1.0 / scale);
+            ctx.translate(
+                minimap_vp[0] * scale + (minimap_vp[2] * scale * 0.5) -
+                    (bbox[0] + bbox[2]) * 0.5,
+                minimap_vp[1] * scale + (minimap_vp[3] * scale * 0.5) -
+                    (bbox[1] + bbox[3]) * 0.5);
+
+            // draw nodes
+            var drawn_nodes = 0;
+
+            for (var i = 0; i < visible_nodes.length; ++i) {
+            var node = visible_nodes[i];
+
+            // transform coords system
+            ctx.save();
+            ctx.translate(node.pos[0], node.pos[1]);
+
+            // Draw
+            this.drawNode(node, ctx);
+            drawn_nodes += 1;
+
+            // Restore
+            ctx.restore();
+            }
+
+            // on top (debug)
+            if (this.render_execution_order) {
+				this.drawExecutionOrder(ctx);
+            }
+
+            // connections ontop?
+            if (this.graph.config.links_ontop) {
+				if (!this.live_mode) {
+					this.drawConnections(ctx);
+				}
+            }
+
+            ctx.restore();
+            }
+
         }
 
 		//draws panel in the corner 
