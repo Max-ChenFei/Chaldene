@@ -8473,7 +8473,7 @@ LGraphNode.prototype.executeAction = function(action)
     };
 
     var temp_vec2 = new Float32Array(2);
-    
+
     /**
      * draws the given node inside the canvas
      * @method drawNode
@@ -8911,7 +8911,7 @@ LGraphNode.prototype.executeAction = function(action)
 
     //minimap static properties
     LGraphCanvas.minimap = {
-        
+
         margins: [0.75, 0.0, 0.0, 0.75],
         bgColor0: 'rgba(255,255,255,0.6)',
         bgColor1:'rgba(155,155,155,0.6)',
@@ -8923,7 +8923,7 @@ LGraphNode.prototype.executeAction = function(action)
      * @method drawMinimap
      */
     LGraphCanvas.prototype.drawMinimap = function(){
-        
+
 
         ctx.save();
 
@@ -8942,7 +8942,7 @@ LGraphNode.prototype.executeAction = function(action)
             vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0)
         ];
 
-        
+
         ctx.beginPath();
         ctx.rect(
             viewport[0] + vwidth * minimap_margins[0],
@@ -8956,7 +8956,7 @@ LGraphNode.prototype.executeAction = function(action)
         gradient.addColorStop(1,minimap.bgColor1);
         ctx.fillStyle = gradient;
         ctx.clip();
-        
+
         ctx.fill();
         ctx.closePath();
 
@@ -8972,7 +8972,7 @@ LGraphNode.prototype.executeAction = function(action)
             bbox[3] = Math.max(bbox[3], node.pos[1] + node.size[1]);
         }
 
-        
+
         bbox[0] = Math.min(bbox[0], -this.ds.offset[0]);
         bbox[1] = Math.min(bbox[1], -this.ds.offset[1]);
         bbox[2] = Math.max(bbox[2], -this.ds.offset[0]+vwidth/this.ds.scale);
@@ -9004,8 +9004,8 @@ LGraphNode.prototype.executeAction = function(action)
 
         //always draw conenctions
         this.drawConnections(ctx, true);
-        
-        
+
+
         for (var i = 0; i < visible_nodes.length; ++i) {
             var node = visible_nodes[i];
 
@@ -9034,7 +9034,7 @@ LGraphNode.prototype.executeAction = function(action)
 
         ctx.restore();
     }
-    
+
 
 	//used by this.over_link_center
 	LGraphCanvas.prototype.drawLinkTooltip = function( ctx, link )
