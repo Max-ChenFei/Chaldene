@@ -13688,14 +13688,10 @@ LGraphNode.prototype.executeAction = function(action)
             var canvas = LGraphCanvas.active_canvas.canvas;
             //make sure the contxt menu doesn't go to the right of the canvas
             body_rect.width = canvas.getBoundingClientRect().right - body_rect.left;
-            
-            //the following line instead constrains the context menu to not go past either
-            //the bottom or the right
-            //body_rect = canvas.getBoundingClientRect()
-            
+
             if(body_rect.height == 0)
 				console.error("document.body height is 0. That is dangerous, set html,body { height: 100%; }");
-            
+
             if (body_rect.width && left > body_rect.width - root_rect.width - 10) {
                 left = body_rect.width - root_rect.width - 10;
             }
