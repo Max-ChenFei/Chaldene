@@ -13673,6 +13673,7 @@ LGraphNode.prototype.executeAction = function(action)
         //compute best position
         var left = options.left || 0;
         var top = options.top || 0;
+
         if (options.event) {
             left = options.event.clientX - 10;
             top = options.event.clientY - 10;
@@ -13687,7 +13688,12 @@ LGraphNode.prototype.executeAction = function(action)
 
             var body_rect = document.body.getBoundingClientRect();
             var root_rect = root.getBoundingClientRect();
-			if(body_rect.height == 0)
+			
+            var canvas = LGraphCanvas.active_canvas.canvas;
+            //make sure the contxt menu doesn't go to the right of the canvas
+            body_rect.width = canvas.getBoundingClientRect().right - body_rect.left;
+
+            if(body_rect.height == 0)
 				console.error("document.body height is 0. That is dangerous, set html,body { height: 100%; }");
 
             if (body_rect.width && left > body_rect.width - root_rect.width - 10) {
