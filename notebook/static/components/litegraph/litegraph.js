@@ -8035,14 +8035,13 @@ LGraphNode.prototype.executeAction = function(action)
 
 				ctx.save();
 
-				ctx.beginPath();
 				var viewport =
 					this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
 				// TODO: clip path and get correct transform
 				let vwidth = viewport[2] - viewport[0];
 				let vheight = viewport[3] - viewport[1];
 
-				let minimap_margins = [0.7, 0.05, 0.05, 0.7];
+				let minimap_margins = [0.75, 0.0, 0.0, 0.75];
 				let minimap_vp = [
 					viewport[0] + vwidth * minimap_margins[0],
 					viewport[1] + vheight * minimap_margins[1],
@@ -8050,22 +8049,27 @@ LGraphNode.prototype.executeAction = function(action)
 					vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0)
 				];
 
+                
+				ctx.beginPath();
 				ctx.rect(
 					viewport[0] + vwidth * minimap_margins[0],
 					viewport[1] + vheight * minimap_margins[1],
 					vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
 					vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0));
-
-				// TODO: proper minimap background
-				ctx.fillStyle = 'red';
+      
+				let gradient = ctx.createLinearGradient(minimap_vp[0],minimap_vp[1],minimap_vp[0],
+                    minimap_vp[1]+minimap_vp[3]);
+				gradient.addColorStop(0,'rgba(255,255,255,0.6)');
+				gradient.addColorStop(1,'rgba(155,155,155,0.6)');
+				ctx.fillStyle = gradient;
 				ctx.clip();
+                
 				ctx.fill();
+              ctx.closePath();
 
 				// scale the minimap
-				// TODO: replace with max inf and min inf, respectively
 				// TODO: account for node header
-				// TODO: draw background connections
-				let bbox = [100000, 100000, -100000, -100000];
+				let bbox = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
 				var visible_nodes = this.graph._nodes;
 				for (var i = 0; i < visible_nodes.length; ++i) {
 				let node = visible_nodes[i];
@@ -8075,6 +8079,12 @@ LGraphNode.prototype.executeAction = function(action)
 				bbox[2] = Math.max(bbox[2], node.pos[0] + node.size[0]);
 				bbox[3] = Math.max(bbox[3], node.pos[1] + node.size[1]);
 				}
+
+                
+				bbox[0] = Math.min(bbox[0], -this.ds.offset[0]);
+				bbox[1] = Math.min(bbox[1], -this.ds.offset[1]);
+				bbox[2] = Math.max(bbox[2], -this.ds.offset[0]+vwidth/this.ds.scale);
+				bbox[3] = Math.max(bbox[3], -this.ds.offset[1]+vheight/this.ds.scale);
 				// enlarge the box by 10%
 				bbox[0] = bbox[0] - (bbox[2] - bbox[0]) * 0.05;
 				bbox[1] = bbox[1] - (bbox[3] - bbox[1]) * 0.05;
@@ -8100,32 +8110,35 @@ LGraphNode.prototype.executeAction = function(action)
 				// draw nodes
 				var drawn_nodes = 0;
 
+				//always draw conenctions
+				this.drawConnections(ctx, true);
+				
+				
 				for (var i = 0; i < visible_nodes.length; ++i) {
-				var node = visible_nodes[i];
+					var node = visible_nodes[i];
 
-				// transform coords system
-				ctx.save();
-				ctx.translate(node.pos[0], node.pos[1]);
+					// transform coords system
+					ctx.save();
+					ctx.translate(node.pos[0], node.pos[1]);
 
-				// Draw
-				this.drawNode(node, ctx);
-				drawn_nodes += 1;
+					// Draw
+					this.drawNode(node, ctx, true /*low quality*/);
+					drawn_nodes += 1;
 
-				// Restore
-				ctx.restore();
+					// Restore
+					ctx.restore();
 				}
 
-				// on top (debug)
-				if (this.render_execution_order) {
-					this.drawExecutionOrder(ctx);
-				}
+                ctx.beginPath();
+				ctx.rect(
+					-this.ds.offset[0],
+					-this.ds.offset[1],
+					vwidth/this.ds.scale,
+					vheight/this.ds.scale);
 
-				// connections ontop?
-				if (this.graph.config.links_ontop) {
-					if (!this.live_mode) {
-						this.drawConnections(ctx);
-					}
-				}
+              ctx.fillStyle="rgba(0.0,0.0,0.0,0.4)";
+              ctx.fill()
+              ctx.closePath();
 
             	ctx.restore();
             }
@@ -8574,7 +8587,7 @@ LGraphNode.prototype.executeAction = function(action)
      * draws the given node inside the canvas
      * @method drawNode
      **/
-    LGraphCanvas.prototype.drawNode = function(node, ctx) {
+    LGraphCanvas.prototype.drawNode = function(node, ctx, lq=false) {
         var glow = false;
         this.current_node = node;
 
@@ -8586,7 +8599,7 @@ LGraphNode.prototype.executeAction = function(action)
             glow = true;
         }
 
-        var low_quality = this.ds.scale < 0.6; //zoomed out
+        var low_quality = this.ds.scale < 0.6 || lq; //zoomed out
 
         //only render if it forces it to do it
         if (this.live_mode) {
@@ -9395,7 +9408,7 @@ LGraphNode.prototype.executeAction = function(action)
      * OPTIMIZE THIS: pre-catch connections position instead of recomputing them every time
      * @method drawConnections
      **/
-    LGraphCanvas.prototype.drawConnections = function(ctx) {
+    LGraphCanvas.prototype.drawConnections = function(ctx, lq = false) {
         var now = LiteGraph.getTime();
         var visible_area = this.visible_area;
         margin_area[0] = visible_area[0] - 20;
@@ -9465,7 +9478,9 @@ LGraphNode.prototype.executeAction = function(action)
                 }
 
                 //skip links outside of the visible area of the canvas
-                if (!overlapBounding(link_bounding, margin_area)) {
+				// if lq = true (low quality), render everything
+				// TODO: maybe have a "lq" and a "global", or change state and draw the whole viewport?
+                if (!overlapBounding(link_bounding, margin_area)  && !lq) {
                     continue;
                 }
 
@@ -9490,7 +9505,9 @@ LGraphNode.prototype.executeAction = function(action)
                     0,
                     null,
                     start_dir,
-                    end_dir
+                    end_dir,
+					null,
+                    lq
                 );
 
                 //event triggered rendered on top
@@ -9539,7 +9556,8 @@ LGraphNode.prototype.executeAction = function(action)
         color,
         start_dir,
         end_dir,
-        num_sublines
+        num_sublines,
+		lq = false
     ) {
         if (link) {
             this.visible_links.push(link);
@@ -9561,7 +9579,8 @@ LGraphNode.prototype.executeAction = function(action)
 
         var dist = distance(a, b);
 
-        if (this.render_connections_border && this.ds.scale > 0.6) {
+		//if low quality, never draw border
+        if ((this.render_connections_border && this.ds.scale > 0.6 ) && !lq) {
             ctx.lineWidth = this.connections_width + 4;
         }
         ctx.lineJoin = "round";
@@ -9691,13 +9710,18 @@ LGraphNode.prototype.executeAction = function(action)
         if (
             this.render_connections_border &&
             this.ds.scale > 0.6 &&
-            !skip_border
+            !skip_border && !lq
         ) {
             ctx.strokeStyle = "rgba(0,0,0,0.5)";
             ctx.stroke();
         }
 
-        ctx.lineWidth = this.connections_width;
+        let addWidth = 0;
+        if(lq){
+            addWidth = addWidth + 10;
+        }
+
+        ctx.lineWidth = this.connections_width + addWidth;
         ctx.fillStyle = ctx.strokeStyle = color;
         ctx.stroke();
         //end line shape
@@ -9712,7 +9736,7 @@ LGraphNode.prototype.executeAction = function(action)
         if (
             this.ds.scale >= 0.6 &&
             this.highquality_render &&
-            end_dir != LiteGraph.CENTER
+            end_dir != LiteGraph.CENTER && !lq
         ) {
             //render arrow
             if (this.render_connection_arrows) {
