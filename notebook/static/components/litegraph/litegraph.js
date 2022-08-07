@@ -5413,6 +5413,10 @@ LGraphNode.prototype.executeAction = function(action)
         }
 
         this.autoresize = options.autoresize;
+
+        this.minimap = {
+
+        }
     }
 
     global.LGraphCanvas = LiteGraph.LGraphCanvas = LGraphCanvas;
@@ -8027,120 +8031,7 @@ LGraphNode.prototype.executeAction = function(action)
             ctx.restore();
 
             if (this.displayMinimap) {
-				// draw minimap
-				// TODO: move minimap variables outside, create a function for
-				// drawing minimap
-				// TODO: remove duplicated code
-				// TODO: draw current view on minimap
-
-				ctx.save();
-
-				var viewport =
-					this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
-				// TODO: clip path and get correct transform
-				let vwidth = viewport[2] - viewport[0];
-				let vheight = viewport[3] - viewport[1];
-
-				let minimap_margins = [0.75, 0.0, 0.0, 0.75];
-				let minimap_vp = [
-					viewport[0] + vwidth * minimap_margins[0],
-					viewport[1] + vheight * minimap_margins[1],
-					vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
-					vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0)
-				];
-
-                
-				ctx.beginPath();
-				ctx.rect(
-					viewport[0] + vwidth * minimap_margins[0],
-					viewport[1] + vheight * minimap_margins[1],
-					vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
-					vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0));
-      
-				let gradient = ctx.createLinearGradient(minimap_vp[0],minimap_vp[1],minimap_vp[0],
-                    minimap_vp[1]+minimap_vp[3]);
-				gradient.addColorStop(0,'rgba(255,255,255,0.6)');
-				gradient.addColorStop(1,'rgba(155,155,155,0.6)');
-				ctx.fillStyle = gradient;
-				ctx.clip();
-                
-				ctx.fill();
-              ctx.closePath();
-
-				// scale the minimap
-				// TODO: account for node header
-				let bbox = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
-				var visible_nodes = this.graph._nodes;
-				for (var i = 0; i < visible_nodes.length; ++i) {
-				let node = visible_nodes[i];
-
-				bbox[0] = Math.min(bbox[0], node.pos[0]);
-				bbox[1] = Math.min(bbox[1], node.pos[1]);
-				bbox[2] = Math.max(bbox[2], node.pos[0] + node.size[0]);
-				bbox[3] = Math.max(bbox[3], node.pos[1] + node.size[1]);
-				}
-
-                
-				bbox[0] = Math.min(bbox[0], -this.ds.offset[0]);
-				bbox[1] = Math.min(bbox[1], -this.ds.offset[1]);
-				bbox[2] = Math.max(bbox[2], -this.ds.offset[0]+vwidth/this.ds.scale);
-				bbox[3] = Math.max(bbox[3], -this.ds.offset[1]+vheight/this.ds.scale);
-				// enlarge the box by 10%
-				bbox[0] = bbox[0] - (bbox[2] - bbox[0]) * 0.05;
-				bbox[1] = bbox[1] - (bbox[3] - bbox[1]) * 0.05;
-				bbox[2] = bbox[2] + (bbox[2] - bbox[0]) * 0.05;
-				bbox[3] = bbox[3] + (bbox[3] - bbox[1]) * 0.05;
-
-				// we match the width or height depending on ratios
-				let bbox_ratio = (bbox[2] - bbox[0]) / (bbox[3] - bbox[1]);
-				let minimap_ratio = minimap_vp[2] / minimap_vp[3];
-				let scale = 1.0;
-				if (minimap_ratio < bbox_ratio) {
-				scale = (bbox[2] - bbox[0]) / minimap_vp[2];
-				} else {
-				scale = (bbox[3] - bbox[1]) / minimap_vp[3];
-				}
-				ctx.scale(1.0 / scale, 1.0 / scale);
-				ctx.translate(
-					minimap_vp[0] * scale + (minimap_vp[2] * scale * 0.5) -
-						(bbox[0] + bbox[2]) * 0.5,
-					minimap_vp[1] * scale + (minimap_vp[3] * scale * 0.5) -
-						(bbox[1] + bbox[3]) * 0.5);
-
-				// draw nodes
-				var drawn_nodes = 0;
-
-				//always draw conenctions
-				this.drawConnections(ctx, true);
-				
-				
-				for (var i = 0; i < visible_nodes.length; ++i) {
-					var node = visible_nodes[i];
-
-					// transform coords system
-					ctx.save();
-					ctx.translate(node.pos[0], node.pos[1]);
-
-					// Draw
-					this.drawNode(node, ctx, true /*low quality*/);
-					drawn_nodes += 1;
-
-					// Restore
-					ctx.restore();
-				}
-
-                ctx.beginPath();
-				ctx.rect(
-					-this.ds.offset[0],
-					-this.ds.offset[1],
-					vwidth/this.ds.scale,
-					vheight/this.ds.scale);
-
-              ctx.fillStyle="rgba(0.0,0.0,0.0,0.4)";
-              ctx.fill()
-              ctx.closePath();
-
-            	ctx.restore();
+                this.drawMinimap();
             }
         }
 
@@ -8582,7 +8473,7 @@ LGraphNode.prototype.executeAction = function(action)
     };
 
     var temp_vec2 = new Float32Array(2);
-
+    
     /**
      * draws the given node inside the canvas
      * @method drawNode
@@ -9016,6 +8907,134 @@ LGraphNode.prototype.executeAction = function(action)
 
         ctx.globalAlpha = 1.0;
     };
+
+
+    //minimap static properties
+    LGraphCanvas.minimap = {
+        
+        margins: [0.75, 0.0, 0.0, 0.75],
+        bgColor0: 'rgba(255,255,255,0.6)',
+        bgColor1:'rgba(155,155,155,0.6)',
+        overlayColor: 'rgba(0.0,0.0,0.0,0.4)'
+    }
+
+    /**
+     * draws the minimap
+     * @method drawMinimap
+     */
+    LGraphCanvas.prototype.drawMinimap = function(){
+        
+
+        ctx.save();
+
+        var viewport =
+            this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
+        // TODO: clip path and get correct transform
+        let vwidth = viewport[2] - viewport[0];
+        let vheight = viewport[3] - viewport[1];
+
+        let minimap_margins = LGraphCanvas.minimap;
+
+        let minimap_vp = [
+            viewport[0] + vwidth * minimap_margins[0],
+            viewport[1] + vheight * minimap_margins[1],
+            vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
+            vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0)
+        ];
+
+        
+        ctx.beginPath();
+        ctx.rect(
+            viewport[0] + vwidth * minimap_margins[0],
+            viewport[1] + vheight * minimap_margins[1],
+            vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
+            vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0));
+
+        let gradient = ctx.createLinearGradient(minimap_vp[0],minimap_vp[1],minimap_vp[0],
+            minimap_vp[1]+minimap_vp[3]);
+        gradient.addColorStop(0,minimap.bgColor0);
+        gradient.addColorStop(1,minimap.bgColor1);
+        ctx.fillStyle = gradient;
+        ctx.clip();
+        
+        ctx.fill();
+        ctx.closePath();
+
+        // scale the minimap
+        // TODO: account for node header
+        let bbox = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+        var visible_nodes = this.graph._nodes;
+        for (var i = 0; i < visible_nodes.length; ++i) {
+            let node = visible_nodes[i];
+            bbox[0] = Math.min(bbox[0], node.pos[0]);
+            bbox[1] = Math.min(bbox[1], node.pos[1]);
+            bbox[2] = Math.max(bbox[2], node.pos[0] + node.size[0]);
+            bbox[3] = Math.max(bbox[3], node.pos[1] + node.size[1]);
+        }
+
+        
+        bbox[0] = Math.min(bbox[0], -this.ds.offset[0]);
+        bbox[1] = Math.min(bbox[1], -this.ds.offset[1]);
+        bbox[2] = Math.max(bbox[2], -this.ds.offset[0]+vwidth/this.ds.scale);
+        bbox[3] = Math.max(bbox[3], -this.ds.offset[1]+vheight/this.ds.scale);
+        // enlarge the box by 10%
+        bbox[0] = bbox[0] - (bbox[2] - bbox[0]) * 0.05;
+        bbox[1] = bbox[1] - (bbox[3] - bbox[1]) * 0.05;
+        bbox[2] = bbox[2] + (bbox[2] - bbox[0]) * 0.05;
+        bbox[3] = bbox[3] + (bbox[3] - bbox[1]) * 0.05;
+
+        // we match the width or height depending on ratios
+        let bbox_ratio = (bbox[2] - bbox[0]) / (bbox[3] - bbox[1]);
+        let minimap_ratio = minimap_vp[2] / minimap_vp[3];
+        let scale = 1.0;
+        if (minimap_ratio < bbox_ratio) {
+            scale = (bbox[2] - bbox[0]) / minimap_vp[2];
+        } else {
+            scale = (bbox[3] - bbox[1]) / minimap_vp[3];
+        }
+        ctx.scale(1.0 / scale, 1.0 / scale);
+        ctx.translate(
+            minimap_vp[0] * scale + (minimap_vp[2] * scale * 0.5) -
+                (bbox[0] + bbox[2]) * 0.5,
+            minimap_vp[1] * scale + (minimap_vp[3] * scale * 0.5) -
+                (bbox[1] + bbox[3]) * 0.5);
+
+        // draw nodes
+        var drawn_nodes = 0;
+
+        //always draw conenctions
+        this.drawConnections(ctx, true);
+        
+        
+        for (var i = 0; i < visible_nodes.length; ++i) {
+            var node = visible_nodes[i];
+
+            // transform coords system
+            ctx.save();
+            ctx.translate(node.pos[0], node.pos[1]);
+
+            // Draw
+            this.drawNode(node, ctx, true /*low quality*/);
+            drawn_nodes += 1;
+
+            // Restore
+            ctx.restore();
+        }
+
+        ctx.beginPath();
+        ctx.rect(
+            -this.ds.offset[0],
+            -this.ds.offset[1],
+            vwidth/this.ds.scale,
+            vheight/this.ds.scale);
+
+        ctx.fillStyle=minimap.overlayColor;
+        ctx.fill()
+        ctx.closePath();
+
+        ctx.restore();
+    }
+    
 
 	//used by this.over_link_center
 	LGraphCanvas.prototype.drawLinkTooltip = function( ctx, link )
