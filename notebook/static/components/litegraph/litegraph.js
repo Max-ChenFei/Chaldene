@@ -8929,7 +8929,7 @@ LGraphNode.prototype.executeAction = function(action)
      */
     LGraphCanvas.prototype.drawMinimap = function(){
 
-
+        var ctx = this.ctx;
         ctx.save();
 
         var viewport =
@@ -8938,7 +8938,8 @@ LGraphNode.prototype.executeAction = function(action)
         let vwidth = viewport[2] - viewport[0];
         let vheight = viewport[3] - viewport[1];
 
-        let minimap_margins = LGraphCanvas.minimap;
+        let minimap = LGraphCanvas.minimap;
+        let minimap_margins = minimap.margins;
 
         let minimap_vp = [
             viewport[0] + vwidth * minimap_margins[0],
