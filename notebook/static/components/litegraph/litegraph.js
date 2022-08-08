@@ -511,6 +511,8 @@
                 node.onNodeCreated();
             }
 
+            node.addInput("in", "__SEQUENCE_TYPE");
+            node.addOutput("out", "__SEQUENCE_TYPE");
             return node;
         },
 
@@ -2497,6 +2499,7 @@
     global.LGraphNode = LiteGraph.LGraphNode = LGraphNode;
 
     LGraphNode.prototype._ctor = function(title) {
+        console.log('base class constructor');
         this.title = title || "Unnamed";
         this.size = [LiteGraph.NODE_WIDTH, 60];
         this.graph = null;
@@ -16018,6 +16021,7 @@ if (typeof exports != "undefined") {
 
     //Constant
     function ConstantNumber() {
+        console.log('add node');
         this.addOutput("value", "number");
         this.addProperty("value", 1.0);
         this.widget = this.addWidget("number","value",1,"value");
