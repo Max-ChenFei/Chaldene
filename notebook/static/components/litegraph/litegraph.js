@@ -8059,13 +8059,8 @@ LGraphNode.prototype.executeAction = function(action)
     };
 
 	/**
-<<<<<<< HEAD
 	 *
 	 * activates or deactivates the minimap
-=======
-	 *
-	 * activates or deactivates the minimap
->>>>>>> 952ac0a (Added a toggle to the minimap to the context menu. Default is off. Partially fixes #7.)
 	 * @method toggleMinimap
 	 */
 	LGraphCanvas.prototype.toggleMinimap = function () {
