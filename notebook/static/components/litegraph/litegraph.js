@@ -8918,7 +8918,7 @@ LGraphNode.prototype.executeAction = function(action)
     LGraphCanvas.minimap = {
 
         margins: [0.75, 0.0, 0.0, 0.75],
-        bgColor0: 'rgba(255,255,255,0.6)',
+        bgColor0: 'rgba(175,175,175,1.0)',
         bgColor1:'rgba(155,155,155,0.6)',
         overlayColor: 'rgba(0.0,0.0,0.0,0.4)'
     }
@@ -8956,11 +8956,15 @@ LGraphNode.prototype.executeAction = function(action)
             vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
             vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0));
 
-        let gradient = ctx.createLinearGradient(minimap_vp[0],minimap_vp[1],minimap_vp[0],
-            minimap_vp[1]+minimap_vp[3]);
-        gradient.addColorStop(0,minimap.bgColor0);
-        gradient.addColorStop(1,minimap.bgColor1);
-        ctx.fillStyle = gradient;
+        //let gradient = ctx.createLinearGradient(minimap_vp[0],minimap_vp[1],minimap_vp[0],
+        //    minimap_vp[1]+minimap_vp[3]);
+        //gradient.addColorStop(0,minimap.bgColor0);
+        //gradient.addColorStop(1,minimap.bgColor1);
+        //ctx.fillStyle = gradient;
+
+        //fill the background with a solid color
+        ctx.fillStyle = minimap.bgColor0;
+
         ctx.clip();
 
         ctx.fill();
