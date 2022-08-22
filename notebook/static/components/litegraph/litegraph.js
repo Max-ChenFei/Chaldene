@@ -10618,12 +10618,9 @@ LGraphNode.prototype.executeAction = function(action)
 
     LGraphCanvas.onMenuCollapseAll = function() {};
 
-<<<<<<< HEAD
 	LGraphCanvas.onMenuArrange = function() {
 		LGraphCanvas.active_canvas.graph.arrange();
 	}
-=======
->>>>>>> 952ac0a (Added a toggle to the minimap to the context menu. Default is off. Partially fixes #7.)
 	LGraphCanvas.onMenuToggleMinimap = function() {
 		LGraphCanvas.active_canvas.toggleMinimap();
 	};
@@ -13156,10 +13153,7 @@ LGraphNode.prototype.executeAction = function(action)
                     callback: LGraphCanvas.onMenuAdd
                 },
                 { content: "Add Group", callback: LGraphCanvas.onGroupAdd },
-<<<<<<< HEAD
 				{ content: "Arrange", callback: LGraphCanvas.onMenuArrange },
-=======
->>>>>>> 952ac0a (Added a toggle to the minimap to the context menu. Default is off. Partially fixes #7.)
 				{ content: "Toggle Minimap", callback: LGraphCanvas.onMenuToggleMinimap}
 				//{ content: "Arrange", callback: that.graph.arrange },
                 //{content:"Collapse All", callback: LGraphCanvas.onMenuCollapseAll }
