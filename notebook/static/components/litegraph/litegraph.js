@@ -8235,14 +8235,27 @@ LGraphNode.prototype.executeAction = function(action)
 		bgcolor = bgcolor || LiteGraph.NODE_DEFAULT_COLOR;
 		hovercolor = hovercolor || "#555";
 		textcolor = textcolor || LiteGraph.NODE_TEXT_COLOR;
-		var yFix = y + LiteGraph.NODE_TITLE_HEIGHT + 2;	// fix the height with the title
-		var pos = this.mouse;
-		var hover = LiteGraph.isInsideRectangle( pos[0], pos[1], x,yFix,w,h );
+
+        //this line doesn't make sense
+        //var yFix = y + LiteGraph.NODE_TITLE_HEIGHT + 2;	// fix the height with the title
+
+        //assume canvas has same scale as window
+        var pos = [this.mouse[0]- this.canvas.getBoundingClientRect().left,
+                    this.mouse[1] - this.canvas.getBoundingClientRect().top];
+
+
+        //use y instead of yFix
+		var hover = LiteGraph.isInsideRectangle( pos[0], pos[1], x,y,w,h );
         if(hover){
         console.log(pos);
         }
-		pos = this.last_click_position;
-		var clicked = pos && LiteGraph.isInsideRectangle( pos[0], pos[1], x,yFix,w,h );
+        if(this.last_click_position != null)
+		    pos = [this.last_click_position[0]- this.canvas.getBoundingClientRect().left,
+            this.last_click_position[1] - this.canvas.getBoundingClientRect().top];
+        else
+            pos = null;
+
+		var clicked = pos && LiteGraph.isInsideRectangle( pos[0], pos[1], x,y,w,h );
         if(hover){
             console.log("Hovering!");
         }
