@@ -8962,6 +8962,8 @@ LGraphNode.prototype.executeAction = function(action)
 
         let zwidget = LGraphCanvas.zoom_widget;
 
+        //comment this line if you prefer it to be centered
+        zwidget.start.x = ctx.canvas.width*0.5 - zwidget.button_width - zwidget.spacing - zwidget.reset_width*0.5;
         var scale = this.ds.scale;
         if(this.drawButton(
             zwidget.start.x,
@@ -8984,8 +8986,8 @@ LGraphNode.prototype.executeAction = function(action)
         {
 
             this.ds.scale = 1.0;
-            this.ds.offset.x = 0.0;
-            this.ds.offset.y = 0.0;
+            this.ds.offset[0] =  (this.canvas.width * 0.5) / this.ds.scale;
+            this.ds.offset[1] =  (this.canvas.height* 0.5) / this.ds.scale;
         }
         if(this.drawButton(
             zwidget.start.x + zwidget.button_width + zwidget.reset_width +2.0*zwidget.spacing,
