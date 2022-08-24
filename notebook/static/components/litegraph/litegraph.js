@@ -8035,6 +8035,8 @@ LGraphNode.prototype.executeAction = function(action)
             }
         }
 
+        this.drawZoomWidget();
+
 		//draws panel in the corner
 		if (this._graph_stack && this._graph_stack.length) {
 			this.drawSubgraphPanel( ctx );
@@ -8236,12 +8238,19 @@ LGraphNode.prototype.executeAction = function(action)
 		var yFix = y + LiteGraph.NODE_TITLE_HEIGHT + 2;	// fix the height with the title
 		var pos = this.mouse;
 		var hover = LiteGraph.isInsideRectangle( pos[0], pos[1], x,yFix,w,h );
+        if(hover){
+        console.log(pos);
+        }
 		pos = this.last_click_position;
 		var clicked = pos && LiteGraph.isInsideRectangle( pos[0], pos[1], x,yFix,w,h );
+        if(hover){
+            console.log("Hovering!");
+        }
 
 		ctx.fillStyle = hover ? hovercolor : bgcolor;
-		if(clicked)
+		if(clicked){
 			ctx.fillStyle = "#AAA";
+        }
 		ctx.beginPath();
 		ctx.roundRect(x,y,w,h,[4] );
 		ctx.fill();
@@ -8921,6 +8930,61 @@ LGraphNode.prototype.executeAction = function(action)
         bgColor0: 'rgba(175,175,175,1.0)',
         bgColor1:'rgba(155,155,155,0.6)',
         overlayColor: 'rgba(0.0,0.0,0.0,0.4)'
+    }
+
+    LGraphCanvas.zoom_widget = {
+        start: {x: 20, y: 20},
+        button_width: 60,
+        button_height: 20,
+        spacing: 20,
+        reset_width: 100,
+    }
+
+    LGraphCanvas.prototype.drawZoomWidget = function() {
+
+        var ctx = this.ctx;
+
+        var viewport =
+            this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
+
+        let zwidget = LGraphCanvas.zoom_widget;
+
+        var scale = this.ds.scale;
+        if(this.drawButton(
+            zwidget.start.x,
+            zwidget.start.y,
+            zwidget.button_width,
+            zwidget.button_height,
+            "Zoom -",
+            "#151515"))
+        {
+            scale *= 1.0/1.1;
+            this.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]); this.changeDeltaScale
+        }
+        if(this.drawButton(
+            zwidget.start.x + zwidget.button_width +zwidget.spacing,
+            zwidget.start.y,
+            zwidget.reset_width,
+            zwidget.button_height,
+             "Reset (" + String(Math.round((scale*100))).padStart(3,' ') + " %)",
+             "#151515"))
+        {
+
+            this.ds.scale = 1.0;
+            this.ds.offset.x = 0.0;
+            this.ds.offset.y = 0.0;
+        }
+        if(this.drawButton(
+            zwidget.start.x + zwidget.button_width + zwidget.reset_width +2.0*zwidget.spacing,
+            zwidget.start.y,
+            zwidget.button_width,
+            zwidget.button_height,
+             "Zoom +", "#151515"))
+
+        {
+            scale *= 1.1;
+            this.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
+        }
     }
 
     /**
