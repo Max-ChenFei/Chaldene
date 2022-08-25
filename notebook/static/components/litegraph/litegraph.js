@@ -6677,6 +6677,10 @@ LGraphNode.prototype.executeAction = function(action)
 			this.block_click = false; //used to avoid sending twice a click in a immediate button
 		}
 
+        if(this.frozen_view){
+            this.frozen_view = null;
+        }
+
 		//console.log("pointerevents: processMouseUp which: "+e.which);
 
         if (e.which == 1) {
@@ -8926,6 +8930,10 @@ LGraphNode.prototype.executeAction = function(action)
      */
     LGraphCanvas.prototype.drawMinimap = function(){
 
+
+
+
+
         var ctx = this.ctx;
         ctx.save();
 
@@ -8952,6 +8960,9 @@ LGraphNode.prototype.executeAction = function(action)
             viewport[1] + vheight * minimap_margins[1],
             vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
             vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0));
+
+        //handle input
+
 
         //let gradient = ctx.createLinearGradient(minimap_vp[0],minimap_vp[1],minimap_vp[0],
         //    minimap_vp[1]+minimap_vp[3]);
@@ -8989,6 +9000,13 @@ LGraphNode.prototype.executeAction = function(action)
         bbox[1] = bbox[1] - (bbox[3] - bbox[1]) * 0.05;
         bbox[2] = bbox[2] + (bbox[2] - bbox[0]) * 0.05;
         bbox[3] = bbox[3] + (bbox[3] - bbox[1]) * 0.05;
+        if(this.frozen_view){
+            //make sure the minimap view does not change
+            bbox[0] = this.frozen_view[0];
+            bbox[1] = this.frozen_view[1];
+            bbox[2] = this.frozen_view[2];
+            bbox[3] = this.frozen_view[3];
+        }
 
         // we match the width or height depending on ratios
         let bbox_ratio = (bbox[2] - bbox[0]) / (bbox[3] - bbox[1]);
@@ -8999,12 +9017,12 @@ LGraphNode.prototype.executeAction = function(action)
         } else {
             scale = (bbox[3] - bbox[1]) / minimap_vp[3];
         }
+        let translation = [minimap_vp[0] * scale + (minimap_vp[2] * scale * 0.5) -
+                            (bbox[0] + bbox[2]) * 0.5,
+                            minimap_vp[1] * scale + (minimap_vp[3] * scale * 0.5) -
+                            (bbox[1] + bbox[3]) * 0.5]
         ctx.scale(1.0 / scale, 1.0 / scale);
-        ctx.translate(
-            minimap_vp[0] * scale + (minimap_vp[2] * scale * 0.5) -
-                (bbox[0] + bbox[2]) * 0.5,
-            minimap_vp[1] * scale + (minimap_vp[3] * scale * 0.5) -
-                (bbox[1] + bbox[3]) * 0.5);
+        ctx.translate(translation[0],translation[1]);
 
         // draw nodes
         var drawn_nodes = 0;
@@ -9028,6 +9046,26 @@ LGraphNode.prototype.executeAction = function(action)
             ctx.restore();
         }
 
+        if(this.frozen_view){
+
+            //set viewport
+            var mpos = [this.mouse[0]- this.canvas.getBoundingClientRect().left,
+                        this.mouse[1] - this.canvas.getBoundingClientRect().top];
+            //mpos[0] = (mpos[0] - minimap_vp[0]);
+            //mpos[1] = (mpos[1] - minimap_vp[1]);
+
+
+            mpos[0] = mpos[0]*scale;
+            mpos[1] = mpos[1]*scale;
+            mpos[0] = mpos[0] - translation[0];
+            mpos[1] = mpos[1] - translation[1];
+
+
+
+            this.ds.offset[0] = -mpos[0] +0.5*vwidth/this.ds.scale;;
+            this.ds.offset[1] = -mpos[1] +0.5*vheight/this.ds.scale;;
+        }
+
         ctx.beginPath();
         ctx.rect(
             -this.ds.offset[0],
@@ -9038,8 +9076,28 @@ LGraphNode.prototype.executeAction = function(action)
         ctx.fillStyle=minimap.overlayColor;
         ctx.fill()
         ctx.closePath();
-
         ctx.restore();
+
+        //handle input
+        var pos
+        if(this.last_click_position != null){
+		    pos = [this.last_click_position[0]- this.canvas.getBoundingClientRect().left,
+            this.last_click_position[1] - this.canvas.getBoundingClientRect().top];
+        } else {
+            pos = null;
+        }
+
+        var clicked = pos && LiteGraph.isInsideRectangle( pos[0], pos[1],
+                                                        minimap_vp[0],minimap_vp[1],
+                                                        minimap_vp[2],minimap_vp[3] );
+
+        var was_clicked = clicked && !this.block_click;
+        if(was_clicked){
+            this.blockClick();
+            this.frozen_view = [bbox[0],bbox[1],bbox[2],bbox[3]];
+
+        }
+
     }
 
 
