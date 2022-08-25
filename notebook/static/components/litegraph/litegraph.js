@@ -5414,9 +5414,6 @@ LGraphNode.prototype.executeAction = function(action)
 
         this.autoresize = options.autoresize;
 
-        this.minimap = {
-
-        }
     }
 
     global.LGraphCanvas = LiteGraph.LGraphCanvas = LGraphCanvas;
