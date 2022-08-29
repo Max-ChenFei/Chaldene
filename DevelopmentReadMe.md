@@ -34,3 +34,14 @@ If you want to automatically update dependencies and recompile JavaScript and CS
 git-hooks/install-hooks.sh
 ```
 
+## Git Suggestions
+
+* We use [Git Branching model](https://nvie.com/posts/a-successful-git-branching-model/) for feature management. 
+
+* For each feature, I suggest creating an issue on Github and creating a corresponding feature branch for that. If the issue is fixed, please create a pull request and merge it after peer review.
+
+* The author should add a descriptive, explainable message for each commit, avoiding using some wildcard words like refactoring, and fixing bugs. 
+
+* If someone pushes the wrong changes, please use `git reset` and `git push force` to override the wrong log history. 
+* Before each commit, please check the changes you commit, avoiding unused changes selected and committed.
+
