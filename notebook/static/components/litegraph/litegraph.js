@@ -8036,6 +8036,8 @@ LGraphNode.prototype.executeAction = function(action)
             }
         }
 
+        this.drawZoomWidget();
+
 		//draws panel in the corner
 		if (this._graph_stack && this._graph_stack.length) {
 			this.drawSubgraphPanel( ctx );
@@ -8234,15 +8236,35 @@ LGraphNode.prototype.executeAction = function(action)
 		bgcolor = bgcolor || LiteGraph.NODE_DEFAULT_COLOR;
 		hovercolor = hovercolor || "#555";
 		textcolor = textcolor || LiteGraph.NODE_TEXT_COLOR;
-		var yFix = y + LiteGraph.NODE_TITLE_HEIGHT + 2;	// fix the height with the title
-		var pos = this.mouse;
-		var hover = LiteGraph.isInsideRectangle( pos[0], pos[1], x,yFix,w,h );
-		pos = this.last_click_position;
-		var clicked = pos && LiteGraph.isInsideRectangle( pos[0], pos[1], x,yFix,w,h );
+
+        //this line doesn't make sense
+        //var yFix = y + LiteGraph.NODE_TITLE_HEIGHT + 2;	// fix the height with the title
+
+        //assume canvas has same scale as window
+        var pos = [this.mouse[0]- this.canvas.getBoundingClientRect().left,
+                    this.mouse[1] - this.canvas.getBoundingClientRect().top];
+
+
+        //use y instead of yFix
+		var hover = LiteGraph.isInsideRectangle( pos[0], pos[1], x,y,w,h );
+        if(hover){
+        console.log(pos);
+        }
+        if(this.last_click_position != null)
+		    pos = [this.last_click_position[0]- this.canvas.getBoundingClientRect().left,
+            this.last_click_position[1] - this.canvas.getBoundingClientRect().top];
+        else
+            pos = null;
+
+		var clicked = pos && LiteGraph.isInsideRectangle( pos[0], pos[1], x,y,w,h );
+        if(hover){
+            console.log("Hovering!");
+        }
 
 		ctx.fillStyle = hover ? hovercolor : bgcolor;
-		if(clicked)
+		if(clicked){
 			ctx.fillStyle = "#AAA";
+        }
 		ctx.beginPath();
 		ctx.roundRect(x,y,w,h,[4] );
 		ctx.fill();
@@ -8922,6 +8944,74 @@ LGraphNode.prototype.executeAction = function(action)
         bgColor0: 'rgba(175,175,175,1.0)',
         bgColor1:'rgba(155,155,155,0.6)',
         overlayColor: 'rgba(0.0,0.0,0.0,0.4)'
+    }
+
+    LGraphCanvas.zoom_widget = {
+        start: {x: 20, y: 20},
+        button_width: 30,
+        button_height: 20,
+        spacing: 10,
+        reset_width: 80,
+    }
+
+    LGraphCanvas.prototype.drawZoomWidget = function() {
+
+        var ctx = this.ctx;
+
+        var viewport =
+            this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
+
+        let zwidget = LGraphCanvas.zoom_widget;
+
+
+        zwidget.start.x = ctx.canvas.width - 2.0*zwidget.button_width - 3.0*zwidget.spacing - zwidget.reset_width;
+        zwidget.start.y = ctx.canvas.height - zwidget.button_height - zwidget.spacing;
+
+        var scale = this.ds.scale;
+        if(this.drawButton(
+            zwidget.start.x,
+            zwidget.start.y,
+            zwidget.button_width,
+            zwidget.button_height,
+            "-",
+            "#151515"))
+        {
+            scale *= 1.0/1.1;
+            this.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]); this.changeDeltaScale
+        }
+        if(this.drawButton(
+            zwidget.start.x + zwidget.button_width +zwidget.spacing,
+            zwidget.start.y,
+            zwidget.reset_width,
+            zwidget.button_height,
+             "reset (" + String(Math.round((scale*100))).padStart(3,' ') + " %)",
+             "#151515"))
+        {
+
+            this.ds.scale = 1.0;
+            let center = [0.0,0.0];
+            var visible_nodes = this.graph._nodes;
+            for (var i = 0; i < visible_nodes.length; ++i) {
+                let node = visible_nodes[i];
+                //TODO: account for node height?
+                center[0] += (node.pos[0] + node.size[0]*0.5)/visible_nodes.length;
+                center[1] += (node.pos[1] + node.size[1]*0.5)/visible_nodes.length;
+            }
+
+            this.ds.offset[0] =  ((this.canvas.width * 0.5) / this.ds.scale) - center[0];
+            this.ds.offset[1] =  ((this.canvas.height* 0.5) / this.ds.scale) - center[1];
+        }
+        if(this.drawButton(
+            zwidget.start.x + zwidget.button_width + zwidget.reset_width +2.0*zwidget.spacing,
+            zwidget.start.y,
+            zwidget.button_width,
+            zwidget.button_height,
+             "+", "#151515"))
+
+        {
+            scale *= 1.1;
+            this.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
+        }
     }
 
     /**
