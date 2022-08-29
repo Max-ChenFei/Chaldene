@@ -8988,8 +8988,17 @@ LGraphNode.prototype.executeAction = function(action)
         {
 
             this.ds.scale = 1.0;
-            this.ds.offset[0] =  (this.canvas.width * 0.5) / this.ds.scale;
-            this.ds.offset[1] =  (this.canvas.height* 0.5) / this.ds.scale;
+            let center = [0.0,0.0];
+            var visible_nodes = this.graph._nodes;
+            for (var i = 0; i < visible_nodes.length; ++i) {
+                let node = visible_nodes[i];
+                //TODO: account for node height?
+                center[0] += (node.pos[0] + node.size[0]*0.5)/visible_nodes.length;
+                center[1] += (node.pos[1] + node.size[1]*0.5)/visible_nodes.length;
+            }
+
+            this.ds.offset[0] =  ((this.canvas.width * 0.5) / this.ds.scale) - center[0];
+            this.ds.offset[1] =  ((this.canvas.height* 0.5) / this.ds.scale) - center[1];
         }
         if(this.drawButton(
             zwidget.start.x + zwidget.button_width + zwidget.reset_width +2.0*zwidget.spacing,
