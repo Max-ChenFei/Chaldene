@@ -8950,7 +8950,7 @@ LGraphNode.prototype.executeAction = function(action)
         button_width: 30,
         button_height: 20,
         spacing: 10,
-        reset_width: 70,
+        reset_width: 80,
     }
 
     LGraphCanvas.prototype.drawZoomWidget = function() {
@@ -8983,7 +8983,7 @@ LGraphNode.prototype.executeAction = function(action)
             zwidget.start.y,
             zwidget.reset_width,
             zwidget.button_height,
-             "R (" + String(Math.round((scale*100))).padStart(3,' ') + " %)",
+             "reset (" + String(Math.round((scale*100))).padStart(3,' ') + " %)",
              "#151515"))
         {
 
