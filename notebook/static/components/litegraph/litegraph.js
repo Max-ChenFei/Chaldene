@@ -8947,10 +8947,10 @@ LGraphNode.prototype.executeAction = function(action)
 
     LGraphCanvas.zoom_widget = {
         start: {x: 20, y: 20},
-        button_width: 60,
+        button_width: 30,
         button_height: 20,
-        spacing: 20,
-        reset_width: 100,
+        spacing: 10,
+        reset_width: 70,
     }
 
     LGraphCanvas.prototype.drawZoomWidget = function() {
@@ -8962,15 +8962,17 @@ LGraphNode.prototype.executeAction = function(action)
 
         let zwidget = LGraphCanvas.zoom_widget;
 
-        //comment this line if you prefer it to be centered
-        zwidget.start.x = ctx.canvas.width*0.5 - zwidget.button_width - zwidget.spacing - zwidget.reset_width*0.5;
+
+        zwidget.start.x = ctx.canvas.width - 2.0*zwidget.button_width - 3.0*zwidget.spacing - zwidget.reset_width;
+        zwidget.start.y = ctx.canvas.height - zwidget.button_height - zwidget.spacing;
+
         var scale = this.ds.scale;
         if(this.drawButton(
             zwidget.start.x,
             zwidget.start.y,
             zwidget.button_width,
             zwidget.button_height,
-            "Zoom -",
+            "-",
             "#151515"))
         {
             scale *= 1.0/1.1;
@@ -8981,7 +8983,7 @@ LGraphNode.prototype.executeAction = function(action)
             zwidget.start.y,
             zwidget.reset_width,
             zwidget.button_height,
-             "Reset (" + String(Math.round((scale*100))).padStart(3,' ') + " %)",
+             "R (" + String(Math.round((scale*100))).padStart(3,' ') + " %)",
              "#151515"))
         {
 
@@ -8994,7 +8996,7 @@ LGraphNode.prototype.executeAction = function(action)
             zwidget.start.y,
             zwidget.button_width,
             zwidget.button_height,
-             "Zoom +", "#151515"))
+             "+", "#151515"))
 
         {
             scale *= 1.1;
