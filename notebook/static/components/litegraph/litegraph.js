@@ -2534,12 +2534,6 @@
 
         this.flags = {};
         this.fff = null;
-
-        console.log("Constructor called")
-
-        this.addInput("", "__SEQUENCE_TYPE");
-        this.addOutput("", "__SEQUENCE_TYPE");
-
     };
 
     /**
@@ -4777,10 +4771,14 @@
             return out;
         }
 
-        //weird feature that never got finished
-        if (is_input && slot_number == -1) {
+
+        if (is_input && slot_number == this.inputs.length-1) {
             out[0] = this.pos[0] + LiteGraph.NODE_TITLE_HEIGHT * 0.5;
-            out[1] = this.pos[1] + LiteGraph.NODE_TITLE_HEIGHT * 0.5;
+            out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT * 0.5;
+            return out;
+        } else if (!is_input && slot_number == this.outputs.length -1){
+            out[0] = this.pos[0] + this.size[0] - LiteGraph.NODE_TITLE_HEIGHT * 0.5;
+            out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT * 0.5;
             return out;
         }
 
@@ -5341,11 +5339,13 @@ LGraphNode.prototype.executeAction = function(action)
             /*number: "#7F7",
             string: "#77F",
             boolean: "#F77",*/
+            __SEQUENCE_TYPE: "#2596be"
         }
         this.default_connection_color_byTypeOff = {
             /*number: "#474",
             string: "#447",
             boolean: "#744",*/
+            __SEQUENCE_TYPE: "#05567e"
         };
 
         this.highquality_render = true;
@@ -6885,7 +6885,7 @@ LGraphNode.prototype.executeAction = function(action)
                 if (
                     node &&
                     e.click_time < 300 &&
-                    isInsideRectangle( e.canvasX, e.canvasY, node.pos[0], node.pos[1] - LiteGraph.NODE_TITLE_HEIGHT, LiteGraph.NODE_TITLE_HEIGHT, LiteGraph.NODE_TITLE_HEIGHT )
+                    isInsideRectangle( e.canvasX, e.canvasY, 15+node.pos[0], node.pos[1] - LiteGraph.NODE_TITLE_HEIGHT, 15+LiteGraph.NODE_TITLE_HEIGHT, LiteGraph.NODE_TITLE_HEIGHT )
                 ) {
                     node.collapse();
                 }
@@ -8722,7 +8722,7 @@ LGraphNode.prototype.executeAction = function(action)
                     ctx.fill();
 
                     //render name
-                    if (render_text) {
+                    if (render_text && i!=node.inputs.length-1) {
                         var text = slot.label != null ? slot.label : slot.name;
                         if (text) {
                             ctx.fillStyle = LiteGraph.NODE_TEXT_COLOR;
@@ -8829,7 +8829,7 @@ LGraphNode.prototype.executeAction = function(action)
 	                    ctx.stroke();
 
                     //render output name
-                    if (render_text) {
+                    if (render_text && i!=node.outputs.length-1) {
                         var text = slot.label != null ? slot.label : slot.name;
                         if (text) {
                             ctx.fillStyle = LiteGraph.NODE_TEXT_COLOR;
@@ -9482,7 +9482,7 @@ LGraphNode.prototype.executeAction = function(action)
                         var measure = ctx.measureText(title);
                         ctx.fillText(
                             title.substr(0,20), //avoid urls too long
-                            title_height,// + measure.width * 0.5,
+                            15+title_height,// + measure.width * 0.5,
                             LiteGraph.NODE_TITLE_TEXT_Y - title_height
                         );
                         ctx.textAlign = "left";
@@ -9490,7 +9490,7 @@ LGraphNode.prototype.executeAction = function(action)
                         ctx.textAlign = "left";
                         ctx.fillText(
                             title,
-                            title_height,
+                            15+title_height,
                             LiteGraph.NODE_TITLE_TEXT_Y - title_height
                         );
                     }
