@@ -2906,8 +2906,6 @@
      * @return {*} data or if it is not connected returns undefined
      */
     LGraphNode.prototype.getInputData = function(slot, force_update) {
-        slot = slot+1;
-
         if (!this.inputs) {
             return;
         } //undefined;
