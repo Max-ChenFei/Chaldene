@@ -2811,10 +2811,6 @@
      * @param {*} data
      */
     LGraphNode.prototype.setOutputData = function(slot, data) {
-        if(slot<0)
-            return;
-        slot = slot+1;
-
         if (!this.outputs) {
             return;
         }
@@ -2910,9 +2906,6 @@
      * @return {*} data or if it is not connected returns undefined
      */
     LGraphNode.prototype.getInputData = function(slot, force_update) {
-        if(slot<0){
-            return;
-        }
         slot = slot+1;
 
         if (!this.inputs) {
