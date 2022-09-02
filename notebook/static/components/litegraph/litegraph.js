@@ -6882,13 +6882,6 @@ LGraphNode.prototype.executeAction = function(action)
             } else if (this.node_dragged) {
                 //node being dragged?
                 var node = this.node_dragged;
-                if (
-                    node &&
-                    e.click_time < 300 &&
-                    isInsideRectangle( e.canvasX, e.canvasY, 15+node.pos[0], node.pos[1] - LiteGraph.NODE_TITLE_HEIGHT, 15+LiteGraph.NODE_TITLE_HEIGHT, LiteGraph.NODE_TITLE_HEIGHT )
-                ) {
-                    node.collapse();
-                }
 
                 this.dirty_canvas = true;
                 this.dirty_bgcanvas = true;
@@ -9421,20 +9414,7 @@ LGraphNode.prototype.executeAction = function(action)
                 }
 
                 ctx.fillStyle = node.boxcolor || colState || LiteGraph.NODE_DEFAULT_BOXCOLOR;
-				if(low_quality)
-					ctx.fillRect( title_height * 0.5 - box_size *0.5, title_height * -0.5 - box_size *0.5, box_size , box_size  );
-				else
-				{
-					ctx.beginPath();
-					ctx.arc(
-						title_height * 0.5,
-						title_height * -0.5,
-						box_size * 0.5,
-						0,
-						Math.PI * 2
-					);
-					ctx.fill();
-				}
+
             } else {
                 if (low_quality) {
                     ctx.fillStyle = "black";
@@ -9482,7 +9462,7 @@ LGraphNode.prototype.executeAction = function(action)
                         var measure = ctx.measureText(title);
                         ctx.fillText(
                             title.substr(0,20), //avoid urls too long
-                            15+title_height,// + measure.width * 0.5,
+                            title_height,// + measure.width * 0.5,
                             LiteGraph.NODE_TITLE_TEXT_Y - title_height
                         );
                         ctx.textAlign = "left";
@@ -9490,7 +9470,7 @@ LGraphNode.prototype.executeAction = function(action)
                         ctx.textAlign = "left";
                         ctx.fillText(
                             title,
-                            15+title_height,
+                            title_height,
                             LiteGraph.NODE_TITLE_TEXT_Y - title_height
                         );
                     }
