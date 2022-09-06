@@ -511,6 +511,8 @@
                 node.onNodeCreated();
             }
 
+            node.addInput("in", "__SEQUENCE_TYPE");
+            node.addOutput("out", "__SEQUENCE_TYPE");
             return node;
         },
 
@@ -2497,6 +2499,7 @@
     global.LGraphNode = LiteGraph.LGraphNode = LGraphNode;
 
     LGraphNode.prototype._ctor = function(title) {
+        console.log('base class constructor');
         this.title = title || "Unnamed";
         this.size = [LiteGraph.NODE_WIDTH, 60];
         this.graph = null;
@@ -2531,7 +2534,6 @@
 
         this.flags = {};
         this.fff = null;
-
     };
 
     /**
@@ -4760,10 +4762,14 @@
             return out;
         }
 
-        //weird feature that never got finished
-        if (is_input && slot_number == -1) {
+
+        if (is_input && slot_number == this.inputs.length-1) {
             out[0] = this.pos[0] + LiteGraph.NODE_TITLE_HEIGHT * 0.5;
-            out[1] = this.pos[1] + LiteGraph.NODE_TITLE_HEIGHT * 0.5;
+            out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT * 0.5;
+            return out;
+        } else if (!is_input && slot_number == this.outputs.length -1){
+            out[0] = this.pos[0] + this.size[0] - LiteGraph.NODE_TITLE_HEIGHT * 0.5;
+            out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT * 0.5;
             return out;
         }
 
@@ -5324,11 +5330,13 @@ LGraphNode.prototype.executeAction = function(action)
             /*number: "#7F7",
             string: "#77F",
             boolean: "#F77",*/
+            __SEQUENCE_TYPE: "#2596be"
         }
         this.default_connection_color_byTypeOff = {
             /*number: "#474",
             string: "#447",
             boolean: "#744",*/
+            __SEQUENCE_TYPE: "#05567e"
         };
 
         this.highquality_render = true;
@@ -6865,13 +6873,6 @@ LGraphNode.prototype.executeAction = function(action)
             } else if (this.node_dragged) {
                 //node being dragged?
                 var node = this.node_dragged;
-                if (
-                    node &&
-                    e.click_time < 300 &&
-                    isInsideRectangle( e.canvasX, e.canvasY, node.pos[0], node.pos[1] - LiteGraph.NODE_TITLE_HEIGHT, LiteGraph.NODE_TITLE_HEIGHT, LiteGraph.NODE_TITLE_HEIGHT )
-                ) {
-                    node.collapse();
-                }
 
                 this.dirty_canvas = true;
                 this.dirty_bgcanvas = true;
@@ -8059,13 +8060,8 @@ LGraphNode.prototype.executeAction = function(action)
     };
 
 	/**
-<<<<<<< HEAD
 	 *
 	 * activates or deactivates the minimap
-=======
-	 *
-	 * activates or deactivates the minimap
->>>>>>> 952ac0a (Added a toggle to the minimap to the context menu. Default is off. Partially fixes #7.)
 	 * @method toggleMinimap
 	 */
 	LGraphCanvas.prototype.toggleMinimap = function () {
@@ -8710,7 +8706,7 @@ LGraphNode.prototype.executeAction = function(action)
                     ctx.fill();
 
                     //render name
-                    if (render_text) {
+                    if (render_text && i!=node.inputs.length-1) {
                         var text = slot.label != null ? slot.label : slot.name;
                         if (text) {
                             ctx.fillStyle = LiteGraph.NODE_TEXT_COLOR;
@@ -8817,7 +8813,7 @@ LGraphNode.prototype.executeAction = function(action)
 	                    ctx.stroke();
 
                     //render output name
-                    if (render_text) {
+                    if (render_text && i!=node.outputs.length-1) {
                         var text = slot.label != null ? slot.label : slot.name;
                         if (text) {
                             ctx.fillStyle = LiteGraph.NODE_TEXT_COLOR;
@@ -9409,20 +9405,7 @@ LGraphNode.prototype.executeAction = function(action)
                 }
 
                 ctx.fillStyle = node.boxcolor || colState || LiteGraph.NODE_DEFAULT_BOXCOLOR;
-				if(low_quality)
-					ctx.fillRect( title_height * 0.5 - box_size *0.5, title_height * -0.5 - box_size *0.5, box_size , box_size  );
-				else
-				{
-					ctx.beginPath();
-					ctx.arc(
-						title_height * 0.5,
-						title_height * -0.5,
-						box_size * 0.5,
-						0,
-						Math.PI * 2
-					);
-					ctx.fill();
-				}
+
             } else {
                 if (low_quality) {
                     ctx.fillStyle = "black";
@@ -16009,6 +15992,7 @@ if (typeof exports != "undefined") {
 
     //Constant
     function ConstantNumber() {
+        console.log('add node');
         this.addOutput("value", "number");
         this.addProperty("value", 1.0);
         this.widget = this.addWidget("number","value",1,"value");
