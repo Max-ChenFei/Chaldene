@@ -5419,6 +5419,8 @@ LGraphNode.prototype.executeAction = function(action)
         if (!options.skip_render) {
             this.startRendering();
         }
+        //Note: imageprocessingcell.js sets a default height of 300
+        this.default_height = 300;
 
         this.autoresize = options.autoresize;
 
@@ -6010,6 +6012,7 @@ LGraphNode.prototype.executeAction = function(action)
 
                 //not dragging mouse to connect two slots
                 if ( !this.connecting_node && !node.flags.collapsed && !this.live_mode ) {
+                    //* TODO lOOk here */
                     //Search for corner for resize
                     if ( !skip_action &&
                         node.resizable !== false &&
@@ -8960,7 +8963,7 @@ LGraphNode.prototype.executeAction = function(action)
         let zwidget = LGraphCanvas.zoom_widget;
 
 
-        zwidget.start.x = ctx.canvas.width - 2.0*zwidget.button_width - 3.0*zwidget.spacing - zwidget.reset_width;
+        zwidget.start.x = ctx.canvas.width - 3.0*zwidget.button_width - 4.0*zwidget.spacing - zwidget.reset_width;
         zwidget.start.y = ctx.canvas.height - zwidget.button_height - zwidget.spacing;
 
         var scale = this.ds.scale;
@@ -9007,6 +9010,32 @@ LGraphNode.prototype.executeAction = function(action)
         {
             scale *= 1.1;
             this.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
+        }
+
+        if(this.drawButton(
+            zwidget.start.x + 2.0*zwidget.button_width + zwidget.reset_width +3.0*zwidget.spacing,
+            zwidget.start.y,
+            zwidget.button_width,
+            zwidget.button_height,
+             "FS", "#151515"))
+
+        {
+            if(this.fullscreen){
+                this.canvas.style.left = "";
+                this.canvas.style.top = "";
+                this.canvas.style.position="";
+                this.canvas.style.zIndex = "";
+                this.fullscreen = false;
+                this.resize();
+
+            } else {
+                this.fullscreen = true;
+                this.canvas.style.left = 0;
+                this.canvas.style.top = 0;
+                this.canvas.style.position = "fixed";
+                this.canvas.style.zIndex = 100;
+                this.resize();
+            }
         }
     }
 
@@ -10548,9 +10577,16 @@ LGraphNode.prototype.executeAction = function(action)
      **/
     LGraphCanvas.prototype.resize = function(width, height) {
         if (!width && !height) {
-            var parent = this.canvas.parentNode;
-            width = parent.offsetWidth;
-            height = parent.offsetHeight;
+            if(!this.fullscreen){
+                var parent = this.canvas.parentNode;
+                width = parent.offsetWidth;
+                //note: parent height is flexible,
+                //so we set the canvas height to the default
+                height = this.default_height;
+            } else {
+                width = document.body.clientWidth;
+                height = document.body.clientHeight;
+            }
         }
 
         if (this.canvas.width == width && this.canvas.height == height) {
@@ -13862,6 +13898,7 @@ LGraphNode.prototype.executeAction = function(action)
         }
         root.style.minWidth = 100;
         root.style.minHeight = 100;
+        root.style.zIndex = 101;
         root.style.pointerEvents = "none";
         setTimeout(function() {
             root.style.pointerEvents = "auto";
