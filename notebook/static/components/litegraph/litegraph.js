@@ -6222,13 +6222,33 @@ LGraphNode.prototype.executeAction = function(action)
 					}
 
 					this.selected_group = this.graph.getGroupOnPos( e.canvasX, e.canvasY );
-					this.selected_group_resizing = false;
+					this.selected_group_resizing_x = 0;
+                    this.selected_group_resizing_y = 0;
 					if (this.selected_group && !this.read_only ) {
                         skip_action = true;
-						var dist = distance( [e.canvasX, e.canvasY], [ this.selected_group.pos[0] + this.selected_group.size[0], this.selected_group.pos[1] + this.selected_group.size[1] ] );
-						if (dist * this.ds.scale < 10) {
-							this.selected_group_resizing = true;
-						} else {
+                        var dist_left  = Math.abs(e.canvasX - this.selected_group.pos[0]);
+                        var dist_right = Math.abs(e.canvasX - this.selected_group.pos[0] - this.selected_group.size[0]);
+
+                        var dist_top    = Math.abs(e.canvasY - this.selected_group.pos[1]);
+                        var dist_bottom = Math.abs(e.canvasY - this.selected_group.pos[1] - this.selected_group.size[1]);
+						let no_resize = true;
+
+                        if (dist_left * this.ds.scale < 10) {
+							this.selected_group_resizing_x = -1;
+                            no_resize = false;
+						} else if (dist_right * this.ds.scale < 10) {
+							this.selected_group_resizing_x = 1;
+                            no_resize = false;
+                        }
+                        if (dist_top * this.ds.scale < 10) {
+							this.selected_group_resizing_y = -1;
+                            no_resize = false;
+                        } else if (dist_bottom * this.ds.scale < 10) {
+							this.selected_group_resizing_y = 1;
+                            no_resize = false;
+                        }
+
+                        if(no_resize) {
 							this.selected_group.recomputeInsideNodes();
 						}
 					}
@@ -6428,11 +6448,20 @@ LGraphNode.prototype.executeAction = function(action)
 		else if (this.selected_group && !this.read_only)
 		{
             //moving/resizing a group
-            if (this.selected_group_resizing) {
-                this.selected_group.size = [
-                    e.canvasX - this.selected_group.pos[0],
-                    e.canvasY - this.selected_group.pos[1]
-                ];
+            if (this.selected_group_resizing_x != 0 || this.selected_group_resizing_y != 0) {
+                if(this.selected_group_resizing_x>0){
+                    this.selected_group.size[0] = e.canvasX - this.selected_group.pos[0];
+                } else if (this.selected_group_resizing_x<0){
+                    this.selected_group.size[0] = -e.canvasX + this.selected_group.pos[0] + this.selected_group.size[0];
+                    this.selected_group.pos[0] = e.canvasX;
+                }
+
+                if(this.selected_group_resizing_y>0){
+                    this.selected_group.size[1] = e.canvasY - this.selected_group.pos[1];
+                } else if (this.selected_group_resizing_y<0){
+                    this.selected_group.size[1] = -e.canvasY + this.selected_group.pos[1] + this.selected_group.size[1];
+                    this.selected_group.pos[1] = e.canvasY;
+                }
             } else {
                 var deltax = delta[0] / this.ds.scale;
                 var deltay = delta[1] / this.ds.scale;
@@ -6706,7 +6735,8 @@ LGraphNode.prototype.executeAction = function(action)
                 }
                 this.selected_group = null;
             }
-            this.selected_group_resizing = false;
+            this.selected_group_resizing_x = 0;
+            this.selected_group_resizing_y = 0;
 
 			var node = this.graph.getNodeOnPos(
 							e.canvasX,
