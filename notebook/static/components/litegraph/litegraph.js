@@ -6012,7 +6012,6 @@ LGraphNode.prototype.executeAction = function(action)
 
                 //not dragging mouse to connect two slots
                 if ( !this.connecting_node && !node.flags.collapsed && !this.live_mode ) {
-                    //* TODO lOOk here */
                     //Search for corner for resize
                     if ( !skip_action &&
                         node.resizable !== false &&
@@ -6328,26 +6327,17 @@ LGraphNode.prototype.executeAction = function(action)
 			}
 
         } else if (e.which == 3 || this.pointer_is_double) {
+            this.just_pressed_rmb = true;
 
-            //right button
-			if (this.allow_interaction && !skip_action && !this.read_only){
+            //wait for 300ms to start dragging the canvas
+            var that = this;
+            setTimeout(
 
-				// is it hover a node ?
-				if (node){
-					if(Object.keys(this.selected_nodes).length
-					   && (this.selected_nodes[node.id] || e.shiftKey || e.ctrlKey || e.metaKey)
-					){
-						// is multiselected or using shift to include the now node
-						if (!this.selected_nodes[node.id]) this.selectNodes([node],true); // add this if not present
-					}else{
-						// update selection
-						this.selectNodes([node]);
-					}
-				}
+                function(){
+                    that.just_pressed_rmb = false;
+                }
 
-				// show menu on this node
-				this.processContextMenu(node, e);
-			}
+            ,300);
 
         }
 
@@ -6927,6 +6917,29 @@ LGraphNode.prototype.executeAction = function(action)
             //trace("right");
             this.dirty_canvas = true;
             this.dragging_canvas = false;
+
+            if(this.just_pressed_rmb){
+                this.just_pressed_rmb = false;
+			if (this.allow_interaction && !this.read_only){
+
+				// is it hover a node ?
+				if (node){
+					if(Object.keys(this.selected_nodes).length
+					   && (this.selected_nodes[node.id] || e.shiftKey || e.ctrlKey || e.metaKey)
+					){
+						// is multiselected or using shift to include the now node
+						if (!this.selected_nodes[node.id]) this.selectNodes([node],true); // add this if not present
+					}else{
+						// update selection
+						this.selectNodes([node]);
+					}
+				}
+
+				// show menu on this node
+				this.processContextMenu(node, e);
+			}
+            }
+
         }
 
         /*
