@@ -6224,6 +6224,7 @@ LGraphNode.prototype.executeAction = function(action)
 					this.selected_group = this.graph.getGroupOnPos( e.canvasX, e.canvasY );
 					this.selected_group_resizing = false;
 					if (this.selected_group && !this.read_only ) {
+                        skip_action = true;
 						var dist = distance( [e.canvasX, e.canvasY], [ this.selected_group.pos[0] + this.selected_group.size[0], this.selected_group.pos[1] + this.selected_group.size[1] ] );
 						if (dist * this.ds.scale < 10) {
 							this.selected_group_resizing = true;
