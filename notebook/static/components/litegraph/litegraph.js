@@ -6255,12 +6255,6 @@ LGraphNode.prototype.executeAction = function(action)
 					clicking_canvas_bg = true;
 				}
             }
-
-            if (!skip_action && clicking_canvas_bg && this.allow_dragcanvas) {
-            	//console.log("pointerevents: dragging_canvas start");
-            	this.dragging_canvas = true;
-            }
-
         } else if (e.which == 2) {
             //middle button
 
@@ -6332,8 +6326,11 @@ LGraphNode.prototype.executeAction = function(action)
             //wait for 300ms to start dragging the canvas
             var that = this;
             setTimeout(
-
                 function(){
+                    if(!that.just_pressed_rmb)
+                        return;
+
+                    that.dragging_canvas = true;
                     that.just_pressed_rmb = false;
                 }
 
