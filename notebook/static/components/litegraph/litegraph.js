@@ -5970,16 +5970,6 @@ LGraphNode.prototype.executeAction = function(action)
 		//left button mouse / single finger
         if (e.which == 1 && !this.pointer_is_double)
 		{
-            if (e.ctrlKey)
-			{
-                this.dragging_rectangle = new Float32Array(4);
-                this.dragging_rectangle[0] = e.canvasX;
-                this.dragging_rectangle[1] = e.canvasY;
-                this.dragging_rectangle[2] = 1;
-                this.dragging_rectangle[3] = 1;
-                skip_action = true;
-            }
-
             // clone node ALT dragging
             if (LiteGraph.alt_drag_do_clone_nodes && e.altKey && node && this.allow_interaction && !skip_action && !this.read_only)
             {
@@ -6255,6 +6245,15 @@ LGraphNode.prototype.executeAction = function(action)
 					clicking_canvas_bg = true;
 				}
             }
+
+            if(!skip_action && clicking_canvas_bg){
+                this.dragging_rectangle = new Float32Array(4);
+                this.dragging_rectangle[0] = e.canvasX;
+                this.dragging_rectangle[1] = e.canvasY;
+                this.dragging_rectangle[2] = 1;
+                this.dragging_rectangle[3] = 1;
+            }
+
         } else if (e.which == 2) {
             //middle button
 
