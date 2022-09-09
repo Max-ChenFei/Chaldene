@@ -6339,7 +6339,7 @@ LGraphNode.prototype.executeAction = function(action)
         } else if (e.which == 3 || this.pointer_is_double) {
             this.just_pressed_rmb = true;
 
-            //wait for 300ms to start dragging the canvas
+            //wait for 100ms to start dragging the canvas
             var that = this;
             setTimeout(
                 function(){
@@ -6350,7 +6350,7 @@ LGraphNode.prototype.executeAction = function(action)
                     that.just_pressed_rmb = false;
                 }
 
-            ,300);
+            ,100);
 
         }
 
