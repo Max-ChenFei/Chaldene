@@ -856,7 +856,7 @@
         this._nodes_executable = null; //nodes that contain onExecute sorted in execution order
 
         //other scene stuff
-        this._groups = [];
+        this._comments = [];
 
         //links
         this.links = {}; //container with all the links
@@ -1431,9 +1431,9 @@
             return;
         }
 
-        //groups
-        if (node.constructor === LGraphGroup) {
-            this._groups.push(node);
+        //comments
+        if (node.constructor === LGraphComment) {
+            this._comments.push(node);
             this.setDirtyCanvas(true);
             this.change();
             node.graph = this;
@@ -1495,10 +1495,10 @@
      */
 
     LGraph.prototype.remove = function(node) {
-        if (node.constructor === LiteGraph.LGraphGroup) {
-            var index = this._groups.indexOf(node);
+        if (node.constructor === LiteGraph.LGraphComment) {
+            var index = this._comments.indexOf(node);
             if (index != -1) {
-                this._groups.splice(index, 1);
+                this._comments.splice(index, 1);
             }
             node.graph = null;
             this._version++;
@@ -1675,7 +1675,7 @@
             var n = nodes_list[i];
             if (n.isPointInside(x, y, margin)) {
                 // check for lesser interest nodes (TODO check for overlapping, use the top)
-				/*if (typeof n == "LGraphGroup"){
+				/*if (typeof n == "LGraphComment"){
 					nRet = n;
 				}else{*/
 					return n;
@@ -1686,15 +1686,15 @@
     };
 
     /**
-     * Returns the top-most group in that position
-     * @method getGroupOnPos
+     * Returns the top-most comment in that position
+     * @method getCommentOnPos
      * @param {number} x the x coordinate in canvas space
      * @param {number} y the y coordinate in canvas space
-     * @return {LGraphGroup} the group or null
+     * @return {LGraphComment} the comment or null
      */
-    LGraph.prototype.getGroupOnPos = function(x, y) {
-        for (var i = this._groups.length - 1; i >= 0; i--) {
-            var g = this._groups[i];
+    LGraph.prototype.getCommentOnPos = function(x, y) {
+        for (var i = this._comments.length - 1; i >= 0; i--) {
+            var g = this._comments[i];
             if (g.isPointInside(x, y, 2, true)) {
                 return g;
             }
@@ -2224,9 +2224,9 @@
             links.push(link.serialize());
         }
 
-        var groups_info = [];
-        for (var i = 0; i < this._groups.length; ++i) {
-            groups_info.push(this._groups[i].serialize());
+        var comments_info = [];
+        for (var i = 0; i < this._comments.length; ++i) {
+            comments_info.push(this._comments[i].serialize());
         }
 
         var data = {
@@ -2234,7 +2234,7 @@
             last_link_id: this.last_link_id,
             nodes: nodes_info,
             links: links,
-            groups: groups_info,
+            comments: comments_info,
             config: this.config,
 			extra: this.extra,
             version: LiteGraph.VERSION
@@ -2282,7 +2282,7 @@
 
         //copy all stored fields
         for (var i in data) {
-			if(i == "nodes" || i == "groups" ) //links must be accepted
+			if(i == "nodes" || i == "comments" ) //links must be accepted
 				continue;
             this[i] = data[i];
         }
@@ -2324,13 +2324,13 @@
             }
         }
 
-        //groups
-        this._groups.length = 0;
-        if (data.groups) {
-            for (var i = 0; i < data.groups.length; ++i) {
-                var group = new LiteGraph.LGraphGroup();
-                group.configure(data.groups[i]);
-                this.add(group);
+        //comments
+        this._comments.length = 0;
+        if (data.comments) {
+            for (var i = 0; i < data.comments.length; ++i) {
+                var comment = new LiteGraph.LGraphComment();
+                comment.configure(data.comments[i]);
+                this.add(comment);
             }
         }
 
@@ -4966,17 +4966,17 @@ LGraphNode.prototype.executeAction = function(action)
         ];
     };
 
-    function LGraphGroup(title) {
+    function LGraphComment(title) {
         this._ctor(title);
     }
 
-    global.LGraphGroup = LiteGraph.LGraphGroup = LGraphGroup;
+    global.LGraphComment = LiteGraph.LGraphComment = LGraphComment;
 
-    LGraphGroup.prototype._ctor = function(title) {
-        this.title = title || "Group";
+    LGraphComment.prototype._ctor = function(title) {
+        this.title = title || "Comment";
         this.font_size = 24;
         this.color = LGraphCanvas.node_colors.pale_blue
-            ? LGraphCanvas.node_colors.pale_blue.groupcolor
+            ? LGraphCanvas.node_colors.pale_blue.commentcolor
             : "#AAA";
         this._bounding = new Float32Array([10, 10, 140, 80]);
         this._pos = this._bounding.subarray(0, 2);
@@ -5013,14 +5013,14 @@ LGraphNode.prototype.executeAction = function(action)
         });
     };
 
-    LGraphGroup.prototype.configure = function(o) {
+    LGraphComment.prototype.configure = function(o) {
         this.title = o.title;
         this._bounding.set(o.bounding);
         this.color = o.color;
         this.font = o.font;
     };
 
-    LGraphGroup.prototype.serialize = function() {
+    LGraphComment.prototype.serialize = function() {
         var b = this._bounding;
         return {
             title: this.title,
@@ -5035,7 +5035,7 @@ LGraphNode.prototype.executeAction = function(action)
         };
     };
 
-    LGraphGroup.prototype.move = function(deltax, deltay, ignore_nodes) {
+    LGraphComment.prototype.move = function(deltax, deltay, ignore_nodes) {
         this._pos[0] += deltax;
         this._pos[1] += deltay;
         if (ignore_nodes) {
@@ -5048,7 +5048,7 @@ LGraphNode.prototype.executeAction = function(action)
         }
     };
 
-    LGraphGroup.prototype.recomputeInsideNodes = function() {
+    LGraphComment.prototype.recomputeInsideNodes = function() {
         this._nodes.length = 0;
         var nodes = this.graph._nodes;
         var node_bounding = new Float32Array(4);
@@ -5063,8 +5063,8 @@ LGraphNode.prototype.executeAction = function(action)
         }
     };
 
-    LGraphGroup.prototype.isPointInside = LGraphNode.prototype.isPointInside;
-    LGraphGroup.prototype.setDirtyCanvas = LGraphNode.prototype.setDirtyCanvas;
+    LGraphComment.prototype.isPointInside = LGraphNode.prototype.isPointInside;
+    LGraphComment.prototype.setDirtyCanvas = LGraphNode.prototype.setDirtyCanvas;
 
     //****************************************
 
@@ -5454,7 +5454,7 @@ LGraphNode.prototype.executeAction = function(action)
         this.dragging_rectangle = null;
 
         this.selected_nodes = {};
-        this.selected_group = null;
+        this.selected_comment = null;
 
         this.visible_nodes = [];
         this.node_dragged = null;
@@ -6221,35 +6221,35 @@ LGraphNode.prototype.executeAction = function(action)
 						}
 					}
 
-					this.selected_group = this.graph.getGroupOnPos( e.canvasX, e.canvasY );
-					this.selected_group_resizing_x = 0;
-                    this.selected_group_resizing_y = 0;
-					if (this.selected_group && !this.read_only ) {
+					this.selected_comment = this.graph.getCommentOnPos( e.canvasX, e.canvasY );
+					this.selected_comment_resizing_x = 0;
+                    this.selected_comment_resizing_y = 0;
+					if (this.selected_comment && !this.read_only ) {
                         skip_action = true;
-                        var dist_left  = Math.abs(e.canvasX - this.selected_group.pos[0]);
-                        var dist_right = Math.abs(e.canvasX - this.selected_group.pos[0] - this.selected_group.size[0]);
+                        var dist_left  = Math.abs(e.canvasX - this.selected_comment.pos[0]);
+                        var dist_right = Math.abs(e.canvasX - this.selected_comment.pos[0] - this.selected_comment.size[0]);
 
-                        var dist_top    = Math.abs(e.canvasY - this.selected_group.pos[1]);
-                        var dist_bottom = Math.abs(e.canvasY - this.selected_group.pos[1] - this.selected_group.size[1]);
+                        var dist_top    = Math.abs(e.canvasY - this.selected_comment.pos[1]);
+                        var dist_bottom = Math.abs(e.canvasY - this.selected_comment.pos[1] - this.selected_comment.size[1]);
 						let no_resize = true;
 
                         if (dist_left * this.ds.scale < 10) {
-							this.selected_group_resizing_x = -1;
+							this.selected_comment_resizing_x = -1;
                             no_resize = false;
 						} else if (dist_right * this.ds.scale < 10) {
-							this.selected_group_resizing_x = 1;
+							this.selected_comment_resizing_x = 1;
                             no_resize = false;
                         }
                         if (dist_top * this.ds.scale < 10) {
-							this.selected_group_resizing_y = -1;
+							this.selected_comment_resizing_y = -1;
                             no_resize = false;
                         } else if (dist_bottom * this.ds.scale < 10) {
-							this.selected_group_resizing_y = 1;
+							this.selected_comment_resizing_y = 1;
                             no_resize = false;
                         }
 
                         if(no_resize) {
-							this.selected_group.recomputeInsideNodes();
+							this.selected_comment.recomputeInsideNodes();
 						}
 					}
 
@@ -6445,28 +6445,28 @@ LGraphNode.prototype.executeAction = function(action)
             this.dragging_rectangle[3] = e.canvasY - this.dragging_rectangle[1];
             this.dirty_canvas = true;
         }
-		else if (this.selected_group && !this.read_only)
+		else if (this.selected_comment && !this.read_only)
 		{
-            //moving/resizing a group
-            if (this.selected_group_resizing_x != 0 || this.selected_group_resizing_y != 0) {
-                if(this.selected_group_resizing_x>0){
-                    this.selected_group.size[0] = e.canvasX - this.selected_group.pos[0];
-                } else if (this.selected_group_resizing_x<0){
-                    this.selected_group.size[0] = -e.canvasX + this.selected_group.pos[0] + this.selected_group.size[0];
-                    this.selected_group.pos[0] = e.canvasX;
+            //moving/resizing a comment
+            if (this.selected_comment_resizing_x != 0 || this.selected_comment_resizing_y != 0) {
+                if(this.selected_comment_resizing_x>0){
+                    this.selected_comment.size[0] = e.canvasX - this.selected_comment.pos[0];
+                } else if (this.selected_comment_resizing_x<0){
+                    this.selected_comment.size[0] = -e.canvasX + this.selected_comment.pos[0] + this.selected_comment.size[0];
+                    this.selected_comment.pos[0] = e.canvasX;
                 }
 
-                if(this.selected_group_resizing_y>0){
-                    this.selected_group.size[1] = e.canvasY - this.selected_group.pos[1];
-                } else if (this.selected_group_resizing_y<0){
-                    this.selected_group.size[1] = -e.canvasY + this.selected_group.pos[1] + this.selected_group.size[1];
-                    this.selected_group.pos[1] = e.canvasY;
+                if(this.selected_comment_resizing_y>0){
+                    this.selected_comment.size[1] = e.canvasY - this.selected_comment.pos[1];
+                } else if (this.selected_comment_resizing_y<0){
+                    this.selected_comment.size[1] = -e.canvasY + this.selected_comment.pos[1] + this.selected_comment.size[1];
+                    this.selected_comment.pos[1] = e.canvasY;
                 }
             } else {
                 var deltax = delta[0] / this.ds.scale;
                 var deltay = delta[1] / this.ds.scale;
-                this.selected_group.move(deltax, deltay, e.ctrlKey);
-                if (this.selected_group._nodes.length) {
+                this.selected_comment.move(deltax, deltay, e.ctrlKey);
+                if (this.selected_comment._nodes.length) {
                     this.dirty_canvas = true;
                 }
             }
@@ -6716,27 +6716,27 @@ LGraphNode.prototype.executeAction = function(action)
             //left button
             this.node_widget = null;
 
-            if (this.selected_group) {
+            if (this.selected_comment) {
                 var diffx =
-                    this.selected_group.pos[0] -
-                    Math.round(this.selected_group.pos[0]);
+                    this.selected_comment.pos[0] -
+                    Math.round(this.selected_comment.pos[0]);
                 var diffy =
-                    this.selected_group.pos[1] -
-                    Math.round(this.selected_group.pos[1]);
-                this.selected_group.move(diffx, diffy, e.ctrlKey);
-                this.selected_group.pos[0] = Math.round(
-                    this.selected_group.pos[0]
+                    this.selected_comment.pos[1] -
+                    Math.round(this.selected_comment.pos[1]);
+                this.selected_comment.move(diffx, diffy, e.ctrlKey);
+                this.selected_comment.pos[0] = Math.round(
+                    this.selected_comment.pos[0]
                 );
-                this.selected_group.pos[1] = Math.round(
-                    this.selected_group.pos[1]
+                this.selected_comment.pos[1] = Math.round(
+                    this.selected_comment.pos[1]
                 );
-                if (this.selected_group._nodes.length) {
+                if (this.selected_comment._nodes.length) {
                     this.dirty_canvas = true;
                 }
-                this.selected_group = null;
+                this.selected_comment = null;
             }
-            this.selected_group_resizing_x = 0;
-            this.selected_group_resizing_y = 0;
+            this.selected_comment_resizing_x = 0;
+            this.selected_comment_resizing_y = 0;
 
 			var node = this.graph.getNodeOnPos(
 							e.canvasX,
@@ -8481,9 +8481,9 @@ LGraphNode.prototype.executeAction = function(action)
                 ctx.imageSmoothingEnabled = ctx.imageSmoothingEnabled = true; //= ctx.mozImageSmoothingEnabled
             }
 
-            //groups
-            if (this.graph._groups.length && !this.live_mode) {
-                this.drawGroups(canvas, ctx);
+            //comments
+            if (this.graph._comments.length && !this.live_mode) {
+                this.drawComments(canvas, ctx);
             }
 
             if (this.onDrawBackground) {
@@ -10552,30 +10552,30 @@ LGraphNode.prototype.executeAction = function(action)
     };
 
     /**
-     * draws every group area in the background
-     * @method drawGroups
+     * draws every comment area in the background
+     * @method drawComments
      **/
-    LGraphCanvas.prototype.drawGroups = function(canvas, ctx) {
+    LGraphCanvas.prototype.drawComments = function(canvas, ctx) {
         if (!this.graph) {
             return;
         }
 
-        var groups = this.graph._groups;
+        var comments = this.graph._comments;
 
         ctx.save();
         ctx.globalAlpha = 0.5 * this.editor_alpha;
 
-        for (var i = 0; i < groups.length; ++i) {
-            var group = groups[i];
+        for (var i = 0; i < comments.length; ++i) {
+            var comment = comments[i];
 
-            if (!overlapBounding(this.visible_area, group._bounding)) {
+            if (!overlapBounding(this.visible_area, comment._bounding)) {
                 continue;
             } //out of the visible area
 
-            ctx.fillStyle = group.color || "#335";
-            ctx.strokeStyle = group.color || "#335";
-            var pos = group._pos;
-            var size = group._size;
+            ctx.fillStyle = comment.color || "#335";
+            ctx.strokeStyle = comment.color || "#335";
+            var pos = comment._pos;
+            var size = comment._size;
             ctx.globalAlpha = 0.25 * this.editor_alpha;
             ctx.beginPath();
             ctx.rect(pos[0] + 0.5, pos[1] + 0.5, size[0], size[1]);
@@ -10590,10 +10590,10 @@ LGraphNode.prototype.executeAction = function(action)
             ctx.fill();
 
             var font_size =
-                group.font_size || LiteGraph.DEFAULT_GROUP_FONT_SIZE;
+                comment.font_size || LiteGraph.DEFAULT_GROUP_FONT_SIZE;
             ctx.font = font_size + "px Arial";
 			ctx.textAlign = "left";
-            ctx.fillText(group.title, pos[0] + 4, pos[1] - 2);
+            ctx.fillText(comment.title, pos[0] + 4, pos[1] - 2);
         }
 
         ctx.restore();
@@ -10737,13 +10737,13 @@ LGraphNode.prototype.executeAction = function(action)
 
     /* CONTEXT MENU ********************/
 
-    LGraphCanvas.onGroupAdd = function(info, entry, mouse_event) {
+    LGraphCanvas.onCommentAdd = function(info, entry, mouse_event) {
         var canvas = LGraphCanvas.active_canvas;
         var ref_window = canvas.getCanvasWindow();
 
-        var group = new LiteGraph.LGraphGroup();
-        group.pos = canvas.convertEventToCanvasOffset(mouse_event);
-        canvas.graph.add(group);
+        var comment = new LiteGraph.LGraphComment();
+        comment.pos = canvas.convertEventToCanvasOffset(mouse_event);
+        canvas.graph.add(comment);
     };
 
     LGraphCanvas.onMenuAdd = function (node, options, e, prev_menu, callback) {
@@ -13174,8 +13174,8 @@ LGraphNode.prototype.executeAction = function(action)
 
 			var fApplyColor = function(node){
 				if (color) {
-					if (node.constructor === LiteGraph.LGraphGroup) {
-						node.color = color.groupcolor;
+					if (node.constructor === LiteGraph.LGraphComment) {
+						node.color = color.commentcolor;
 					} else {
 						node.color = color.color;
 						node.bgcolor = color.bgcolor;
@@ -13325,19 +13325,19 @@ LGraphNode.prototype.executeAction = function(action)
     };
 
     LGraphCanvas.node_colors = {
-        red: { color: "#322", bgcolor: "#533", groupcolor: "#A88" },
-        brown: { color: "#332922", bgcolor: "#593930", groupcolor: "#b06634" },
-        green: { color: "#232", bgcolor: "#353", groupcolor: "#8A8" },
-        blue: { color: "#223", bgcolor: "#335", groupcolor: "#88A" },
+        red: { color: "#322", bgcolor: "#533", commentcolor: "#A88" },
+        brown: { color: "#332922", bgcolor: "#593930", commentcolor: "#b06634" },
+        green: { color: "#232", bgcolor: "#353", commentcolor: "#8A8" },
+        blue: { color: "#223", bgcolor: "#335", commentcolor: "#88A" },
         pale_blue: {
             color: "#2a363b",
             bgcolor: "#3f5159",
-            groupcolor: "#3f789e"
+            commentcolor: "#3f789e"
         },
-        cyan: { color: "#233", bgcolor: "#355", groupcolor: "#8AA" },
-        purple: { color: "#323", bgcolor: "#535", groupcolor: "#a1309b" },
-        yellow: { color: "#432", bgcolor: "#653", groupcolor: "#b58b2a" },
-        black: { color: "#222", bgcolor: "#000", groupcolor: "#444" }
+        cyan: { color: "#233", bgcolor: "#355", commentcolor: "#8AA" },
+        purple: { color: "#323", bgcolor: "#535", commentcolor: "#a1309b" },
+        yellow: { color: "#432", bgcolor: "#653", commentcolor: "#b58b2a" },
+        black: { color: "#222", bgcolor: "#000", commentcolor: "#444" }
     };
 
     LGraphCanvas.prototype.getCanvasMenuOptions = function() {
@@ -13352,7 +13352,7 @@ LGraphNode.prototype.executeAction = function(action)
                     has_submenu: true,
                     callback: LGraphCanvas.onMenuAdd
                 },
-                { content: "Add Group", callback: LGraphCanvas.onGroupAdd },
+                { content: "Add Comment", callback: LGraphCanvas.onCommentAdd },
 				{ content: "Arrange", callback: LGraphCanvas.onMenuArrange },
 				{ content: "Toggle Minimap", callback: LGraphCanvas.onMenuToggleMinimap}
 				//{ content: "Arrange", callback: that.graph.arrange },
@@ -13489,7 +13489,7 @@ LGraphNode.prototype.executeAction = function(action)
         return options;
     };
 
-    LGraphCanvas.prototype.getGroupMenuOptions = function(node) {
+    LGraphCanvas.prototype.getCommentMenuOptions = function(node) {
         var o = [
             { content: "Title", callback: LGraphCanvas.onShowPropertyEditor },
             {
@@ -13576,19 +13576,19 @@ LGraphNode.prototype.executeAction = function(action)
                 menu_info = this.getNodeMenuOptions(node);
             } else {
                 menu_info = this.getCanvasMenuOptions();
-                var group = this.graph.getGroupOnPos(
+                var comment = this.graph.getCommentOnPos(
                     event.canvasX,
                     event.canvasY
                 );
-                if (group) {
-                    //on group
+                if (comment) {
+                    //on comment
                     menu_info.push(null, {
-                        content: "Edit Group",
+                        content: "Edit Comment",
                         has_submenu: true,
                         submenu: {
-                            title: "Group",
-                            extra: group,
-                            options: this.getGroupMenuOptions(group)
+                            title: "Comment",
+                            extra: comment,
+                            options: this.getCommentMenuOptions(comment)
                         }
                     });
                 }
