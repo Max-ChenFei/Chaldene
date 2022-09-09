@@ -1385,7 +1385,7 @@
             var node = nodes[j];
 
             if (
-                node.constructor === LiteGraph.Subgraph &&
+                node.constructor === LiteGraph.FunctionDefinition &&
                 eventname != "onExecute"
             ) {
                 if (node.mode == mode) {
@@ -5505,7 +5505,7 @@ LGraphNode.prototype.executeAction = function(action)
 
         graph.attachCanvas(this);
 
-		//remove the graph stack in case a subgraph was open
+		//remove the graph stack in case a function definition was open
 		if (this._graph_stack)
 			this._graph_stack = null;
 
@@ -5513,7 +5513,7 @@ LGraphNode.prototype.executeAction = function(action)
     };
 
     /**
-     * returns the top level graph (in case there are subgraphs open on the canvas)
+     * returns the top level graph (in case there are function definitions open on the canvas)
      *
      * @method getTopGraph
      * @return {LGraph} graph
@@ -5528,10 +5528,10 @@ LGraphNode.prototype.executeAction = function(action)
     /**
      * opens a graph contained inside a node in the current graph
      *
-     * @method openSubgraph
+     * @method openFunctionDefinition
      * @param {LGraph} graph
      */
-    LGraphCanvas.prototype.openSubgraph = function(graph) {
+    LGraphCanvas.prototype.openFunctionDefinition = function(graph) {
         if (!graph) {
             throw "graph cannot be null";
         }
@@ -5555,24 +5555,24 @@ LGraphNode.prototype.executeAction = function(action)
     };
 
     /**
-     * closes a subgraph contained inside a node
+     * closes a function definition contained inside a node
      *
-     * @method closeSubgraph
+     * @method closeFunctionDefinition
      * @param {LGraph} assigns a graph
      */
-    LGraphCanvas.prototype.closeSubgraph = function() {
+    LGraphCanvas.prototype.closeFunctionDefinition = function() {
         if (!this._graph_stack || this._graph_stack.length == 0) {
             return;
         }
-        var subgraph_node = this.graph._subgraph_node;
+        var function_definition_node = this.graph._function_definition_node;
         var graph = this._graph_stack.pop();
         this.selected_nodes = {};
         this.highlighted_links = {};
         graph.attachCanvas(this);
         this.setDirty(true, true);
-        if (subgraph_node) {
-            this.centerOnNode(subgraph_node);
-            this.selectNodes([subgraph_node]);
+        if (function_definition_node) {
+            this.centerOnNode(function_definition_node);
+            this.selectNodes([function_definition_node]);
         }
         // when close sub graph back to offset [0, 0] scale 1
         this.ds.offset = [0, 0]
@@ -6168,13 +6168,13 @@ LGraphNode.prototype.executeAction = function(action)
                     if ( node.onMouseDown && node.onMouseDown( e, pos, this ) ) {
                         block_drag_node = true;
                     } else {
-						//open subgraph button
+						//open function definition button
 						if(node.subgraph && !node.skip_subgraph_button)
 						{
 							if ( !node.flags.collapsed && pos[0] > node.size[0] - LiteGraph.NODE_TITLE_HEIGHT && pos[1] < 0 ) {
 								var that = this;
 								setTimeout(function() {
-									that.openSubgraph(node.subgraph);
+									that.openFunctionDefinition(node.subgraph);
 								}, 10);
 							}
 						}
@@ -8080,7 +8080,7 @@ LGraphNode.prototype.executeAction = function(action)
 
 		//draws panel in the corner
 		if (this._graph_stack && this._graph_stack.length) {
-			this.drawSubgraphPanel( ctx );
+			this.drawFunctionDefinitionPanel( ctx );
 		}
 
 
@@ -8112,21 +8112,21 @@ LGraphNode.prototype.executeAction = function(action)
 	}
 
     /**
-     * draws the panel in the corner that shows subgraph properties
-     * @method drawSubgraphPanel
+     * draws the panel in the corner that shows function definition properties
+     * @method drawFunctionDefinitionPanel
      **/
-    LGraphCanvas.prototype.drawSubgraphPanel = function (ctx) {
+    LGraphCanvas.prototype.drawFunctionDefinitionPanel = function (ctx) {
         var subgraph = this.graph;
-        var subnode = subgraph._subgraph_node;
+        var subnode = subgraph._function_definition_node;
         if (!subnode) {
             console.warn("subgraph without subnode");
             return;
         }
-        this.drawSubgraphPanelLeft(subgraph, subnode, ctx)
-        this.drawSubgraphPanelRight(subgraph, subnode, ctx)
+        this.drawFunctionDefinitionPanelLeft(subgraph, subnode, ctx)
+        this.drawFunctionDefinitionPanelRight(subgraph, subnode, ctx)
     }
 
-    LGraphCanvas.prototype.drawSubgraphPanelLeft = function (subgraph, subnode, ctx) {
+    LGraphCanvas.prototype.drawFunctionDefinitionPanelLeft = function (subgraph, subnode, ctx) {
         var num = subnode.inputs ? subnode.inputs.length : 0;
         var w = 200;
         var h = Math.floor(LiteGraph.NODE_SLOT_HEIGHT * 1.6);
@@ -8145,7 +8145,7 @@ LGraphNode.prototype.executeAction = function(action)
         // var pos = this.mouse;
 
         if (this.drawButton(w - 20, 20, 20, 20, "X", "#151515")) {
-            this.closeSubgraph();
+            this.closeFunctionDefinition();
             return;
         }
 
@@ -8191,10 +8191,10 @@ LGraphNode.prototype.executeAction = function(action)
             }
         //add + button
         if (this.drawButton(20, y + 2, w - 20, h - 2, "+", "#151515", "#222")) {
-            this.showSubgraphPropertiesDialog(subnode);
+            this.showFunctionDefinitionPropertiesDialog(subnode);
         }
     }
-    LGraphCanvas.prototype.drawSubgraphPanelRight = function (subgraph, subnode, ctx) {
+    LGraphCanvas.prototype.drawFunctionDefinitionPanelRight = function (subgraph, subnode, ctx) {
         var num = subnode.outputs ? subnode.outputs.length : 0;
         var canvas_w = this.bgcanvas.width
         var w = 200;
@@ -8215,7 +8215,7 @@ LGraphNode.prototype.executeAction = function(action)
         ctx.fillText(title_text, (canvas_w - tw) - 20, 34);
         // var pos = this.mouse;
         if (this.drawButton(canvas_w - w, 20, 20, 20, "X", "#151515")) {
-            this.closeSubgraph();
+            this.closeFunctionDefinition();
             return;
         }
 
@@ -8261,7 +8261,7 @@ LGraphNode.prototype.executeAction = function(action)
             }
         //add + button
         if (this.drawButton(canvas_w - w, y + 2, w - 20, h - 2, "+", "#151515", "#222")) {
-            this.showSubgraphPropertiesDialogRight(subnode);
+            this.showFunctionDefinitionPropertiesDialogRight(subnode);
         }
     }
 	//Draws a button into the canvas overlay and computes if it was clicked using the immediate gui paradigm
@@ -8393,21 +8393,21 @@ LGraphNode.prototype.executeAction = function(action)
         if (this._graph_stack && this._graph_stack.length) {
             ctx.save();
             var parent_graph = this._graph_stack[this._graph_stack.length - 1];
-            var subgraph_node = this.graph._subgraph_node;
-            ctx.strokeStyle = subgraph_node.bgcolor;
+            var function_definition_node = this.graph._function_definition_node;
+            ctx.strokeStyle = function_definition_node.bgcolor;
             ctx.lineWidth = 10;
             ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
             ctx.lineWidth = 1;
             ctx.font = "40px Arial";
             ctx.textAlign = "center";
-            ctx.fillStyle = subgraph_node.bgcolor || "#AAA";
+            ctx.fillStyle = function_definition_node.bgcolor || "#AAA";
             var title = "";
             for (var i = 1; i < this._graph_stack.length; ++i) {
                 title +=
-                    this._graph_stack[i]._subgraph_node.getTitle() + " >> ";
+                    this._graph_stack[i]._function_definition_node.getTitle() + " >> ";
             }
             ctx.fillText(
-                title + subgraph_node.getTitle(),
+                title + function_definition_node.getTitle(),
                 canvas.width * 0.5,
                 40
             );
@@ -9533,7 +9533,7 @@ LGraphNode.prototype.executeAction = function(action)
                 }
             }
 
-			//subgraph box
+			//function definition box
 			if (!node.flags.collapsed && node.subgraph && !node.skip_subgraph_button) {
 				var w = LiteGraph.NODE_TITLE_HEIGHT;
 				var x = node.size[0] - w;
@@ -12944,17 +12944,17 @@ LGraphNode.prototype.executeAction = function(action)
 		this.canvas.parentNode.appendChild( panel );
 	}
 
-	LGraphCanvas.prototype.showSubgraphPropertiesDialog = function(node)
+	LGraphCanvas.prototype.showFunctionDefinitionPropertiesDialog = function(node)
 	{
-		console.log("showing subgraph properties dialog");
+		console.log("showing function definition properties dialog");
 
-		var old_panel = this.canvas.parentNode.querySelector(".subgraph_dialog");
+		var old_panel = this.canvas.parentNode.querySelector(".function_definition_dialog");
 		if(old_panel)
 			old_panel.close();
 
-		var panel = this.createPanel("Subgraph Inputs",{closable:true, width: 500});
+		var panel = this.createPanel("Function Definition Inputs",{closable:true, width: 500});
 		panel.node = node;
-		panel.classList.add("subgraph_dialog");
+		panel.classList.add("function_definition_dialog");
 
 		function inner_refresh()
 		{
@@ -12968,7 +12968,7 @@ LGraphNode.prototype.executeAction = function(action)
 					if(input.not_subgraph_input)
 						continue;
 					var html = "<button>&#10005;</button> <span class='bullet_icon'></span><span class='name'></span><span class='type'></span>";
-					var elem = panel.addHTML(html,"subgraph_property");
+					var elem = panel.addHTML(html,"function_definition_property");
 					elem.dataset["name"] = input.name;
 					elem.dataset["slot"] = i;
 					elem.querySelector(".name").innerText = input.name;
@@ -12982,7 +12982,7 @@ LGraphNode.prototype.executeAction = function(action)
 
 		//add extra
 		var html = " + <span class='label'>Name</span><input class='name'/><span class='label'>Type</span><input class='type'></input><button>+</button>";
-		var elem = panel.addHTML(html,"subgraph_property extra", true);
+		var elem = panel.addHTML(html,"function_definition_property extra", true);
 		elem.querySelector("button").addEventListener("click", function(e){
 			var elem = this.parentNode;
 			var name = elem.querySelector(".name").value;
@@ -12999,18 +12999,18 @@ LGraphNode.prototype.executeAction = function(action)
 	    this.canvas.parentNode.appendChild(panel);
 		return panel;
 	}
-    LGraphCanvas.prototype.showSubgraphPropertiesDialogRight = function (node) {
+    LGraphCanvas.prototype.showFunctionDefinitionPropertiesDialogRight = function (node) {
 
-        // console.log("showing subgraph properties dialog");
+        // console.log("showing function definition properties dialog");
         var that = this;
         // old_panel if old_panel is exist close it
-        var old_panel = this.canvas.parentNode.querySelector(".subgraph_dialog");
+        var old_panel = this.canvas.parentNode.querySelector(".function_definition_dialog");
         if (old_panel)
             old_panel.close();
         // new panel
-        var panel = this.createPanel("Subgraph Outputs", { closable: true, width: 500 });
+        var panel = this.createPanel("Function Definition Outputs", { closable: true, width: 500 });
         panel.node = node;
-        panel.classList.add("subgraph_dialog");
+        panel.classList.add("function_definition_dialog");
 
         function inner_refresh() {
             panel.clear();
@@ -13021,7 +13021,7 @@ LGraphNode.prototype.executeAction = function(action)
                     if (input.not_subgraph_output)
                         continue;
                     var html = "<button>&#10005;</button> <span class='bullet_icon'></span><span class='name'></span><span class='type'></span>";
-                    var elem = panel.addHTML(html, "subgraph_property");
+                    var elem = panel.addHTML(html, "function_definition_property");
                     elem.dataset["name"] = input.name;
                     elem.dataset["slot"] = i;
                     elem.querySelector(".name").innerText = input.name;
@@ -13035,7 +13035,7 @@ LGraphNode.prototype.executeAction = function(action)
 
         //add extra
         var html = " + <span class='label'>Name</span><input class='name'/><span class='label'>Type</span><input class='type'></input><button>+</button>";
-        var elem = panel.addHTML(html, "subgraph_property extra", true);
+        var elem = panel.addHTML(html, "function_definition_property extra", true);
         elem.querySelector(".name").addEventListener("keydown", function (e) {
             if (e.keyCode == 13) {
                 addOutput.apply(this)
@@ -13267,7 +13267,7 @@ LGraphNode.prototype.executeAction = function(action)
         node.setDirtyCanvas(true, true);
     };
 
-    LGraphCanvas.onMenuNodeToSubgraph = function(value, options, e, menu, node) {
+    LGraphCanvas.onMenuNodeToFunctionDefinition = function(value, options, e, menu, node) {
 		var graph = node.graph;
 		var graphcanvas = LGraphCanvas.active_canvas;
 		if(!graphcanvas) //??
@@ -13277,11 +13277,11 @@ LGraphNode.prototype.executeAction = function(action)
 		if( !nodes_list.length )
 			nodes_list = [ node ];
 
-		var subgraph_node = LiteGraph.createNode("graph/subgraph");
-		subgraph_node.pos = node.pos.concat();
-		graph.add(subgraph_node);
+		var function_definition_node = LiteGraph.createNode("graph/functionDefinition");
+		function_definition_node.pos = node.pos.concat();
+		graph.add(function_definition_node);
 
-		subgraph_node.buildFromNodes( nodes_list );
+		function_definition_node.buildFromNodes( nodes_list );
 
 		graphcanvas.deselectAllNodes();
         node.setDirtyCanvas(true, true);
@@ -13364,8 +13364,8 @@ LGraphNode.prototype.executeAction = function(action)
 
             if (this._graph_stack && this._graph_stack.length > 0) {
                 options.push(null, {
-                    content: "Close subgraph",
-                    callback: this.closeSubgraph.bind(this)
+                    content: "Close function definition",
+                    callback: this.closeFunctionDefinition.bind(this)
                 });
             }
         }
@@ -13472,8 +13472,8 @@ LGraphNode.prototype.executeAction = function(action)
 
 		if(0) //TODO
 		options.push({
-			content: "To Subgraph",
-			callback: LGraphCanvas.onMenuNodeToSubgraph
+			content: "To Function Definition",
+			callback: LGraphCanvas.onMenuNodeToFunctionDefinition
 		});
 
 		options.push(null, {
@@ -14662,8 +14662,8 @@ if (typeof exports != "undefined") {
 (function(global) {
     var LiteGraph = global.LiteGraph;
 
-    //Subgraph: a node that contains a graph
-    function Subgraph() {
+    //FunctionDefinition: a node that contains a graph
+    function FunctionDefinition() {
         var that = this;
         this.size = [140, 80];
         this.properties = { enabled: true };
@@ -14671,33 +14671,33 @@ if (typeof exports != "undefined") {
 
         //create inner graph
         this.subgraph = new LiteGraph.LGraph();
-        this.subgraph._subgraph_node = this;
+        this.subgraph._function_definition_node = this;
         this.subgraph._is_subgraph = true;
 
-        this.subgraph.onTrigger = this.onSubgraphTrigger.bind(this);
+        this.subgraph.onTrigger = this.onFunctionDefinitionTrigger.bind(this);
 
 		//nodes input node added inside
-        this.subgraph.onInputAdded = this.onSubgraphNewInput.bind(this);
-        this.subgraph.onInputRenamed = this.onSubgraphRenamedInput.bind(this);
-        this.subgraph.onInputTypeChanged = this.onSubgraphTypeChangeInput.bind(this);
-        this.subgraph.onInputRemoved = this.onSubgraphRemovedInput.bind(this);
+        this.subgraph.onInputAdded = this.onFunctionDefinitionNewInput.bind(this);
+        this.subgraph.onInputRenamed = this.onFunctionDefinitionRenamedInput.bind(this);
+        this.subgraph.onInputTypeChanged = this.onFunctionDefinitionTypeChangeInput.bind(this);
+        this.subgraph.onInputRemoved = this.onFunctionDefinitionRemovedInput.bind(this);
 
-        this.subgraph.onOutputAdded = this.onSubgraphNewOutput.bind(this);
-        this.subgraph.onOutputRenamed = this.onSubgraphRenamedOutput.bind(this);
-        this.subgraph.onOutputTypeChanged = this.onSubgraphTypeChangeOutput.bind(this);
-        this.subgraph.onOutputRemoved = this.onSubgraphRemovedOutput.bind(this);
+        this.subgraph.onOutputAdded = this.onFunctionDefinitionNewOutput.bind(this);
+        this.subgraph.onOutputRenamed = this.onFunctionDefinitionRenamedOutput.bind(this);
+        this.subgraph.onOutputTypeChanged = this.onFunctionDefinitionTypeChangeOutput.bind(this);
+        this.subgraph.onOutputRemoved = this.onFunctionDefinitionRemovedOutput.bind(this);
     }
 
-    Subgraph.title = "Subgraph";
-    Subgraph.desc = "Graph inside a node";
-    Subgraph.title_color = "#334";
+    FunctionDefinition.title = "Function Definition";
+    FunctionDefinition.desc = "Graph inside a node";
+    FunctionDefinition.title_color = "#334";
 
-    Subgraph.prototype.onGetInputs = function() {
+    FunctionDefinition.prototype.onGetInputs = function() {
         return [["enabled", "boolean"]];
     };
 
 	/*
-    Subgraph.prototype.onDrawTitle = function(ctx) {
+    FunctionDefinition.prototype.onDrawTitle = function(ctx) {
         if (this.flags.collapsed) {
             return;
         }
@@ -14715,15 +14715,15 @@ if (typeof exports != "undefined") {
     };
 	*/
 
-    Subgraph.prototype.onDblClick = function(e, pos, graphcanvas) {
+    FunctionDefinition.prototype.onDblClick = function(e, pos, graphcanvas) {
         var that = this;
         setTimeout(function() {
-            graphcanvas.openSubgraph(that.subgraph);
+            graphcanvas.openFunctionDefinition(that.subgraph);
         }, 10);
     };
 
 	/*
-    Subgraph.prototype.onMouseDown = function(e, pos, graphcanvas) {
+    FunctionDefinition.prototype.onMouseDown = function(e, pos, graphcanvas) {
         if (
             !this.flags.collapsed &&
             pos[0] > this.size[0] - LiteGraph.NODE_TITLE_HEIGHT &&
@@ -14731,17 +14731,17 @@ if (typeof exports != "undefined") {
         ) {
             var that = this;
             setTimeout(function() {
-                graphcanvas.openSubgraph(that.subgraph);
+                graphcanvas.openFunctionDefinition(that.subgraph);
             }, 10);
         }
     };
 	*/
 
-    Subgraph.prototype.onAction = function(action, param) {
+    FunctionDefinition.prototype.onAction = function(action, param) {
         this.subgraph.onAction(action, param);
     };
 
-    Subgraph.prototype.onExecute = function() {
+    FunctionDefinition.prototype.onExecute = function() {
         this.enabled = this.getInputOrProperty("enabled");
         if (!this.enabled) {
             return;
@@ -14769,13 +14769,13 @@ if (typeof exports != "undefined") {
         }
     };
 
-    Subgraph.prototype.sendEventToAllNodes = function(eventname, param, mode) {
+    FunctionDefinition.prototype.sendEventToAllNodes = function(eventname, param, mode) {
         if (this.enabled) {
             this.subgraph.sendEventToAllNodes(eventname, param, mode);
         }
     };
 
-    Subgraph.prototype.onDrawBackground = function (ctx, graphcanvas, canvas, pos) {
+    FunctionDefinition.prototype.onDrawBackground = function (ctx, graphcanvas, canvas, pos) {
         if (this.flags.collapsed)
             return;
         var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
@@ -14811,28 +14811,28 @@ if (typeof exports != "undefined") {
         ctx.fillText("+", this.size[0] * 0.75, y + 24);
     }
 
-    // Subgraph.prototype.onMouseDown = function(e, localpos, graphcanvas)
+    // FunctionDefinition.prototype.onMouseDown = function(e, localpos, graphcanvas)
     // {
     // 	var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
     // 	if(localpos[1] > y)
     // 	{
-    // 		graphcanvas.showSubgraphPropertiesDialog(this);
+    // 		graphcanvas.showFunctionDefinitionPropertiesDialog(this);
     // 	}
     // }
-    Subgraph.prototype.onMouseDown = function (e, localpos, graphcanvas) {
+    FunctionDefinition.prototype.onMouseDown = function (e, localpos, graphcanvas) {
         var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
         console.log(0)
         if (localpos[1] > y) {
             if (localpos[0] < this.size[0] / 2) {
                 console.log(1)
-                graphcanvas.showSubgraphPropertiesDialog(this);
+                graphcanvas.showFunctionDefinitionPropertiesDialog(this);
             } else {
                 console.log(2)
-                graphcanvas.showSubgraphPropertiesDialogRight(this);
+                graphcanvas.showFunctionDefinitionPropertiesDialogRight(this);
             }
         }
     }
-	Subgraph.prototype.computeSize = function()
+	FunctionDefinition.prototype.computeSize = function()
 	{
 		var num_inputs = this.inputs ? this.inputs.length : 0;
 		var num_outputs = this.outputs ? this.outputs.length : 0;
@@ -14840,14 +14840,14 @@ if (typeof exports != "undefined") {
 	}
 
     //**** INPUTS ***********************************
-    Subgraph.prototype.onSubgraphTrigger = function(event, param) {
+    FunctionDefinition.prototype.onFunctionDefinitionTrigger = function(event, param) {
         var slot = this.findOutputSlot(event);
         if (slot != -1) {
             this.triggerSlot(slot);
         }
     };
 
-    Subgraph.prototype.onSubgraphNewInput = function(name, type) {
+    FunctionDefinition.prototype.onFunctionDefinitionNewInput = function(name, type) {
         var slot = this.findInputSlot(name);
         if (slot == -1) {
             //add input to the node
@@ -14855,7 +14855,7 @@ if (typeof exports != "undefined") {
         }
     };
 
-    Subgraph.prototype.onSubgraphRenamedInput = function(oldname, name) {
+    FunctionDefinition.prototype.onFunctionDefinitionRenamedInput = function(oldname, name) {
         var slot = this.findInputSlot(oldname);
         if (slot == -1) {
             return;
@@ -14864,7 +14864,7 @@ if (typeof exports != "undefined") {
         info.name = name;
     };
 
-    Subgraph.prototype.onSubgraphTypeChangeInput = function(name, type) {
+    FunctionDefinition.prototype.onFunctionDefinitionTypeChangeInput = function(name, type) {
         var slot = this.findInputSlot(name);
         if (slot == -1) {
             return;
@@ -14873,7 +14873,7 @@ if (typeof exports != "undefined") {
         info.type = type;
     };
 
-    Subgraph.prototype.onSubgraphRemovedInput = function(name) {
+    FunctionDefinition.prototype.onFunctionDefinitionRemovedInput = function(name) {
         var slot = this.findInputSlot(name);
         if (slot == -1) {
             return;
@@ -14882,14 +14882,14 @@ if (typeof exports != "undefined") {
     };
 
     //**** OUTPUTS ***********************************
-    Subgraph.prototype.onSubgraphNewOutput = function(name, type) {
+    FunctionDefinition.prototype.onFunctionDefinitionNewOutput = function(name, type) {
         var slot = this.findOutputSlot(name);
         if (slot == -1) {
             this.addOutput(name, type);
         }
     };
 
-    Subgraph.prototype.onSubgraphRenamedOutput = function(oldname, name) {
+    FunctionDefinition.prototype.onFunctionDefinitionRenamedOutput = function(oldname, name) {
         var slot = this.findOutputSlot(oldname);
         if (slot == -1) {
             return;
@@ -14898,7 +14898,7 @@ if (typeof exports != "undefined") {
         info.name = name;
     };
 
-    Subgraph.prototype.onSubgraphTypeChangeOutput = function(name, type) {
+    FunctionDefinition.prototype.onFunctionDefinitionTypeChangeOutput = function(name, type) {
         var slot = this.findOutputSlot(name);
         if (slot == -1) {
             return;
@@ -14907,7 +14907,7 @@ if (typeof exports != "undefined") {
         info.type = type;
     };
 
-    Subgraph.prototype.onSubgraphRemovedOutput = function(name) {
+    FunctionDefinition.prototype.onFunctionDefinitionRemovedOutput = function(name) {
         var slot = this.findInputSlot(name);
         if (slot == -1) {
             return;
@@ -14916,30 +14916,30 @@ if (typeof exports != "undefined") {
     };
     // *****************************************************
 
-    Subgraph.prototype.getExtraMenuOptions = function(graphcanvas) {
+    FunctionDefinition.prototype.getExtraMenuOptions = function(graphcanvas) {
         var that = this;
         return [
             {
                 content: "Open",
                 callback: function() {
-                    graphcanvas.openSubgraph(that.subgraph);
+                    graphcanvas.openFunctionDefinition(that.subgraph);
                 }
             }
         ];
     };
 
-    Subgraph.prototype.onResize = function(size) {
+    FunctionDefinition.prototype.onResize = function(size) {
         size[1] += 20;
     };
 
-    Subgraph.prototype.serialize = function() {
+    FunctionDefinition.prototype.serialize = function() {
         var data = LiteGraph.LGraphNode.prototype.serialize.call(this);
         data.subgraph = this.subgraph.serialize();
         return data;
     };
     //no need to define node.configure, the default method detects node.subgraph and passes the object to node.subgraph.configure()
 
-    Subgraph.prototype.clone = function() {
+    FunctionDefinition.prototype.clone = function() {
         var node = LiteGraph.createNode(this.type);
         var data = this.serialize();
         delete data["id"];
@@ -14949,7 +14949,7 @@ if (typeof exports != "undefined") {
         return node;
     };
 
-	Subgraph.prototype.buildFromNodes = function(nodes)
+	FunctionDefinition.prototype.buildFromNodes = function(nodes)
 	{
 		//clear all?
 		//TODO
@@ -15038,8 +15038,8 @@ if (typeof exports != "undefined") {
 		//connect edge subgraph nodes to extarnal connections nodes
 	}
 
-    LiteGraph.Subgraph = Subgraph;
-    LiteGraph.registerNodeType("graph/subgraph", Subgraph);
+    LiteGraph.FunctionDefinition = FunctionDefinition;
+    LiteGraph.registerNodeType("graph/functionDefinition", FunctionDefinition);
 
     //Input for a subgraph
     function GraphInput() {
@@ -15357,8 +15357,8 @@ if (typeof exports != "undefined") {
 
     LiteGraph.registerNodeType("basic/time", Time);
 
-    //Subgraph: a node that contains a graph
-    function Subgraph() {
+    //FunctionDefinition: a node that contains a graph
+    function FunctionDefinition() {
         var that = this;
         this.size = [140, 80];
         this.properties = { enabled: true };
@@ -15366,33 +15366,33 @@ if (typeof exports != "undefined") {
 
         //create inner graph
         this.subgraph = new LiteGraph.LGraph();
-        this.subgraph._subgraph_node = this;
+        this.subgraph._function_definition_node = this;
         this.subgraph._is_subgraph = true;
 
-        this.subgraph.onTrigger = this.onSubgraphTrigger.bind(this);
+        this.subgraph.onTrigger = this.onFunctionDefinitionTrigger.bind(this);
 
 		//nodes input node added inside
-        this.subgraph.onInputAdded = this.onSubgraphNewInput.bind(this);
-        this.subgraph.onInputRenamed = this.onSubgraphRenamedInput.bind(this);
-        this.subgraph.onInputTypeChanged = this.onSubgraphTypeChangeInput.bind(this);
-        this.subgraph.onInputRemoved = this.onSubgraphRemovedInput.bind(this);
+        this.subgraph.onInputAdded = this.onFunctionDefinitionNewInput.bind(this);
+        this.subgraph.onInputRenamed = this.onFunctionDefinitionRenamedInput.bind(this);
+        this.subgraph.onInputTypeChanged = this.onFunctionDefinitionTypeChangeInput.bind(this);
+        this.subgraph.onInputRemoved = this.onFunctionDefinitionRemovedInput.bind(this);
 
-        this.subgraph.onOutputAdded = this.onSubgraphNewOutput.bind(this);
-        this.subgraph.onOutputRenamed = this.onSubgraphRenamedOutput.bind(this);
-        this.subgraph.onOutputTypeChanged = this.onSubgraphTypeChangeOutput.bind(this);
-        this.subgraph.onOutputRemoved = this.onSubgraphRemovedOutput.bind(this);
+        this.subgraph.onOutputAdded = this.onFunctionDefinitionNewOutput.bind(this);
+        this.subgraph.onOutputRenamed = this.onFunctionDefinitionRenamedOutput.bind(this);
+        this.subgraph.onOutputTypeChanged = this.onFunctionDefinitionTypeChangeOutput.bind(this);
+        this.subgraph.onOutputRemoved = this.onFunctionDefinitionRemovedOutput.bind(this);
     }
 
-    Subgraph.title = "Subgraph";
-    Subgraph.desc = "Graph inside a node";
-    Subgraph.title_color = "#334";
+    FunctionDefinition.title = "FunctionDefinition";
+    FunctionDefinition.desc = "Graph inside a node";
+    FunctionDefinition.title_color = "#334";
 
-    Subgraph.prototype.onGetInputs = function() {
+    FunctionDefinition.prototype.onGetInputs = function() {
         return [["enabled", "boolean"]];
     };
 
 	/*
-    Subgraph.prototype.onDrawTitle = function(ctx) {
+    FunctionDefinition.prototype.onDrawTitle = function(ctx) {
         if (this.flags.collapsed) {
             return;
         }
@@ -15410,15 +15410,15 @@ if (typeof exports != "undefined") {
     };
 	*/
 
-    Subgraph.prototype.onDblClick = function(e, pos, graphcanvas) {
+    FunctionDefinition.prototype.onDblClick = function(e, pos, graphcanvas) {
         var that = this;
         setTimeout(function() {
-            graphcanvas.openSubgraph(that.subgraph);
+            graphcanvas.openFunctionDefinition(that.subgraph);
         }, 10);
     };
 
 	/*
-    Subgraph.prototype.onMouseDown = function(e, pos, graphcanvas) {
+    FunctionDefinition.prototype.onMouseDown = function(e, pos, graphcanvas) {
         if (
             !this.flags.collapsed &&
             pos[0] > this.size[0] - LiteGraph.NODE_TITLE_HEIGHT &&
@@ -15426,17 +15426,17 @@ if (typeof exports != "undefined") {
         ) {
             var that = this;
             setTimeout(function() {
-                graphcanvas.openSubgraph(that.subgraph);
+                graphcanvas.openFunctionDefinition(that.subgraph);
             }, 10);
         }
     };
 	*/
 
-    Subgraph.prototype.onAction = function(action, param) {
+    FunctionDefinition.prototype.onAction = function(action, param) {
         this.subgraph.onAction(action, param);
     };
 
-    Subgraph.prototype.onExecute = function() {
+    FunctionDefinition.prototype.onExecute = function() {
         this.enabled = this.getInputOrProperty("enabled");
         if (!this.enabled) {
             return;
@@ -15464,13 +15464,13 @@ if (typeof exports != "undefined") {
         }
     };
 
-    Subgraph.prototype.sendEventToAllNodes = function(eventname, param, mode) {
+    FunctionDefinition.prototype.sendEventToAllNodes = function(eventname, param, mode) {
         if (this.enabled) {
             this.subgraph.sendEventToAllNodes(eventname, param, mode);
         }
     };
 
-    Subgraph.prototype.onDrawBackground = function (ctx, graphcanvas, canvas, pos) {
+    FunctionDefinition.prototype.onDrawBackground = function (ctx, graphcanvas, canvas, pos) {
         if (this.flags.collapsed)
             return;
         var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
@@ -15506,28 +15506,28 @@ if (typeof exports != "undefined") {
         ctx.fillText("+", this.size[0] * 0.75, y + 24);
     }
 
-    // Subgraph.prototype.onMouseDown = function(e, localpos, graphcanvas)
+    // FunctionDefinition.prototype.onMouseDown = function(e, localpos, graphcanvas)
     // {
     // 	var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
     // 	if(localpos[1] > y)
     // 	{
-    // 		graphcanvas.showSubgraphPropertiesDialog(this);
+    // 		graphcanvas.showFunctionDefinitionPropertiesDialog(this);
     // 	}
     // }
-    Subgraph.prototype.onMouseDown = function (e, localpos, graphcanvas) {
+    FunctionDefinition.prototype.onMouseDown = function (e, localpos, graphcanvas) {
         var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
         console.log(0)
         if (localpos[1] > y) {
             if (localpos[0] < this.size[0] / 2) {
                 console.log(1)
-                graphcanvas.showSubgraphPropertiesDialog(this);
+                graphcanvas.showFunctionDefinitionPropertiesDialog(this);
             } else {
                 console.log(2)
-                graphcanvas.showSubgraphPropertiesDialogRight(this);
+                graphcanvas.showFunctionDefinitionPropertiesDialogRight(this);
             }
         }
     }
-	Subgraph.prototype.computeSize = function()
+	FunctionDefinition.prototype.computeSize = function()
 	{
 		var num_inputs = this.inputs ? this.inputs.length : 0;
 		var num_outputs = this.outputs ? this.outputs.length : 0;
@@ -15535,14 +15535,14 @@ if (typeof exports != "undefined") {
 	}
 
     //**** INPUTS ***********************************
-    Subgraph.prototype.onSubgraphTrigger = function(event, param) {
+    FunctionDefinition.prototype.onFunctionDefinitionTrigger = function(event, param) {
         var slot = this.findOutputSlot(event);
         if (slot != -1) {
             this.triggerSlot(slot);
         }
     };
 
-    Subgraph.prototype.onSubgraphNewInput = function(name, type) {
+    FunctionDefinition.prototype.onFunctionDefinitionNewInput = function(name, type) {
         var slot = this.findInputSlot(name);
         if (slot == -1) {
             //add input to the node
@@ -15550,7 +15550,7 @@ if (typeof exports != "undefined") {
         }
     };
 
-    Subgraph.prototype.onSubgraphRenamedInput = function(oldname, name) {
+    FunctionDefinition.prototype.onFunctionDefinitionRenamedInput = function(oldname, name) {
         var slot = this.findInputSlot(oldname);
         if (slot == -1) {
             return;
@@ -15559,7 +15559,7 @@ if (typeof exports != "undefined") {
         info.name = name;
     };
 
-    Subgraph.prototype.onSubgraphTypeChangeInput = function(name, type) {
+    FunctionDefinition.prototype.onFunctionDefinitionTypeChangeInput = function(name, type) {
         var slot = this.findInputSlot(name);
         if (slot == -1) {
             return;
@@ -15568,7 +15568,7 @@ if (typeof exports != "undefined") {
         info.type = type;
     };
 
-    Subgraph.prototype.onSubgraphRemovedInput = function(name) {
+    FunctionDefinition.prototype.onFunctionDefinitionRemovedInput = function(name) {
         var slot = this.findInputSlot(name);
         if (slot == -1) {
             return;
@@ -15577,14 +15577,14 @@ if (typeof exports != "undefined") {
     };
 
     //**** OUTPUTS ***********************************
-    Subgraph.prototype.onSubgraphNewOutput = function(name, type) {
+    FunctionDefinition.prototype.onFunctionDefinitionNewOutput = function(name, type) {
         var slot = this.findOutputSlot(name);
         if (slot == -1) {
             this.addOutput(name, type);
         }
     };
 
-    Subgraph.prototype.onSubgraphRenamedOutput = function(oldname, name) {
+    FunctionDefinition.prototype.onFunctionDefinitionRenamedOutput = function(oldname, name) {
         var slot = this.findOutputSlot(oldname);
         if (slot == -1) {
             return;
@@ -15593,7 +15593,7 @@ if (typeof exports != "undefined") {
         info.name = name;
     };
 
-    Subgraph.prototype.onSubgraphTypeChangeOutput = function(name, type) {
+    FunctionDefinition.prototype.onFunctionDefinitionTypeChangeOutput = function(name, type) {
         var slot = this.findOutputSlot(name);
         if (slot == -1) {
             return;
@@ -15602,7 +15602,7 @@ if (typeof exports != "undefined") {
         info.type = type;
     };
 
-    Subgraph.prototype.onSubgraphRemovedOutput = function(name) {
+    FunctionDefinition.prototype.onFunctionDefinitionRemovedOutput = function(name) {
         var slot = this.findInputSlot(name);
         if (slot == -1) {
             return;
@@ -15611,30 +15611,30 @@ if (typeof exports != "undefined") {
     };
     // *****************************************************
 
-    Subgraph.prototype.getExtraMenuOptions = function(graphcanvas) {
+    FunctionDefinition.prototype.getExtraMenuOptions = function(graphcanvas) {
         var that = this;
         return [
             {
                 content: "Open",
                 callback: function() {
-                    graphcanvas.openSubgraph(that.subgraph);
+                    graphcanvas.openFunctionDefinition(that.subgraph);
                 }
             }
         ];
     };
 
-    Subgraph.prototype.onResize = function(size) {
+    FunctionDefinition.prototype.onResize = function(size) {
         size[1] += 20;
     };
 
-    Subgraph.prototype.serialize = function() {
+    FunctionDefinition.prototype.serialize = function() {
         var data = LiteGraph.LGraphNode.prototype.serialize.call(this);
         data.subgraph = this.subgraph.serialize();
         return data;
     };
     //no need to define node.configure, the default method detects node.subgraph and passes the object to node.subgraph.configure()
 
-    Subgraph.prototype.clone = function() {
+    FunctionDefinition.prototype.clone = function() {
         var node = LiteGraph.createNode(this.type);
         var data = this.serialize();
         delete data["id"];
@@ -15644,7 +15644,7 @@ if (typeof exports != "undefined") {
         return node;
     };
 
-	Subgraph.prototype.buildFromNodes = function(nodes)
+	FunctionDefinition.prototype.buildFromNodes = function(nodes)
 	{
 		//clear all?
 		//TODO
@@ -15733,8 +15733,8 @@ if (typeof exports != "undefined") {
 		//connect edge subgraph nodes to extarnal connections nodes
 	}
 
-    LiteGraph.Subgraph = Subgraph;
-    LiteGraph.registerNodeType("graph/subgraph", Subgraph);
+    LiteGraph.FunctionDefinition = FunctionDefinition;
+    LiteGraph.registerNodeType("graph/functionDefinition", FunctionDefinition);
 
     //Input for a subgraph
     function GraphInput() {
