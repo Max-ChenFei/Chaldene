@@ -3559,7 +3559,7 @@
         if (this.inputs) {
             for (var i = 0, l = this.inputs.length; i < l; ++i) {
                 var input = this.inputs[i];
-                this.getConnectionPos(true, i, link_pos);
+                node.getConnectionPos(true, i, link_pos);
                 if (
                     isInsideRectangle(
                         x,
@@ -4857,6 +4857,10 @@
      */
     function LGraphCanvas(canvas, graph, options) {
         this.options = options = options || {};
+        this.hovered = null;
+        this.hoverables = [];
+        //if(graph === undefined)
+        //	throw ("No graph assigned");
         this.background_image = LGraphCanvas.DEFAULT_BACKGROUND_IMAGE;
 
         if (canvas && canvas.constructor === String) {
@@ -5388,6 +5392,25 @@
         var doc = this.canvas.ownerDocument;
         return doc.defaultView || doc.parentWindow;
     };
+    /**
+     * computes the object the mouse pointer is hovering over
+     *
+     * @method computeHovered
+     */
+    LGraphCanvas.prototype.computeHovered = function() {
+        for(let i = this.hoverables.length-1; i>-1; i--){
+            bb = this.hoverables[i].bbox;
+            if(isInsideRectangle(
+                this.graph_mouse[0],this.graph_mouse[1],
+                bb.left, bb.top, bb.width, bb.height
+            )){
+                this.hovered = this.hoverables[i];
+                console.log("hovering: ",this.hovered);
+                return;
+            }
+        }
+        this.hovered = null;
+    }
 
     /**
      * starts rendering the content of the canvas when needed
@@ -5403,6 +5426,9 @@
         renderFrame.call(this);
 
         function renderFrame() {
+            this.computeHovered();
+            this.hoverables = [];
+
             if (!this.pause_rendering) {
                 this.draw();
             }
@@ -6228,6 +6254,12 @@
 
 		//console.log("pointerevents: processMouseUp which: "+e.which);
 
+        var node = this.graph.getNodeOnPos(
+            e.canvasX,
+            e.canvasY,
+            this.visible_nodes
+        );
+
         if (e.which == 1) {
 
 			if( this.node_widget )
@@ -6260,11 +6292,7 @@
             this.selected_comment_resizing_x = 0;
             this.selected_comment_resizing_y = 0;
 
-			var node = this.graph.getNodeOnPos(
-							e.canvasX,
-							e.canvasY,
-							this.visible_nodes
-						);
+
 
             if (this.dragging_rectangle) {
                 if (this.graph) {
@@ -7165,6 +7193,8 @@
 
         e.canvasX = clientX_rel / this.ds.scale - this.ds.offset[0];
         e.canvasY = clientY_rel / this.ds.scale - this.ds.offset[1];
+
+        this.canvas_mouse = [e.canvasX,e.canvasY];
 
         //console.log("pointerevents: adjustMouseEvent "+e.clientX+":"+e.clientY+" "+clientX_rel+":"+clientY_rel+" "+e.canvasX+":"+e.canvasY);
     };
@@ -8138,6 +8168,11 @@
                 for (var i = 0; i < node.inputs.length; i++) {
                     var slot = node.inputs[i];
 
+                    let link_pos = [0.0,0.0];
+                    node.getConnectionPos(true, i, link_pos);
+                    this.addSlotToHoverables(slot,null,i,node,link_pos);
+
+
                     var slot_type = slot.type;
                     var slot_shape = slot.shape;
 
@@ -8237,6 +8272,10 @@
             if (node.outputs) {
                 for (var i = 0; i < node.outputs.length; i++) {
                     var slot = node.outputs[i];
+
+                    let link_pos = [0.0,0.0];
+                    node.getConnectionPos(false, i, link_pos);
+                    this.addSlotToHoverables(null,slot,i,node,link_pos);
 
                     var slot_type = slot.type;
                     var slot_shape = slot.shape;
@@ -8442,7 +8481,23 @@
         ctx.globalAlpha = 1.0;
     };
 
+    LGraphCanvas.prototype.addSlotToHoverables = function(input,output,i,node,pos){
+        let slot = {}
+        slot.isSlot = true;
+        slot.input = input;
+        slot.output = output;
+        slot.link_pos = pos;
+        slot.slot = i;
+        slot.node = node;
+        slot.bbox = {
+            left: pos[0]- 10,
+            top: pos[1]-5,
+            width: 20,
+            height: 10
 
+        }
+        this.hoverables.push(slot);
+    }
     //minimap static properties
     LGraphCanvas.minimap = {
 
@@ -12876,11 +12931,17 @@
 
         //check if mouse is in input
         var slot = null;
+        if(this.hovered && this.hovered.isSlot){
+            slot = this.hovered;
+            node = slot.node;
+        }
+
+        /*
         if (node) {
             slot = node.getSlotInPosition(event.canvasX, event.canvasY);
             LGraphCanvas.active_node = node;
         }
-
+        */
         if (slot) {
             //on slot
             menu_info = [];
