@@ -5491,7 +5491,13 @@
 			return;
 		}
 
-        var node = this.graph.getNodeOnPos( e.canvasX, e.canvasY, this.visible_nodes, 5 );
+        //var node = this.graph.getNodeOnPos( e.canvasX, e.canvasY, this.visible_nodes, 5 );
+        var node = null;
+        if(this.hovered && this.hovered.node){
+            node = this.hovered.node;
+        }
+
+        var skip_dragging = false;
         var skip_action = false;
         var now = LiteGraph.getTime();
 		var is_primary = (e.isPrimary === undefined || !e.isPrimary);
@@ -6031,8 +6037,11 @@
             }
 
             //get node over
-            var node = this.graph.getNodeOnPos(e.canvasX,e.canvasY,this.visible_nodes);
-
+            //var node = this.graph.getNodeOnPos(e.canvasX,e.canvasY,this.visible_nodes);
+            var node = null;
+            if(this.hovered && this.hovered.node){
+                node = this.hovered.node;
+            }
             //remove mouseover flag
             for (var i = 0, l = this.graph._nodes.length; i < l; ++i) {
                 if (this.graph._nodes[i].mouseOver && node != this.graph._nodes[i] ) {
@@ -6264,13 +6273,18 @@
         }
 
 		//console.log("pointerevents: processMouseUp which: "+e.which);
-
+        /*
         var node = this.graph.getNodeOnPos(
             e.canvasX,
             e.canvasY,
             this.visible_nodes
         );
+        */
 
+        var node = null;
+        if(this.hovered && this.hovered.node){
+            node = this.hovered.node;
+        }
         if (e.which == 1) {
 
 			if( this.node_widget )
@@ -6456,12 +6470,17 @@
             } //no node being dragged
             else {
                 //get node over
+                /*
                 var node = this.graph.getNodeOnPos(
                     e.canvasX,
                     e.canvasY,
                     this.visible_nodes
                 );
-
+                */
+                var node = null;
+                if(this.hovered && this.hovered.node){
+                    node = this.hovered.node;
+                }
                 if (!node && e.click_time < 300) {
                     this.deselectAllNodes();
                 }
@@ -6908,7 +6927,12 @@
         var pos = [e.canvasX, e.canvasY];
 
 
-        var node = this.graph ? this.graph.getNodeOnPos(pos[0], pos[1]) : null;
+        //var node = this.graph ? this.graph.getNodeOnPos(pos[0], pos[1]) : null;
+
+        var node = null;
+        if(this.graph && this.hovered &&this.hovered.node){
+            node = this.hovered.node;
+        }
 
         if (!node) {
             var r = null;
@@ -8066,6 +8090,7 @@
      * @method drawNode
      **/
     LGraphCanvas.prototype.drawNode = function(node, ctx, lq=false) {
+        this.addNodeToHoverables(node);
         var glow = false;
         this.current_node = node;
 
@@ -8520,6 +8545,35 @@
 
         }
         this.hoverables.push(slot);
+    }
+    /*
+        Adds node to hoverables
+    */
+    LGraphCanvas.prototype.addNodeToHoverables = function(node)
+    {
+        let tmp = {}
+        tmp.isNode = true;
+        tmp.node = node;
+        let margin = 5;
+        let margin_top = LiteGraph.NODE_TITLE_HEIGHT; //
+        if(node.flags && node.flags.collapsed){
+            tmp.bbox = {
+                left: node.pos[0] - margin,
+                top: node.pos[1] - LiteGraph.NODE_TITLE_HEIGHT - margin,
+                width: (node._collapsed_width || LiteGraph.NODE_COLLAPSED_WIDTH) +
+                    2 * margin,
+                height: LiteGraph.NODE_TITLE_HEIGHT + 2 * margin
+            }
+        } else {
+            tmp.bbox = {
+                left: node.pos[0] - 4 - margin,
+                top: node.pos[1] - margin_top - margin,
+                width: node.size[0] + 2*(4 + margin),
+                height: node.size[1] + 2*(margin) + margin_top
+            }
+        }
+
+        this.hoverables.push(tmp);
     }
     //minimap static properties
     LGraphCanvas.minimap = {
