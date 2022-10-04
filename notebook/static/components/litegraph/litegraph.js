@@ -6081,7 +6081,12 @@
                             //mouse on top of the corner box, don't know what to do
                         } else {
                             //check if I have a slot below de mouse
-                            var slot = this.isOverNodeInput( node, e.canvasX, e.canvasY, pos );
+                            var slot = -1;
+                            if(this.hovered && this.hovered.isSlot && this.hovered.input) {
+                                slot = this.hovered.slot;
+                                node = this.hovered.node;
+                            }
+
                             if (slot != -1 && node.inputs[slot]) {
                                 var slot_type = node.inputs[slot].type;
                                 if ( LiteGraph.isValidConnection( this.connecting_output.type, slot_type ) ) {
@@ -6103,7 +6108,13 @@
                             //mouse on top of the corner box, don't know what to do
                         } else {
                             //check if I have a slot below de mouse
-                            var slot = this.isOverNodeOutput( node, e.canvasX, e.canvasY, pos );
+                            var slot = -1;
+                            if(this.hovered && this.hovered.isSlot && this.hovered.output) {
+                                slot = this.hovered.slot;
+                                node = this.hovered.node;
+                            }
+
+                            //var slot = this.isOverNodeOutput( node, e.canvasX, e.canvasY, pos );
                             if (slot != -1 && node.outputs[slot]) {
                                 var slot_type = node.outputs[slot].type;
                                 if ( LiteGraph.isValidConnection( this.connecting_input.type, slot_type ) ) {
@@ -6354,11 +6365,18 @@
                 if (node) {
                         if (this.connecting_output){
 
+                            var slot = -1;
+                            if(this.hovered && this.hovered.isSlot && this.hovered.input) {
+                                slot = this.hovered.slot;
+                                node = this.hovered.node;
+                            }
+/*
                             var slot = this.isOverNodeInput(
                                 node,
                                 e.canvasX,
                                 e.canvasY
                             );
+                            */
                             if (slot != -1) {
                                 this.connecting_node.connect(this.connecting_slot, node, slot);
                             } else {
@@ -6369,11 +6387,16 @@
 
                         }else if (this.connecting_input){
 
-                            var slot = this.isOverNodeOutput(
+                            var slot = -1;
+                            if(this.hovered && this.hovered.isSlot && this.hovered.output) {
+                                slot = this.hovered.slot;
+                                node = this.hovered.node;
+                            }
+                           /* var slot = this.isOverNodeOutput(
                                 node,
                                 e.canvasX,
                                 e.canvasY
-                            );
+                            );*/
 
                             if (slot != -1) {
                                 node.connect(slot, this.connecting_node, this.connecting_slot); // this is inverted has output-input nature like
