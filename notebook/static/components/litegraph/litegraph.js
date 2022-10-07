@@ -134,7 +134,6 @@
         allow_scripts: false, //if set to true some nodes like Formula would be allowed to evaluate code that comes from unsafe sources (like node configuration), which could lead to exploits
         registered_node_types: {}, //nodetypes by string
         node_types_by_file_extension: {}, //used for dropping files in the canvas
-        Nodes: {}, //node types by classname
 		Globals: {}, //used to store vars between graphs
 
         searchbox_extras: {}, //used to add extra features to the search box
@@ -269,9 +268,6 @@
 			}
 
             this.registered_node_types[type] = base_class;
-            if (base_class.constructor.name) {
-                this.Nodes[classname] = base_class;
-            }
             if (LiteGraph.onNodeTypeRegistered) {
                 LiteGraph.onNodeTypeRegistered(type, base_class);
             }
@@ -312,8 +308,6 @@
 			if(!base_class)
 				throw("node type not found: " + type );
 			delete this.registered_node_types[base_class.type];
-			if(base_class.constructor.name)
-				delete this.Nodes[base_class.constructor.name];
 		},
 
         /**
@@ -417,7 +411,6 @@
         clearRegisteredTypes: function() {
             this.registered_node_types = {};
             this.node_types_by_file_extension = {};
-            this.Nodes = {};
             this.searchbox_extras = {};
         },
 
