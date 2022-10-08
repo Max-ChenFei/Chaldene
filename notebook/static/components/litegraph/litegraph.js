@@ -101,13 +101,6 @@
         EVENT: -1, //for outputs
         ACTION: -1, //for inputs
 
-        NODE_MODES: ["Always", "On Event", "Never", "On Trigger"], // helper, will add "On Request" and more in the future
-        NODE_MODES_COLORS:["#666","#422","#333","#224","#626"], // use with node_box_coloured_by_mode
-        ALWAYS: 0,
-        ON_EVENT: 1,
-        NEVER: 2,
-        ON_TRIGGER: 3,
-
         UP: 1,
         DOWN: 2,
         LEFT: 3,
@@ -488,9 +481,6 @@
             if (!node.pos) {
                 node.pos = LiteGraph.DEFAULT_POSITION.concat();
             }
-            if (!node.mode) {
-                node.mode = LiteGraph.ALWAYS;
-            }
 
             //extra options
             if (options) {
@@ -770,18 +760,12 @@
         return this.supported_types || LGraph.supported_types;
     };
 
-    LGraph.STATUS_STOPPED = 1;
-    LGraph.STATUS_RUNNING = 2;
-
     /**
      * Removes all nodes from this graph
      * @method clear
      */
 
     LGraph.prototype.clear = function() {
-        this.stop();
-        this.status = LGraph.STATUS_STOPPED;
-
         this.last_node_id = 0;
         this.last_link_id = 0;
 
@@ -828,7 +812,6 @@
 
         this.catch_errors = true;
 
-        this.nodes_executing = [];
         this.nodes_actioning = [];
         this.nodes_executedAction = [];
 
@@ -880,365 +863,6 @@
         }
         graphcanvas.graph = null;
         this.list_of_graphcanvas.splice(pos, 1);
-    };
-
-    /**
-     * Starts running this graph every interval milliseconds.
-     * @method start
-     * @param {number} interval amount of milliseconds between executions, if 0 then it renders to the monitor refresh rate
-     */
-
-    LGraph.prototype.start = function(interval) {
-        if (this.status == LGraph.STATUS_RUNNING) {
-            return;
-        }
-        this.status = LGraph.STATUS_RUNNING;
-
-        if (this.onPlayEvent) {
-            this.onPlayEvent();
-        }
-
-        this.sendEventToAllNodes("onStart");
-
-        //launch
-        this.starttime = LiteGraph.getTime();
-        this.last_update_time = this.starttime;
-        interval = interval || 0;
-        var that = this;
-
-		//execute once per frame
-        if ( interval == 0 && typeof window != "undefined" && window.requestAnimationFrame ) {
-            function on_frame() {
-                if (that.execution_timer_id != -1) {
-                    return;
-                }
-                window.requestAnimationFrame(on_frame);
-				if(that.onBeforeStep)
-					that.onBeforeStep();
-                that.runStep(1, !that.catch_errors);
-				if(that.onAfterStep)
-					that.onAfterStep();
-            }
-            this.execution_timer_id = -1;
-            on_frame();
-        } else { //execute every 'interval' ms
-            this.execution_timer_id = setInterval(function() {
-                //execute
-				if(that.onBeforeStep)
-					that.onBeforeStep();
-                that.runStep(1, !that.catch_errors);
-				if(that.onAfterStep)
-					that.onAfterStep();
-            }, interval);
-        }
-    };
-
-    /**
-     * Stops the execution loop of the graph
-     * @method stop execution
-     */
-
-    LGraph.prototype.stop = function() {
-        if (this.status == LGraph.STATUS_STOPPED) {
-            return;
-        }
-
-        this.status = LGraph.STATUS_STOPPED;
-
-        if (this.onStopEvent) {
-            this.onStopEvent();
-        }
-
-        if (this.execution_timer_id != null) {
-            if (this.execution_timer_id != -1) {
-                clearInterval(this.execution_timer_id);
-            }
-            this.execution_timer_id = null;
-        }
-
-        this.sendEventToAllNodes("onStop");
-    };
-
-    /**
-     * Run N steps (cycles) of the graph
-     * @method runStep
-     * @param {number} num number of steps to run, default is 1
-     * @param {Boolean} do_not_catch_errors [optional] if you want to try/catch errors
-     * @param {number} limit max number of nodes to execute (used to execute from start to a node)
-     */
-
-    LGraph.prototype.runStep = function(num, do_not_catch_errors, limit ) {
-        num = num || 1;
-
-        var start = LiteGraph.getTime();
-        this.globaltime = 0.001 * (start - this.starttime);
-
-        var nodes = this._nodes_executable
-            ? this._nodes_executable
-            : this._nodes;
-        if (!nodes) {
-            return;
-        }
-
-		limit = limit || nodes.length;
-
-        if (do_not_catch_errors) {
-            //iterations
-            for (var i = 0; i < num; i++) {
-                for (var j = 0; j < limit; ++j) {
-                    var node = nodes[j];
-                    if (node.mode == LiteGraph.ALWAYS && node.onExecute) {
-                        //wrap node.onExecute();
-						node.doExecute();
-                    }
-                }
-
-                this.fixedtime += this.fixedtime_lapse;
-                if (this.onExecuteStep) {
-                    this.onExecuteStep();
-                }
-            }
-
-            if (this.onAfterExecute) {
-                this.onAfterExecute();
-            }
-        } else {
-            try {
-                //iterations
-                for (var i = 0; i < num; i++) {
-                    for (var j = 0; j < limit; ++j) {
-                        var node = nodes[j];
-                        if (node.mode == LiteGraph.ALWAYS && node.onExecute) {
-                            node.onExecute();
-                        }
-                    }
-
-                    this.fixedtime += this.fixedtime_lapse;
-                    if (this.onExecuteStep) {
-                        this.onExecuteStep();
-                    }
-                }
-
-                if (this.onAfterExecute) {
-                    this.onAfterExecute();
-                }
-                this.errors_in_execution = false;
-            } catch (err) {
-                this.errors_in_execution = true;
-                if (LiteGraph.throw_errors) {
-                    throw err;
-                }
-                if (LiteGraph.debug) {
-                    console.log("Error during execution: " + err);
-                }
-                this.stop();
-            }
-        }
-
-        var now = LiteGraph.getTime();
-        var elapsed = now - start;
-        if (elapsed == 0) {
-            elapsed = 1;
-        }
-        this.execution_time = 0.001 * elapsed;
-        this.globaltime += 0.001 * elapsed;
-        this.iteration += 1;
-        this.elapsed_time = (now - this.last_update_time) * 0.001;
-        this.last_update_time = now;
-        this.nodes_executing = [];
-        this.nodes_actioning = [];
-        this.nodes_executedAction = [];
-    };
-
-    /**
-     * Updates the graph execution order according to relevance of the nodes (nodes with only outputs have more relevance than
-     * nodes with only inputs.
-     * @method updateExecutionOrder
-     */
-    LGraph.prototype.updateExecutionOrder = function() {
-        this._nodes_in_order = this.computeExecutionOrder(false);
-        this._nodes_executable = [];
-        for (var i = 0; i < this._nodes_in_order.length; ++i) {
-            if (this._nodes_in_order[i].onExecute) {
-                this._nodes_executable.push(this._nodes_in_order[i]);
-            }
-        }
-    };
-
-    //This is more internal, it computes the executable nodes in order and returns it
-    LGraph.prototype.computeExecutionOrder = function(
-        only_onExecute,
-        set_level
-    ) {
-        var L = [];
-        var S = [];
-        var M = {};
-        var visited_links = {}; //to avoid repeating links
-        var remaining_links = {}; //to a
-
-        //search for the nodes without inputs (starting nodes)
-        for (var i = 0, l = this._nodes.length; i < l; ++i) {
-            var node = this._nodes[i];
-            if (only_onExecute && !node.onExecute) {
-                continue;
-            }
-
-            M[node.id] = node; //add to pending nodes
-
-            var num = 0; //num of input connections
-            if (node.inputs) {
-                for (var j = 0, l2 = node.inputs.length; j < l2; j++) {
-                    if (node.inputs[j] && node.inputs[j].link != null) {
-                        num += 1;
-                    }
-                }
-            }
-
-            if (num == 0) {
-                //is a starting node
-                S.push(node);
-                if (set_level) {
-                    node._level = 1;
-                }
-            } //num of input links
-            else {
-                if (set_level) {
-                    node._level = 0;
-                }
-                remaining_links[node.id] = num;
-            }
-        }
-
-        while (true) {
-            if (S.length == 0) {
-                break;
-            }
-
-            //get an starting node
-            var node = S.shift();
-            L.push(node); //add to ordered list
-            delete M[node.id]; //remove from the pending nodes
-
-            if (!node.outputs) {
-                continue;
-            }
-
-            //for every output
-            for (var i = 0; i < node.outputs.length; i++) {
-                var output = node.outputs[i];
-                //not connected
-                if (
-                    output == null ||
-                    output.links == null ||
-                    output.links.length == 0
-                ) {
-                    continue;
-                }
-
-                //for every connection
-                for (var j = 0; j < output.links.length; j++) {
-                    var link_id = output.links[j];
-                    var link = this.links[link_id];
-                    if (!link) {
-                        continue;
-                    }
-
-                    //already visited link (ignore it)
-                    if (visited_links[link.id]) {
-                        continue;
-                    }
-
-                    var target_node = this.getNodeById(link.target_id);
-                    if (target_node == null) {
-                        visited_links[link.id] = true;
-                        continue;
-                    }
-
-                    if (
-                        set_level &&
-                        (!target_node._level ||
-                            target_node._level <= node._level)
-                    ) {
-                        target_node._level = node._level + 1;
-                    }
-
-                    visited_links[link.id] = true; //mark as visited
-                    remaining_links[target_node.id] -= 1; //reduce the number of links remaining
-                    if (remaining_links[target_node.id] == 0) {
-                        S.push(target_node);
-                    } //if no more links, then add to starters array
-                }
-            }
-        }
-
-        //the remaining ones (loops)
-        for (var i in M) {
-            L.push(M[i]);
-        }
-
-        if (L.length != this._nodes.length && LiteGraph.debug) {
-            console.warn("something went wrong, nodes missing");
-        }
-
-        var l = L.length;
-
-        //save order number in the node
-        for (var i = 0; i < l; ++i) {
-            L[i].order = i;
-        }
-
-        //sort now by priority
-        L = L.sort(function(A, B) {
-            var Ap = A.constructor.priority || A.priority || 0;
-            var Bp = B.constructor.priority || B.priority || 0;
-            if (Ap == Bp) {
-                //if same priority, sort by order
-                return A.order - B.order;
-            }
-            return Ap - Bp; //sort by priority
-        });
-
-        //save order number in the node, again...
-        for (var i = 0; i < l; ++i) {
-            L[i].order = i;
-        }
-
-        return L;
-    };
-
-    /**
-     * Returns all the nodes that could affect this one (ancestors) by crawling all the inputs recursively.
-     * It doesn't include the node itself
-     * @method getAncestors
-     * @return {Array} an array with all the LGraphNodes that affect this node, in order of execution
-     */
-    LGraph.prototype.getAncestors = function(node) {
-        var ancestors = [];
-        var pending = [node];
-        var visited = {};
-
-        while (pending.length) {
-            var current = pending.shift();
-            if (!current.inputs) {
-                continue;
-            }
-            if (!visited[current.id] && current != node) {
-                visited[current.id] = true;
-                ancestors.push(current);
-            }
-
-            for (var i = 0; i < current.inputs.length; ++i) {
-                var input = current.getInputNode(i);
-                if (input && ancestors.indexOf(input) == -1) {
-                    pending.push(input);
-                }
-            }
-        }
-
-        ancestors.sort(function(a, b) {
-            return a.order - b.order;
-        });
-        return ancestors;
     };
 
     /**
@@ -1374,7 +998,7 @@
      * @param {LGraphNode} node the instance of the node
      */
 
-    LGraph.prototype.add = function(node, skip_compute_order) {
+    LGraph.prototype.add = function(node) {
         if (!node) {
             return;
         }
@@ -1420,10 +1044,6 @@
 
         if (this.config.align_to_grid) {
             node.alignToGrid();
-        }
-
-        if (!skip_compute_order) {
-            this.updateExecutionOrder();
         }
 
         if (this.onNodeAdded) {
@@ -1525,8 +1145,6 @@
         this.setDirtyCanvas(true, true);
 		this.afterChange(); //sure? - almost sure is wrong
         this.change();
-
-        this.updateExecutionOrder();
     };
 
     /**
@@ -1677,7 +1295,6 @@
                 newnode.outputs = node.outputs.concat();
             }
         }
-        this.updateExecutionOrder();
     };
 
     // ********** GLOBALS *****************
@@ -1999,7 +1616,6 @@
     };
 
     LGraph.prototype.connectionChange = function(node, link_info) {
-        this.updateExecutionOrder();
         if (this.onConnectionChange) {
             this.onConnectionChange(node);
         }
@@ -2281,9 +1897,6 @@
                 this.add(comment);
             }
         }
-
-        this.updateExecutionOrder();
-
 		this.extra = data.extra || {};
 
 		if(this.onConfigure)
@@ -2598,7 +2211,6 @@
             size: this.size,
             flags: LiteGraph.cloneObject(this.flags),
 			order: this.order,
-            mode: this.mode
         };
 
         //special case for when there were errors
@@ -3157,64 +2769,6 @@
 
         }
     }
-
-    LGraphNode.prototype.changeMode = function(modeTo){
-        switch(modeTo){
-            case LiteGraph.ON_EVENT:
-                // this.addOnExecutedOutput();
-                break;
-
-            case LiteGraph.ON_TRIGGER:
-                this.addOnTriggerInput();
-                this.addOnExecutedOutput();
-                break;
-
-            case LiteGraph.NEVER:
-                break;
-
-            case LiteGraph.ALWAYS:
-                break;
-
-            case LiteGraph.ON_REQUEST:
-                break;
-
-            default:
-                return false;
-                break;
-        }
-        this.mode = modeTo;
-        return true;
-    };
-
-    /**
-     * Triggers the node code execution, place a boolean/counter to mark the node as being executed
-     * @method execute
-     * @param {*} param
-     * @param {*} options
-     */
-    LGraphNode.prototype.doExecute = function(param, options) {
-        options = options || {};
-        if (this.onExecute){
-
-            // enable this to give the event an ID
-			if (!options.action_call) options.action_call = this.id+"_exec_"+Math.floor(Math.random()*9999);
-
-            this.graph.nodes_executing[this.id] = true; //.push(this.id);
-
-            this.onExecute(param, options);
-
-            this.graph.nodes_executing[this.id] = false; //.pop();
-
-            // save execution/action ref
-            this.exec_version = this.graph.iteration;
-            if(options && options.action_call){
-                this.action_call = options.action_call; // if (param)
-                this.graph.nodes_executedAction[this.id] = options.action_call;
-            }
-        }
-        this.execute_triggered = 2; // the nFrames it will be used (-- each step), means "how old" is the event
-        if(this.onAfterExecuteNode) this.onAfterExecuteNode(param, options); // callback
-    };
 
     /**
      * Triggers an action, wrapped by logics to control execution flow
