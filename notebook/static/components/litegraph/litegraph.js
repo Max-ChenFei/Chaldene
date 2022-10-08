@@ -2331,10 +2331,6 @@
         };
     };
 
-    LGraph.prototype.onNodeTrace = function(node, msg, color) {
-        //TODO
-    };
-
     //this is the class in charge of storing link information
     function LLink(id, type, origin_id, origin_slot, target_id, target_slot) {
         this.id = id;
@@ -4785,9 +4781,6 @@
         if (this.console.length > LGraphNode.MAX_CONSOLE) {
             this.console.shift();
         }
-
-		if(this.graph.onNodeTrace)
-	        this.graph.onNodeTrace(this, msg);
     };
 
     /* Forces to redraw or the main canvas (LGraphNode) or the bg canvas (links) */
