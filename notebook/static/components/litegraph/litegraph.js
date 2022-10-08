@@ -574,51 +574,6 @@
             return this.auto_sort_node_types ? result.sort() : result;
         },
 
-        //debug purposes: reloads all the js scripts that matches a wildcard
-        reloadNodes: function(folder_wildcard) {
-            var tmp = document.getElementsByTagName("script");
-            //weird, this array changes by its own, so we use a copy
-            var script_files = [];
-            for (var i=0; i < tmp.length; i++) {
-                script_files.push(tmp[i]);
-            }
-
-            var docHeadObj = document.getElementsByTagName("head")[0];
-            folder_wildcard = document.location.href + folder_wildcard;
-
-            for (var i=0; i < script_files.length; i++) {
-                var src = script_files[i].src;
-                if (
-                    !src ||
-                    src.substr(0, folder_wildcard.length) != folder_wildcard
-                ) {
-                    continue;
-                }
-
-                try {
-                    if (LiteGraph.debug) {
-                        console.log("Reloading: " + src);
-                    }
-                    var dynamicScript = document.createElement("script");
-                    dynamicScript.type = "text/javascript";
-                    dynamicScript.src = src;
-                    docHeadObj.appendChild(dynamicScript);
-                    docHeadObj.removeChild(script_files[i]);
-                } catch (err) {
-                    if (LiteGraph.throw_errors) {
-                        throw err;
-                    }
-                    if (LiteGraph.debug) {
-                        console.log("Error while reloading " + src);
-                    }
-                }
-            }
-
-            if (LiteGraph.debug) {
-                console.log("Nodes reloaded");
-            }
-        },
-
         //separated just to improve if it doesn't work
         cloneObject: function(obj, target) {
             if (obj == null) {
