@@ -4771,18 +4771,6 @@
             Math.round(this.pos[1] / LiteGraph.CANVAS_GRID_SIZE);
     };
 
-    /* Console output */
-    LGraphNode.prototype.trace = function(msg) {
-        if (!this.console) {
-            this.console = [];
-        }
-
-        this.console.push(msg);
-        if (this.console.length > LGraphNode.MAX_CONSOLE) {
-            this.console.shift();
-        }
-    };
-
     /* Forces to redraw or the main canvas (LGraphNode) or the bg canvas (links) */
     LGraphNode.prototype.setDirtyCanvas = function(
         dirty_foreground,
