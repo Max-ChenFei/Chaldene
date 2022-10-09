@@ -400,7 +400,7 @@
 
         /**
          * Returns a list of node types matching one category
-         * @method getNodeType
+         * @method getNodeTypesInCategory
          * @param {String} category category name
          * @return {Array} array with all the node classes
          */
@@ -690,7 +690,7 @@
 
         /**
          * Returns a list of node types matching one category
-         * @method getNodeType
+         * @method getNodeTypesInCategory
          * @param {String} category category name
          * @return {Array} array with all the node classes
          */
