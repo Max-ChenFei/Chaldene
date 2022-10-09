@@ -151,13 +151,6 @@
 			}
 
             this.registered_node_types[type] = base_class;
-            if (LiteGraph.onNodeTypeRegistered) {
-                LiteGraph.onNodeTypeRegistered(type, base_class);
-            }
-            if (prev && LiteGraph.onNodeTypeReplaced) {
-                LiteGraph.onNodeTypeReplaced(type, base_class, prev);
-            }
-
             //warnings
             if (base_class.prototype.onPropertyChange) {
                 console.warn(
