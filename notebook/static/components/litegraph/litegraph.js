@@ -36,6 +36,432 @@
        graph_canvas.resize();
     }
     ensureGlobalHandlers();
+
+    //*********************************************************************************
+    // Node_Factory CLASS
+    //*********************************************************************************
+
+    /**
+     * Node_Factory is the class that supports nodes types register, unregister, search and node instance creation and clone
+     *
+     * @class NodeFactory
+     */
+
+    class NodeFactory {
+        constructor(){
+            this.registered_node_types = {};
+            this.node_types_by_file_extension = {};
+            this.registered_slot_in_types = {}; // slot types for nodeclass
+            this.registered_slot_out_types = {}; // slot types for nodeclass
+            this.slot_types_in = []; // slot types IN
+            this.slot_types_out = []; // slot types OUT
+            this.slot_types_default_in = []; // specify for each IN slot type a(/many) deafult node(s), use single string, array, or object (with node, title, parameters, ..) like for search
+		    this.slot_types_default_out = []; // specify for each OUT slot type a(/many) deafult node(s), use single string, array, or object (with node, title, parameters, ..) like for search
+        }
+
+        /**
+         * Register a node class so it can be listed when the user wants to create a new one
+         * @method registerNodeType
+         * @param {String} type name of the node and path
+         * @param {Class} base_class class containing the structure of a node
+         */
+
+        registerNodeType(type, base_class) {
+            if (!base_class.prototype) {
+                throw "Cannot register a simple object, it must be a class with a prototype";
+            }
+            base_class.type = type;
+
+            if (LiteGraph.debug) {
+                console.log("Node registered: " + type);
+            }
+
+            var categories = type.split("/");
+            var classname = base_class.name;
+
+            var pos = type.lastIndexOf("/");
+            base_class.category = type.substr(0, pos);
+
+            if (!base_class.title) {
+                base_class.title = classname;
+            }
+
+            //extend class
+            if (base_class.prototype) {
+                //is a class
+                for (var i in LGraphNode.prototype) {
+                    if (!base_class.prototype[i]) {
+                        base_class.prototype[i] = LGraphNode.prototype[i];
+                    }
+                }
+            }
+
+            var prev = this.registered_node_types[type];
+			if(prev)
+				console.log("replacing node type: " + type);
+			else
+			{
+				if( !Object.hasOwnProperty( base_class.prototype, "shape") )
+				Object.defineProperty(base_class.prototype, "shape", {
+					set: function(v) {
+						switch (v) {
+							case "default":
+								delete this._shape;
+								break;
+							case "box":
+								this._shape = LiteGraph.BOX_SHAPE;
+								break;
+							case "round":
+								this._shape = LiteGraph.ROUND_SHAPE;
+								break;
+							case "circle":
+								this._shape = LiteGraph.CIRCLE_SHAPE;
+								break;
+							case "card":
+								this._shape = LiteGraph.CARD_SHAPE;
+								break;
+							default:
+								this._shape = v;
+						}
+					},
+					get: function(v) {
+						return this._shape;
+					},
+					enumerable: true,
+					configurable: true
+				});
+
+				//warnings
+				if (base_class.prototype.onPropertyChange) {
+					console.warn(
+						"LiteGraph node class " +
+							type +
+							" has onPropertyChange method, it must be called onPropertyChanged with d at the end"
+					);
+				}
+
+				//used to know which nodes create when dragging files to the canvas
+				if (base_class.supported_extensions) {
+					for (var i in base_class.supported_extensions) {
+						var ext = base_class.supported_extensions[i];
+						if(ext && ext.constructor === String)
+							this.node_types_by_file_extension[ ext.toLowerCase() ] = base_class;
+					}
+				}
+			}
+
+            this.registered_node_types[type] = base_class;
+            //warnings
+            if (base_class.prototype.onPropertyChange) {
+                console.warn(
+                    "LiteGraph node class " +
+                        type +
+                        " has onPropertyChange method, it must be called onPropertyChanged with d at the end"
+                );
+            }
+
+			//used to know which nodes create when dragging files to the canvas
+            if (base_class.supported_extensions) {
+                for (var i=0; i < base_class.supported_extensions.length; i++) {
+					var ext = base_class.supported_extensions[i];
+					if(ext && ext.constructor === String)
+	                    this.node_types_by_file_extension[ ext.toLowerCase() ] = base_class;
+                }
+            }
+
+            // TODO one would want to know input and ouput :: this would allow trought registerNodeAndSlotType to get all the slots types
+            if (this.auto_load_slot_types) nodeTmp = new base_class(base_class.title || "tmpnode");
+        }
+
+        /**
+         * removes a node type from the system
+         * @method unregisterNodeType
+         * @param {String|Object} type name of the node or the node constructor itself
+         */
+        unregisterNodeType(type) {
+			var base_class = type.constructor === String ? this.registered_node_types[type] : type;
+			if(!base_class)
+				throw("node type not found: " + type );
+			delete this.registered_node_types[base_class.type];
+		}
+
+        /**
+        * Save a slot type and his node
+        * @method registerSlotType
+        * @param {String|Object} type name of the node or the node constructor itself
+        * @param {String} slot_type name of the slot type (variable type), eg. string, number, array, boolean, ..
+        */
+        registerNodeAndSlotType(type,slot_type,out){
+            out = out || false;
+            var base_class = type.constructor === String && this.registered_node_types[type] !== "anonymous" ? this.registered_node_types[type] : type;
+
+            var sCN = base_class.constructor.type;
+
+            if (typeof slot_type == "string"){
+                var aTypes = slot_type.split(",");
+            }else if (slot_type == this.EVENT || slot_type == this.ACTION){
+                var aTypes = ["_event_"];
+            }else{
+                var aTypes = ["*"];
+            }
+
+            for (var i = 0; i < aTypes.length; ++i) {
+                var sT = aTypes[i]; //.toLowerCase();
+                if (sT === ""){
+                    sT = "*";
+                }
+                var registerTo = out ? "registered_slot_out_types" : "registered_slot_in_types";
+                if (typeof this[registerTo][sT] == "undefined") this[registerTo][sT] = {nodes: []};
+                this[registerTo][sT].nodes.push(sCN);
+
+                // check if is a new type
+                if (!out){
+                    if (!this.slot_types_in.includes(sT.toLowerCase())){
+                        this.slot_types_in.push(sT.toLowerCase());
+                        this.slot_types_in.sort();
+                    }
+                }else{
+                    if (!this.slot_types_out.includes(sT.toLowerCase())){
+                        this.slot_types_out.push(sT.toLowerCase());
+                        this.slot_types_out.sort();
+                    }
+                }
+            }
+        }
+
+        /**
+         * Create a new nodetype by passing a function, it wraps it with a proper class and generates inputs according to the parameters of the function.
+         * Useful to wrap simple methods that do not require properties, and that only process some input to generate an output.
+         * @method wrapFunctionAsNode
+         * @param {String} name node name with namespace (p.e.: 'math/sum')
+         * @param {Function} func
+         * @param {Array} param_types [optional] an array containing the type of every parameter, otherwise parameters will accept any type
+         * @param {String} return_type [optional] string with the return type, otherwise it will be generic
+         * @param {Object} properties [optional] properties to be configurable
+         */
+        wrapFunctionAsNode(
+            name,
+            func,
+            param_types,
+            return_type,
+            properties
+        ) {
+            var params = Array(func.length);
+            var code = "";
+            var names = LiteGraph.getParameterNames(func);
+            for (var i = 0; i < names.length; ++i) {
+                code +=
+                    "this.addInput('" +
+                    names[i] +
+                    "'," +
+                    (param_types && param_types[i]
+                        ? "'" + param_types[i] + "'"
+                        : "0") +
+                    ");\n";
+            }
+            code +=
+                "this.addOutput('out'," +
+                (return_type ? "'" + return_type + "'" : 0) +
+                ");\n";
+            if (properties) {
+                code +=
+                    "this.properties = " + JSON.stringify(properties) + ";\n";
+            }
+            var classobj = Function(code);
+            classobj.title = name.split("/").pop();
+            classobj.desc = "Generated from " + func.name;
+            classobj.prototype.onExecute = function onExecute() {
+                for (var i = 0; i < params.length; ++i) {
+                    params[i] = this.getInputData(i);
+                }
+                var r = func.apply(this, params);
+                this.setOutputData(0, r);
+            };
+            this.registerNodeType(name, classobj);
+        }
+
+        /**
+         * Removes all previously registered node's types
+         */
+        clearRegisteredTypes() {
+            this.registered_node_types = {};
+            this.node_types_by_file_extension = {};
+            this.searchbox_extras = {};
+        }
+
+        /**
+         * Adds this method to all nodetypes, existing and to be created
+         * (You can add it to LGraphNode.prototype but then existing node types wont have it)
+         * @method addNodeMethod
+         * @param {Function} func
+         */
+        addNodeMethod(name, func) {
+            LGraphNode.prototype[name] = func;
+            for (var i in this.registered_node_types) {
+                var type = this.registered_node_types[i];
+                if (type.prototype[name]) {
+                    type.prototype["_" + name] = type.prototype[name];
+                } //keep old in case of replacing
+                type.prototype[name] = func;
+            }
+        }
+
+        /**
+         * Create a node of a given type with a name. The node is not attached to any graph yet.
+         * @method createNode
+         * @param {String} type full name of the node class. p.e. "math/sin"
+         * @param {String} name a name to distinguish from other nodes
+         * @param {Object} options to set options
+         */
+
+        createNode(type, title, options) {
+            var base_class = this.registered_node_types[type];
+            if (!base_class) {
+                if (LiteGraph.debug) {
+                    console.log(
+                        'GraphNode type "' + type + '" not registered.'
+                    );
+                }
+                return null;
+            }
+
+            var prototype = base_class.prototype || base_class;
+
+            title = title || base_class.title || type;
+
+            var node = null;
+
+            if (LiteGraph.catch_exceptions) {
+                try {
+                    node = new base_class(title);
+                } catch (err) {
+                    console.error(err);
+                    return null;
+                }
+            } else {
+                node = new base_class(title);
+            }
+
+            node.type = type;
+
+            if (!node.title && title) {
+                node.title = title;
+            }
+            if (!node.properties) {
+                node.properties = {};
+            }
+            if (!node.properties_info) {
+                node.properties_info = [];
+            }
+            if (!node.flags) {
+                node.flags = {};
+            }
+            if (!node.size) {
+                node.size = node.computeSize();
+				//call onresize?
+            }
+            if (!node.pos) {
+                node.pos = LiteGraph.DEFAULT_POSITION.concat();
+            }
+
+            //extra options
+            if (options) {
+                for (var i in options) {
+                    node[i] = options[i];
+                }
+            }
+
+			// callback
+            if ( node.onNodeCreated ) {
+                node.onNodeCreated();
+            }
+
+            node.addInput("in", "__SEQUENCE_TYPE");
+            node.addOutput("out", "__SEQUENCE_TYPE");
+            return node;
+        }
+
+        /**
+         * Returns a registered node type with a given name
+         * @method getNodeType
+         * @param {String} type full name of the node class. p.e. "math/sin"
+         * @return {Class} the node class
+         */
+        getNodeType(type) {
+            return this.registered_node_types[type];
+        }
+
+        /**
+         * Returns a list of node types matching one category
+         * @method getNodeTypesInCategory
+         * @param {String} category category name
+         * @return {Array} array with all the node classes
+         */
+
+        getNodeTypesInCategory(category, filter) {
+            var r = [];
+            for (var i in this.registered_node_types) {
+                var type = this.registered_node_types[i];
+                if (type.filter != filter) {
+                    continue;
+                }
+
+                if (category == "") {
+                    if (type.category == null) {
+                        r.push(type);
+                    }
+                } else if (type.category == category) {
+                    r.push(type);
+                }
+            }
+
+            if (this.auto_sort_node_types) {
+                r.sort(function(a,b){return a.title.localeCompare(b.title)});
+            }
+
+            return r;
+        }
+
+        /**
+         * Returns a list with all the node type categories
+         * @method getNodeTypesCategories
+         * @param {String} filter only nodes with ctor.filter equal can be shown
+         * @return {Array} array with all the names of the categories
+         */
+        getNodeTypesCategories( filter ) {
+            var categories = { "": 1 };
+            for (var i in this.registered_node_types) {
+				var type = this.registered_node_types[i];
+                if ( type.category && !type.skip_list )
+                {
+					if(type.filter != filter)
+						continue;
+                    categories[type.category] = 1;
+                }
+            }
+            var result = [];
+            for (var i in categories) {
+                result.push(i);
+            }
+            return this.auto_sort_node_types ? result.sort() : result;
+        }
+
+        cloneObject(obj, target) {
+            if (obj == null) {
+                return null;
+            }
+            var r = JSON.parse(JSON.stringify(obj));
+            if (!target) {
+                return r;
+            }
+
+            for (var i in r) {
+                target[i] = r[i];
+            }
+            return target;
+        }
+    }
+
     // *************************************************************
     //   LiteGraph CLASS                                     *******
     // *************************************************************
@@ -125,8 +551,7 @@
         catch_exceptions: true,
         throw_errors: true,
         allow_scripts: false, //if set to true some nodes like Formula would be allowed to evaluate code that comes from unsafe sources (like node configuration), which could lead to exploits
-        registered_node_types: {}, //nodetypes by string
-        node_types_by_file_extension: {}, //used for dropping files in the canvas
+
 		Globals: {}, //used to store vars between graphs
 
         searchbox_extras: {}, //used to add extra features to the search box
@@ -148,12 +573,6 @@
         auto_load_slot_types: false, // [if want false, use true, run, get vars values to be statically set, than disable] nodes types and nodeclass association with node types need to be calculated, if dont want this, calculate once and set registered_slot_[in/out]_types and slot_types_[in/out]
 
 		// set these values if not using auto_load_slot_types
-        registered_slot_in_types: {}, // slot types for nodeclass
-        registered_slot_out_types: {}, // slot types for nodeclass
-        slot_types_in: [], // slot types IN
-        slot_types_out: [], // slot types OUT
-        slot_types_default_in: [], // specify for each IN slot type a(/many) deafult node(s), use single string, array, or object (with node, title, parameters, ..) like for search
-		slot_types_default_out: [], // specify for each OUT slot type a(/many) deafult node(s), use single string, array, or object (with node, title, parameters, ..) like for search
 
 		alt_drag_do_clone_nodes: false, // [true!] very handy, ALT click to clone and drag the new node
 
@@ -168,6 +587,7 @@
         pointerevents_method: "mouse", // "mouse"|"pointer" use mouse for retrocompatibility issues? (none found @ now)
         // TODO implement pointercancel, gotpointercapture, lostpointercapture, (pointerover, pointerout if necessary)
 
+        node_factory: new NodeFactory(),
         /**
          * Register a node class so it can be listed when the user wants to create a new one
          * @method registerNodeType
@@ -176,117 +596,7 @@
          */
 
         registerNodeType: function(type, base_class) {
-            if (!base_class.prototype) {
-                throw "Cannot register a simple object, it must be a class with a prototype";
-            }
-            base_class.type = type;
-
-            if (LiteGraph.debug) {
-                console.log("Node registered: " + type);
-            }
-
-            var categories = type.split("/");
-            var classname = base_class.name;
-
-            var pos = type.lastIndexOf("/");
-            base_class.category = type.substr(0, pos);
-
-            if (!base_class.title) {
-                base_class.title = classname;
-            }
-
-            //extend class
-            if (base_class.prototype) {
-                //is a class
-                for (var i in LGraphNode.prototype) {
-                    if (!base_class.prototype[i]) {
-                        base_class.prototype[i] = LGraphNode.prototype[i];
-                    }
-                }
-            }
-
-            var prev = this.registered_node_types[type];
-			if(prev)
-				console.log("replacing node type: " + type);
-			else
-			{
-				if( !Object.hasOwnProperty( base_class.prototype, "shape") )
-				Object.defineProperty(base_class.prototype, "shape", {
-					set: function(v) {
-						switch (v) {
-							case "default":
-								delete this._shape;
-								break;
-							case "box":
-								this._shape = LiteGraph.BOX_SHAPE;
-								break;
-							case "round":
-								this._shape = LiteGraph.ROUND_SHAPE;
-								break;
-							case "circle":
-								this._shape = LiteGraph.CIRCLE_SHAPE;
-								break;
-							case "card":
-								this._shape = LiteGraph.CARD_SHAPE;
-								break;
-							default:
-								this._shape = v;
-						}
-					},
-					get: function(v) {
-						return this._shape;
-					},
-					enumerable: true,
-					configurable: true
-				});
-
-				//warnings
-				if (base_class.prototype.onPropertyChange) {
-					console.warn(
-						"LiteGraph node class " +
-							type +
-							" has onPropertyChange method, it must be called onPropertyChanged with d at the end"
-					);
-				}
-
-				//used to know which nodes create when dragging files to the canvas
-				if (base_class.supported_extensions) {
-					for (var i in base_class.supported_extensions) {
-						var ext = base_class.supported_extensions[i];
-						if(ext && ext.constructor === String)
-							this.node_types_by_file_extension[ ext.toLowerCase() ] = base_class;
-					}
-				}
-			}
-
-            this.registered_node_types[type] = base_class;
-            if (LiteGraph.onNodeTypeRegistered) {
-                LiteGraph.onNodeTypeRegistered(type, base_class);
-            }
-            if (prev && LiteGraph.onNodeTypeReplaced) {
-                LiteGraph.onNodeTypeReplaced(type, base_class, prev);
-            }
-
-            //warnings
-            if (base_class.prototype.onPropertyChange) {
-                console.warn(
-                    "LiteGraph node class " +
-                        type +
-                        " has onPropertyChange method, it must be called onPropertyChanged with d at the end"
-                );
-            }
-
-			//used to know which nodes create when dragging files to the canvas
-            if (base_class.supported_extensions) {
-                for (var i=0; i < base_class.supported_extensions.length; i++) {
-					var ext = base_class.supported_extensions[i];
-					if(ext && ext.constructor === String)
-	                    this.node_types_by_file_extension[ ext.toLowerCase() ] = base_class;
-                }
-            }
-
-            // TODO one would want to know input and ouput :: this would allow trought registerNodeAndSlotType to get all the slots types
-            if (this.auto_load_slot_types) nodeTmp = new base_class(base_class.title || "tmpnode");
+            return this.node_factory.registerNodeType(type, base_class);
         },
 
         /**
@@ -295,10 +605,7 @@
          * @param {String|Object} type name of the node or the node constructor itself
          */
         unregisterNodeType: function(type) {
-			var base_class = type.constructor === String ? this.registered_node_types[type] : type;
-			if(!base_class)
-				throw("node type not found: " + type );
-			delete this.registered_node_types[base_class.type];
+            return this.node_factory.unregisterNodeType(type);
 		},
 
         /**
@@ -307,42 +614,8 @@
         * @param {String|Object} type name of the node or the node constructor itself
         * @param {String} slot_type name of the slot type (variable type), eg. string, number, array, boolean, ..
         */
-        registerNodeAndSlotType: function(type,slot_type,out){
-            out = out || false;
-            var base_class = type.constructor === String && this.registered_node_types[type] !== "anonymous" ? this.registered_node_types[type] : type;
-
-            var sCN = base_class.constructor.type;
-
-            if (typeof slot_type == "string"){
-                var aTypes = slot_type.split(",");
-            }else if (slot_type == this.EVENT || slot_type == this.ACTION){
-                var aTypes = ["_event_"];
-            }else{
-                var aTypes = ["*"];
-            }
-
-            for (var i = 0; i < aTypes.length; ++i) {
-                var sT = aTypes[i]; //.toLowerCase();
-                if (sT === ""){
-                    sT = "*";
-                }
-                var registerTo = out ? "registered_slot_out_types" : "registered_slot_in_types";
-                if (typeof this[registerTo][sT] == "undefined") this[registerTo][sT] = {nodes: []};
-                this[registerTo][sT].nodes.push(sCN);
-
-                // check if is a new type
-                if (!out){
-                    if (!this.slot_types_in.includes(sT.toLowerCase())){
-                        this.slot_types_in.push(sT.toLowerCase());
-                        this.slot_types_in.sort();
-                    }
-                }else{
-                    if (!this.slot_types_out.includes(sT.toLowerCase())){
-                        this.slot_types_out.push(sT.toLowerCase());
-                        this.slot_types_out.sort();
-                    }
-                }
-            }
+        registerNodeAndSlotType: function(type, slot_type, out){
+            return this.node_factory.registerNodeAndSlotType(type, slot_type, out);
         },
 
         /**
@@ -362,64 +635,18 @@
             return_type,
             properties
         ) {
-            var params = Array(func.length);
-            var code = "";
-            var names = LiteGraph.getParameterNames(func);
-            for (var i = 0; i < names.length; ++i) {
-                code +=
-                    "this.addInput('" +
-                    names[i] +
-                    "'," +
-                    (param_types && param_types[i]
-                        ? "'" + param_types[i] + "'"
-                        : "0") +
-                    ");\n";
-            }
-            code +=
-                "this.addOutput('out'," +
-                (return_type ? "'" + return_type + "'" : 0) +
-                ");\n";
-            if (properties) {
-                code +=
-                    "this.properties = " + JSON.stringify(properties) + ";\n";
-            }
-            var classobj = Function(code);
-            classobj.title = name.split("/").pop();
-            classobj.desc = "Generated from " + func.name;
-            classobj.prototype.onExecute = function onExecute() {
-                for (var i = 0; i < params.length; ++i) {
-                    params[i] = this.getInputData(i);
-                }
-                var r = func.apply(this, params);
-                this.setOutputData(0, r);
-            };
-            this.registerNodeType(name, classobj);
+            return this.node_factory.wrapFunctionAsNode( name,
+            func,
+            param_types,
+            return_type,
+            properties);
         },
 
         /**
          * Removes all previously registered node's types
          */
         clearRegisteredTypes: function() {
-            this.registered_node_types = {};
-            this.node_types_by_file_extension = {};
-            this.searchbox_extras = {};
-        },
-
-        /**
-         * Adds this method to all nodetypes, existing and to be created
-         * (You can add it to LGraphNode.prototype but then existing node types wont have it)
-         * @method addNodeMethod
-         * @param {Function} func
-         */
-        addNodeMethod: function(name, func) {
-            LGraphNode.prototype[name] = func;
-            for (var i in this.registered_node_types) {
-                var type = this.registered_node_types[i];
-                if (type.prototype[name]) {
-                    type.prototype["_" + name] = type.prototype[name];
-                } //keep old in case of replacing
-                type.prototype[name] = func;
-            }
+            return this.node_factory.clearRegisteredTypes();
         },
 
         /**
@@ -431,70 +658,7 @@
          */
 
         createNode: function(type, title, options) {
-            var base_class = this.registered_node_types[type];
-            if (!base_class) {
-                if (LiteGraph.debug) {
-                    console.log(
-                        'GraphNode type "' + type + '" not registered.'
-                    );
-                }
-                return null;
-            }
-
-            var prototype = base_class.prototype || base_class;
-
-            title = title || base_class.title || type;
-
-            var node = null;
-
-            if (LiteGraph.catch_exceptions) {
-                try {
-                    node = new base_class(title);
-                } catch (err) {
-                    console.error(err);
-                    return null;
-                }
-            } else {
-                node = new base_class(title);
-            }
-
-            node.type = type;
-
-            if (!node.title && title) {
-                node.title = title;
-            }
-            if (!node.properties) {
-                node.properties = {};
-            }
-            if (!node.properties_info) {
-                node.properties_info = [];
-            }
-            if (!node.flags) {
-                node.flags = {};
-            }
-            if (!node.size) {
-                node.size = node.computeSize();
-				//call onresize?
-            }
-            if (!node.pos) {
-                node.pos = LiteGraph.DEFAULT_POSITION.concat();
-            }
-
-            //extra options
-            if (options) {
-                for (var i in options) {
-                    node[i] = options[i];
-                }
-            }
-
-			// callback
-            if ( node.onNodeCreated ) {
-                node.onNodeCreated();
-            }
-
-            node.addInput("in", "__SEQUENCE_TYPE");
-            node.addOutput("out", "__SEQUENCE_TYPE");
-            return node;
+            return this.node_factory.createNode(type, title, options);
         },
 
         /**
@@ -504,38 +668,18 @@
          * @return {Class} the node class
          */
         getNodeType: function(type) {
-            return this.registered_node_types[type];
+            return this.node_factory.getNodeType[type];
         },
 
         /**
          * Returns a list of node types matching one category
-         * @method getNodeType
+         * @method getNodeTypesInCategory
          * @param {String} category category name
          * @return {Array} array with all the node classes
          */
 
         getNodeTypesInCategory: function(category, filter) {
-            var r = [];
-            for (var i in this.registered_node_types) {
-                var type = this.registered_node_types[i];
-                if (type.filter != filter) {
-                    continue;
-                }
-
-                if (category == "") {
-                    if (type.category == null) {
-                        r.push(type);
-                    }
-                } else if (type.category == category) {
-                    r.push(type);
-                }
-            }
-
-            if (this.auto_sort_node_types) {
-                r.sort(function(a,b){return a.title.localeCompare(b.title)});
-            }
-
-            return r;
+            return this.node_factory.getNodeTypesInCategory(category, filter);
         },
 
         /**
@@ -545,37 +689,11 @@
          * @return {Array} array with all the names of the categories
          */
         getNodeTypesCategories: function( filter ) {
-            var categories = { "": 1 };
-            for (var i in this.registered_node_types) {
-				var type = this.registered_node_types[i];
-                if ( type.category && !type.skip_list )
-                {
-					if(type.filter != filter)
-						continue;
-                    categories[type.category] = 1;
-                }
-            }
-            var result = [];
-            for (var i in categories) {
-                result.push(i);
-            }
-            return this.auto_sort_node_types ? result.sort() : result;
+            return this.node_factory.getNodeTypesCategories(filter);
         },
 
-        //separated just to improve if it doesn't work
         cloneObject: function(obj, target) {
-            if (obj == null) {
-                return null;
-            }
-            var r = JSON.parse(JSON.stringify(obj));
-            if (!target) {
-                return r;
-            }
-
-            for (var i in r) {
-                target[i] = r[i];
-            }
-            return target;
+           return this.node_factory.cloneObject(obj, target);
         },
 
         /**
@@ -719,6 +837,7 @@
             return new Date().getTime();
         };
     }
+
 
     //*********************************************************************************
     // LGraph CLASS
