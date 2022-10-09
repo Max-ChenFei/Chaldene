@@ -686,7 +686,7 @@
          */
 
         getNodeTypesInCategory: function(category, filter) {
-            return this.node_factory.getNodeTypesInCategory(category, filter)
+            return this.node_factory.getNodeTypesInCategory(category, filter);
         },
 
         /**
@@ -696,11 +696,11 @@
          * @return {Array} array with all the names of the categories
          */
         getNodeTypesCategories: function( filter ) {
-            return this.node_factory.getNodeTypesCategories(filter)
+            return this.node_factory.getNodeTypesCategories(filter);
         },
 
         cloneObject: function(obj, target) {
-           return this.node_factory.cloneObject(obj, target)
+           return this.node_factory.cloneObject(obj, target);
         },
 
         /**
