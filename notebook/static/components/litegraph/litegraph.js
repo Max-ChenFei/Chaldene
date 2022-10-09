@@ -657,16 +657,6 @@
         },
 
         /**
-         * Adds this method to all nodetypes, existing and to be created
-         * (You can add it to LGraphNode.prototype but then existing node types wont have it)
-         * @method addNodeMethod
-         * @param {Function} func
-         */
-        addNodeMethod: function(name, func) {
-            return this.node_factory.addNodeMethod(name, func);
-        },
-
-        /**
          * Create a node of a given type with a name. The node is not attached to any graph yet.
          * @method createNode
          * @param {String} type full name of the node class. p.e. "math/sin"
