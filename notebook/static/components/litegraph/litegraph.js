@@ -36,137 +36,28 @@
        graph_canvas.resize();
     }
     ensureGlobalHandlers();
-    // *************************************************************
-    //   LiteGraph CLASS                                     *******
-    // *************************************************************
+
+    //*********************************************************************************
+    // Node_Factory CLASS
+    //*********************************************************************************
 
     /**
-     * The Global Scope. It contains all the registered node classes.
+     * Node_Factory is the class that supports nodes types register, unregister, search and node instance creation and clone
      *
-     * @class LiteGraph
-     * @constructor
+     * @class NodeFactory
      */
 
-    var LiteGraph = (global.LiteGraph = {
-        VERSION: 0.4,
-
-        CANVAS_GRID_SIZE: 10,
-
-        NODE_TITLE_HEIGHT: 30,
-        NODE_TITLE_TEXT_Y: 20,
-        NODE_SLOT_HEIGHT: 20,
-        NODE_WIDGET_HEIGHT: 20,
-        NODE_WIDTH: 140,
-        NODE_MIN_WIDTH: 50,
-        NODE_COLLAPSED_RADIUS: 10,
-        NODE_COLLAPSED_WIDTH: 80,
-        NODE_TITLE_COLOR: "#999",
-        NODE_SELECTED_TITLE_COLOR: "#FFF",
-        NODE_TEXT_SIZE: 14,
-        NODE_TEXT_COLOR: "#AAA",
-        NODE_SUBTEXT_SIZE: 12,
-        NODE_DEFAULT_COLOR: "#333",
-        NODE_DEFAULT_BGCOLOR: "#353535",
-        NODE_DEFAULT_BOXCOLOR: "#666",
-        NODE_DEFAULT_SHAPE: "box",
-        NODE_BOX_OUTLINE_COLOR: "#FFBF00",
-        DEFAULT_SHADOW_COLOR: "rgba(0,0,0,0.5)",
-        DEFAULT_GROUP_FONT: 24,
-
-        WIDGET_BGCOLOR: "#222",
-        WIDGET_OUTLINE_COLOR: "#666",
-        WIDGET_TEXT_COLOR: "#DDD",
-        WIDGET_SECONDARY_TEXT_COLOR: "#999",
-
-        LINK_COLOR: "#9A9",
-        EVENT_LINK_COLOR: "#AFA",
-        CONNECTING_LINK_COLOR: "#AFA",
-
-        MAX_NUMBER_OF_NODES: 1000, //avoid infinite loops
-        DEFAULT_POSITION: [100, 100], //default node position
-        VALID_SHAPES: ["default", "box", "round", "card"], //,"circle"
-
-        //shapes are used for nodes but also for slots
-        BOX_SHAPE: 1,
-        ROUND_SHAPE: 2,
-        CIRCLE_SHAPE: 3,
-        CARD_SHAPE: 4,
-        ARROW_SHAPE: 5,
-        GRID_SHAPE: 6, // intended for slot arrays
-
-        //enums
-        INPUT: 1,
-        OUTPUT: 2,
-
-        EVENT: -1, //for outputs
-        ACTION: -1, //for inputs
-
-        UP: 1,
-        DOWN: 2,
-        LEFT: 3,
-        RIGHT: 4,
-        CENTER: 5,
-
-        LINK_RENDER_MODES: ["Straight", "Linear", "Spline"], // helper
-        STRAIGHT_LINK: 0,
-        LINEAR_LINK: 1,
-        SPLINE_LINK: 2,
-
-        NORMAL_TITLE: 0,
-        NO_TITLE: 1,
-        TRANSPARENT_TITLE: 2,
-        AUTOHIDE_TITLE: 3,
-        VERTICAL_LAYOUT: "vertical", // arrange nodes vertically
-
-        proxy: null, //used to redirect calls
-        node_images_path: "",
-
-        debug: false,
-        catch_exceptions: true,
-        throw_errors: true,
-        allow_scripts: false, //if set to true some nodes like Formula would be allowed to evaluate code that comes from unsafe sources (like node configuration), which could lead to exploits
-        registered_node_types: {}, //nodetypes by string
-        node_types_by_file_extension: {}, //used for dropping files in the canvas
-		Globals: {}, //used to store vars between graphs
-
-        searchbox_extras: {}, //used to add extra features to the search box
-        auto_sort_node_types: false, // [true!] If set to true, will automatically sort node types / categories in the context menus
-
-		node_box_coloured_when_on: false, // [true!] this make the nodes box (top left circle) coloured when triggered (execute/action), visual feedback
-        node_box_coloured_by_mode: false, // [true!] nodebox based on node mode, visual feedback
-
-        dialog_close_on_mouse_leave: true, // [false on mobile] better true if not touch device, TODO add an helper/listener to close if false
-        dialog_close_on_mouse_leave_delay: 500,
-
-        shift_click_do_break_link_from: false, // [false!] prefer false if results too easy to break links - implement with ALT or TODO custom keys
-        click_do_break_link_to: false, // [false!]prefer false, way too easy to break links
-
-        search_hide_on_mouse_leave: true, // [false on mobile] better true if not touch device, TODO add an helper/listener to close if false
-        search_filter_enabled: true, // [true!] enable filtering slots type in the search widget, !requires auto_load_slot_types or manual set registered_slot_[in/out]_types and slot_types_[in/out]
-        search_show_all_on_open: true, // [true!] opens the results list when opening the search widget
-
-        auto_load_slot_types: false, // [if want false, use true, run, get vars values to be statically set, than disable] nodes types and nodeclass association with node types need to be calculated, if dont want this, calculate once and set registered_slot_[in/out]_types and slot_types_[in/out]
-
-		// set these values if not using auto_load_slot_types
-        registered_slot_in_types: {}, // slot types for nodeclass
-        registered_slot_out_types: {}, // slot types for nodeclass
-        slot_types_in: [], // slot types IN
-        slot_types_out: [], // slot types OUT
-        slot_types_default_in: [], // specify for each IN slot type a(/many) deafult node(s), use single string, array, or object (with node, title, parameters, ..) like for search
-		slot_types_default_out: [], // specify for each OUT slot type a(/many) deafult node(s), use single string, array, or object (with node, title, parameters, ..) like for search
-
-		alt_drag_do_clone_nodes: false, // [true!] very handy, ALT click to clone and drag the new node
-
-		do_add_triggers_slots: false, // [true!] will create and connect event slots when using action/events connections, !WILL CHANGE node mode when using onTrigger (enable mode colors), onExecuted does not need this
-
-		allow_multi_output_for_events: true, // [false!] being events, it is strongly reccomended to use them sequentually, one by one
-
-		middle_click_slot_add_default_node: false, //[true!] allows to create and connect a ndoe clicking with the third button (wheel)
-
-		release_link_on_empty_shows_menu: true, //[true!] dragging a link to empty space will open a menu, add from list, search or defaults
-
-        pointerevents_method: "mouse", // "mouse"|"pointer" use mouse for retrocompatibility issues? (none found @ now)
-        // TODO implement pointercancel, gotpointercapture, lostpointercapture, (pointerover, pointerout if necessary)
+    class NodeFactory {
+        constructor(){
+            this.registered_node_types = {};
+            this.node_types_by_file_extension = {};
+            this.registered_slot_in_types = {}; // slot types for nodeclass
+            this.registered_slot_out_types = {}; // slot types for nodeclass
+            this.slot_types_in = []; // slot types IN
+            this.slot_types_out = []; // slot types OUT
+            this.slot_types_default_in = []; // specify for each IN slot type a(/many) deafult node(s), use single string, array, or object (with node, title, parameters, ..) like for search
+		    this.slot_types_default_out = []; // specify for each OUT slot type a(/many) deafult node(s), use single string, array, or object (with node, title, parameters, ..) like for search
+        }
 
         /**
          * Register a node class so it can be listed when the user wants to create a new one
@@ -175,7 +66,7 @@
          * @param {Class} base_class class containing the structure of a node
          */
 
-        registerNodeType: function(type, base_class) {
+        registerNodeType(type, base_class) {
             if (!base_class.prototype) {
                 throw "Cannot register a simple object, it must be a class with a prototype";
             }
@@ -287,19 +178,19 @@
 
             // TODO one would want to know input and ouput :: this would allow trought registerNodeAndSlotType to get all the slots types
             if (this.auto_load_slot_types) nodeTmp = new base_class(base_class.title || "tmpnode");
-        },
+        }
 
         /**
          * removes a node type from the system
          * @method unregisterNodeType
          * @param {String|Object} type name of the node or the node constructor itself
          */
-        unregisterNodeType: function(type) {
+        unregisterNodeType(type) {
 			var base_class = type.constructor === String ? this.registered_node_types[type] : type;
 			if(!base_class)
 				throw("node type not found: " + type );
 			delete this.registered_node_types[base_class.type];
-		},
+		}
 
         /**
         * Save a slot type and his node
@@ -307,7 +198,7 @@
         * @param {String|Object} type name of the node or the node constructor itself
         * @param {String} slot_type name of the slot type (variable type), eg. string, number, array, boolean, ..
         */
-        registerNodeAndSlotType: function(type,slot_type,out){
+        registerNodeAndSlotType(type,slot_type,out){
             out = out || false;
             var base_class = type.constructor === String && this.registered_node_types[type] !== "anonymous" ? this.registered_node_types[type] : type;
 
@@ -343,7 +234,7 @@
                     }
                 }
             }
-        },
+        }
 
         /**
          * Create a new nodetype by passing a function, it wraps it with a proper class and generates inputs according to the parameters of the function.
@@ -355,7 +246,7 @@
          * @param {String} return_type [optional] string with the return type, otherwise it will be generic
          * @param {Object} properties [optional] properties to be configurable
          */
-        wrapFunctionAsNode: function(
+        wrapFunctionAsNode(
             name,
             func,
             param_types,
@@ -394,16 +285,16 @@
                 this.setOutputData(0, r);
             };
             this.registerNodeType(name, classobj);
-        },
+        }
 
         /**
          * Removes all previously registered node's types
          */
-        clearRegisteredTypes: function() {
+        clearRegisteredTypes() {
             this.registered_node_types = {};
             this.node_types_by_file_extension = {};
             this.searchbox_extras = {};
-        },
+        }
 
         /**
          * Adds this method to all nodetypes, existing and to be created
@@ -411,7 +302,7 @@
          * @method addNodeMethod
          * @param {Function} func
          */
-        addNodeMethod: function(name, func) {
+        addNodeMethod(name, func) {
             LGraphNode.prototype[name] = func;
             for (var i in this.registered_node_types) {
                 var type = this.registered_node_types[i];
@@ -420,7 +311,7 @@
                 } //keep old in case of replacing
                 type.prototype[name] = func;
             }
-        },
+        }
 
         /**
          * Create a node of a given type with a name. The node is not attached to any graph yet.
@@ -430,7 +321,7 @@
          * @param {Object} options to set options
          */
 
-        createNode: function(type, title, options) {
+        createNode(type, title, options) {
             var base_class = this.registered_node_types[type];
             if (!base_class) {
                 if (LiteGraph.debug) {
@@ -495,7 +386,7 @@
             node.addInput("in", "__SEQUENCE_TYPE");
             node.addOutput("out", "__SEQUENCE_TYPE");
             return node;
-        },
+        }
 
         /**
          * Returns a registered node type with a given name
@@ -503,9 +394,9 @@
          * @param {String} type full name of the node class. p.e. "math/sin"
          * @return {Class} the node class
          */
-        getNodeType: function(type) {
+        getNodeType(type) {
             return this.registered_node_types[type];
-        },
+        }
 
         /**
          * Returns a list of node types matching one category
@@ -514,7 +405,7 @@
          * @return {Array} array with all the node classes
          */
 
-        getNodeTypesInCategory: function(category, filter) {
+        getNodeTypesInCategory(category, filter) {
             var r = [];
             for (var i in this.registered_node_types) {
                 var type = this.registered_node_types[i];
@@ -536,7 +427,7 @@
             }
 
             return r;
-        },
+        }
 
         /**
          * Returns a list with all the node type categories
@@ -544,7 +435,7 @@
          * @param {String} filter only nodes with ctor.filter equal can be shown
          * @return {Array} array with all the names of the categories
          */
-        getNodeTypesCategories: function( filter ) {
+        getNodeTypesCategories( filter ) {
             var categories = { "": 1 };
             for (var i in this.registered_node_types) {
 				var type = this.registered_node_types[i];
@@ -560,10 +451,9 @@
                 result.push(i);
             }
             return this.auto_sort_node_types ? result.sort() : result;
-        },
+        }
 
-        //separated just to improve if it doesn't work
-        cloneObject: function(obj, target) {
+        cloneObject(obj, target) {
             if (obj == null) {
                 return null;
             }
@@ -576,6 +466,251 @@
                 target[i] = r[i];
             }
             return target;
+        }
+    }
+
+    // *************************************************************
+    //   LiteGraph CLASS                                     *******
+    // *************************************************************
+
+    /**
+     * The Global Scope. It contains all the registered node classes.
+     *
+     * @class LiteGraph
+     * @constructor
+     */
+
+    var LiteGraph = (global.LiteGraph = {
+        VERSION: 0.4,
+
+        CANVAS_GRID_SIZE: 10,
+
+        NODE_TITLE_HEIGHT: 30,
+        NODE_TITLE_TEXT_Y: 20,
+        NODE_SLOT_HEIGHT: 20,
+        NODE_WIDGET_HEIGHT: 20,
+        NODE_WIDTH: 140,
+        NODE_MIN_WIDTH: 50,
+        NODE_COLLAPSED_RADIUS: 10,
+        NODE_COLLAPSED_WIDTH: 80,
+        NODE_TITLE_COLOR: "#999",
+        NODE_SELECTED_TITLE_COLOR: "#FFF",
+        NODE_TEXT_SIZE: 14,
+        NODE_TEXT_COLOR: "#AAA",
+        NODE_SUBTEXT_SIZE: 12,
+        NODE_DEFAULT_COLOR: "#333",
+        NODE_DEFAULT_BGCOLOR: "#353535",
+        NODE_DEFAULT_BOXCOLOR: "#666",
+        NODE_DEFAULT_SHAPE: "box",
+        NODE_BOX_OUTLINE_COLOR: "#FFBF00",
+        DEFAULT_SHADOW_COLOR: "rgba(0,0,0,0.5)",
+        DEFAULT_GROUP_FONT: 24,
+
+        WIDGET_BGCOLOR: "#222",
+        WIDGET_OUTLINE_COLOR: "#666",
+        WIDGET_TEXT_COLOR: "#DDD",
+        WIDGET_SECONDARY_TEXT_COLOR: "#999",
+
+        LINK_COLOR: "#9A9",
+        EVENT_LINK_COLOR: "#AFA",
+        CONNECTING_LINK_COLOR: "#AFA",
+
+        MAX_NUMBER_OF_NODES: 1000, //avoid infinite loops
+        DEFAULT_POSITION: [100, 100], //default node position
+        VALID_SHAPES: ["default", "box", "round", "card"], //,"circle"
+
+        //shapes are used for nodes but also for slots
+        BOX_SHAPE: 1,
+        ROUND_SHAPE: 2,
+        CIRCLE_SHAPE: 3,
+        CARD_SHAPE: 4,
+        ARROW_SHAPE: 5,
+        GRID_SHAPE: 6, // intended for slot arrays
+
+        //enums
+        INPUT: 1,
+        OUTPUT: 2,
+
+        EVENT: -1, //for outputs
+        ACTION: -1, //for inputs
+
+        UP: 1,
+        DOWN: 2,
+        LEFT: 3,
+        RIGHT: 4,
+        CENTER: 5,
+
+        LINK_RENDER_MODES: ["Straight", "Linear", "Spline"], // helper
+        STRAIGHT_LINK: 0,
+        LINEAR_LINK: 1,
+        SPLINE_LINK: 2,
+
+        NORMAL_TITLE: 0,
+        NO_TITLE: 1,
+        TRANSPARENT_TITLE: 2,
+        AUTOHIDE_TITLE: 3,
+        VERTICAL_LAYOUT: "vertical", // arrange nodes vertically
+
+        proxy: null, //used to redirect calls
+        node_images_path: "",
+
+        debug: false,
+        catch_exceptions: true,
+        throw_errors: true,
+        allow_scripts: false, //if set to true some nodes like Formula would be allowed to evaluate code that comes from unsafe sources (like node configuration), which could lead to exploits
+
+		Globals: {}, //used to store vars between graphs
+
+        searchbox_extras: {}, //used to add extra features to the search box
+        auto_sort_node_types: false, // [true!] If set to true, will automatically sort node types / categories in the context menus
+
+		node_box_coloured_when_on: false, // [true!] this make the nodes box (top left circle) coloured when triggered (execute/action), visual feedback
+        node_box_coloured_by_mode: false, // [true!] nodebox based on node mode, visual feedback
+
+        dialog_close_on_mouse_leave: true, // [false on mobile] better true if not touch device, TODO add an helper/listener to close if false
+        dialog_close_on_mouse_leave_delay: 500,
+
+        shift_click_do_break_link_from: false, // [false!] prefer false if results too easy to break links - implement with ALT or TODO custom keys
+        click_do_break_link_to: false, // [false!]prefer false, way too easy to break links
+
+        search_hide_on_mouse_leave: true, // [false on mobile] better true if not touch device, TODO add an helper/listener to close if false
+        search_filter_enabled: true, // [true!] enable filtering slots type in the search widget, !requires auto_load_slot_types or manual set registered_slot_[in/out]_types and slot_types_[in/out]
+        search_show_all_on_open: true, // [true!] opens the results list when opening the search widget
+
+        auto_load_slot_types: false, // [if want false, use true, run, get vars values to be statically set, than disable] nodes types and nodeclass association with node types need to be calculated, if dont want this, calculate once and set registered_slot_[in/out]_types and slot_types_[in/out]
+
+		// set these values if not using auto_load_slot_types
+
+		alt_drag_do_clone_nodes: false, // [true!] very handy, ALT click to clone and drag the new node
+
+		do_add_triggers_slots: false, // [true!] will create and connect event slots when using action/events connections, !WILL CHANGE node mode when using onTrigger (enable mode colors), onExecuted does not need this
+
+		allow_multi_output_for_events: true, // [false!] being events, it is strongly reccomended to use them sequentually, one by one
+
+		middle_click_slot_add_default_node: false, //[true!] allows to create and connect a ndoe clicking with the third button (wheel)
+
+		release_link_on_empty_shows_menu: true, //[true!] dragging a link to empty space will open a menu, add from list, search or defaults
+
+        pointerevents_method: "mouse", // "mouse"|"pointer" use mouse for retrocompatibility issues? (none found @ now)
+        // TODO implement pointercancel, gotpointercapture, lostpointercapture, (pointerover, pointerout if necessary)
+
+        node_factory: new NodeFactory(),
+        /**
+         * Register a node class so it can be listed when the user wants to create a new one
+         * @method registerNodeType
+         * @param {String} type name of the node and path
+         * @param {Class} base_class class containing the structure of a node
+         */
+
+        registerNodeType: function(type, base_class) {
+            return this.node_factory.registerNodeType(type, base_class);
+        },
+
+        /**
+         * removes a node type from the system
+         * @method unregisterNodeType
+         * @param {String|Object} type name of the node or the node constructor itself
+         */
+        unregisterNodeType: function(type) {
+            return this.node_factory.unregisterNodeType(type);
+		},
+
+        /**
+        * Save a slot type and his node
+        * @method registerSlotType
+        * @param {String|Object} type name of the node or the node constructor itself
+        * @param {String} slot_type name of the slot type (variable type), eg. string, number, array, boolean, ..
+        */
+        registerNodeAndSlotType: function(type, slot_type, out){
+            return this.node_factory.registerNodeAndSlotType(type, slot_type, out);
+        },
+
+        /**
+         * Create a new nodetype by passing a function, it wraps it with a proper class and generates inputs according to the parameters of the function.
+         * Useful to wrap simple methods that do not require properties, and that only process some input to generate an output.
+         * @method wrapFunctionAsNode
+         * @param {String} name node name with namespace (p.e.: 'math/sum')
+         * @param {Function} func
+         * @param {Array} param_types [optional] an array containing the type of every parameter, otherwise parameters will accept any type
+         * @param {String} return_type [optional] string with the return type, otherwise it will be generic
+         * @param {Object} properties [optional] properties to be configurable
+         */
+        wrapFunctionAsNode: function(
+            name,
+            func,
+            param_types,
+            return_type,
+            properties
+        ) {
+            return this.node_factory.wrapFunctionAsNode( name,
+            func,
+            param_types,
+            return_type,
+            properties);
+        },
+
+        /**
+         * Removes all previously registered node's types
+         */
+        clearRegisteredTypes: function() {
+            return this.node_factory.clearRegisteredTypes();
+        },
+
+        /**
+         * Adds this method to all nodetypes, existing and to be created
+         * (You can add it to LGraphNode.prototype but then existing node types wont have it)
+         * @method addNodeMethod
+         * @param {Function} func
+         */
+        addNodeMethod: function(name, func) {
+            return this.node_factory.addNodeMethod(name, func);
+        },
+
+        /**
+         * Create a node of a given type with a name. The node is not attached to any graph yet.
+         * @method createNode
+         * @param {String} type full name of the node class. p.e. "math/sin"
+         * @param {String} name a name to distinguish from other nodes
+         * @param {Object} options to set options
+         */
+
+        createNode: function(type, title, options) {
+            return this.node_factory.createNode(type, title, options);
+        },
+
+        /**
+         * Returns a registered node type with a given name
+         * @method getNodeType
+         * @param {String} type full name of the node class. p.e. "math/sin"
+         * @return {Class} the node class
+         */
+        getNodeType: function(type) {
+            return this.node_factory.getNodeType[type];
+        },
+
+        /**
+         * Returns a list of node types matching one category
+         * @method getNodeType
+         * @param {String} category category name
+         * @return {Array} array with all the node classes
+         */
+
+        getNodeTypesInCategory: function(category, filter) {
+            return this.node_factory.getNodeTypesInCategory(category, filter)
+        },
+
+        /**
+         * Returns a list with all the node type categories
+         * @method getNodeTypesCategories
+         * @param {String} filter only nodes with ctor.filter equal can be shown
+         * @return {Array} array with all the names of the categories
+         */
+        getNodeTypesCategories: function( filter ) {
+            return this.node_factory.getNodeTypesCategories(filter)
+        },
+
+        cloneObject: function(obj, target) {
+           return this.node_factory.cloneObject(obj, target)
         },
 
         /**
@@ -719,6 +854,7 @@
             return new Date().getTime();
         };
     }
+
 
     //*********************************************************************************
     // LGraph CLASS
