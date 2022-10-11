@@ -5780,7 +5780,12 @@
 						}
 					}
 
-					this.selected_comment = this.graph.getCommentOnPos( e.canvasX, e.canvasY );
+					this.selected_comment = null; //this.graph.getCommentOnPos( e.canvasX, e.canvasY );
+                    
+                    if(this.hovered && this.hovered.isComment){
+                        this.selected_comment = this.hovered.comment;
+                    }
+
 					this.selected_comment_resizing_x = 0;
                     this.selected_comment_resizing_y = 0;
 					if (this.selected_comment && !this.read_only ) {
@@ -8551,7 +8556,7 @@
     */
     LGraphCanvas.prototype.addNodeToHoverables = function(node)
     {
-        let tmp = {}
+        let tmp = {};
         tmp.isNode = true;
         tmp.node = node;
         let margin = 5;
@@ -8574,6 +8579,24 @@
         }
 
         this.hoverables.push(tmp);
+    }
+
+    LGraphCanvas.prototype.addCommentToHoverables = function(comment){
+        let tmp = {};
+        tmp.isComment = true;
+        tmp.comment = comment;
+        
+        let margin = 5;
+        let margin_top = LiteGraph.NODE_TITLE_HEIGHT; //
+        tmp.bbox = {
+            left: comment.pos[0] - 4 - margin,
+            top: comment.pos[1] - margin_top - margin,
+            width: comment.size[0] + 2*(4 + margin),
+            height: comment.size[1] + 2*(margin) + margin_top
+        }
+        
+        this.hoverables.push(tmp);
+
     }
     //minimap static properties
     LGraphCanvas.minimap = {
@@ -10133,6 +10156,7 @@
      * @method drawComments
      **/
     LGraphCanvas.prototype.drawComments = function(canvas, ctx) {
+        
         if (!this.graph) {
             return;
         }
@@ -10144,7 +10168,7 @@
 
         for (var i = 0; i < comments.length; ++i) {
             var comment = comments[i];
-
+            this.addCommentToHoverables(comment);
             if (!overlapBounding(this.visible_area, comment._bounding)) {
                 continue;
             } //out of the visible area
@@ -13060,10 +13084,16 @@
                 menu_info = this.getNodeMenuOptions(node);
             } else {
                 menu_info = this.getCanvasMenuOptions();
-                var comment = this.graph.getCommentOnPos(
+                var comment = null;
+                if(this.hovered && this.hovered.isComment){
+                    comment= this.hovered.comment;
+                }
+                /*
+                this.graph.getCommentOnPos(
                     event.canvasX,
                     event.canvasY
                 );
+                */
                 if (comment) {
                     //on comment
                     menu_info.push(null, {
