@@ -1343,48 +1343,6 @@
     };
 
     /**
-     * Returns the top-most node in this position of the canvas
-     * @method getNodeOnPos
-     * @param {number} x the x coordinate in canvas space
-     * @param {number} y the y coordinate in canvas space
-     * @param {Array} nodes_list a list with all the nodes to search from, by default is all the nodes in the graph
-     * @return {LGraphNode} the node at this position or null
-     */
-    LGraph.prototype.getNodeOnPos = function(x, y, nodes_list, margin) {
-        nodes_list = nodes_list || this._nodes;
-		var nRet = null;
-        for (var i = nodes_list.length - 1; i >= 0; i--) {
-            var n = nodes_list[i];
-            if (n.isPointInside(x, y, margin)) {
-                // check for lesser interest nodes (TODO check for overlapping, use the top)
-				/*if (typeof n == "LGraphComment"){
-					nRet = n;
-				}else{*/
-					return n;
-				/*}*/
-            }
-        }
-        return nRet;
-    };
-
-    /**
-     * Returns the top-most comment in that position
-     * @method getCommentOnPos
-     * @param {number} x the x coordinate in canvas space
-     * @param {number} y the y coordinate in canvas space
-     * @return {LGraphComment} the comment or null
-     */
-    LGraph.prototype.getCommentOnPos = function(x, y) {
-        for (var i = this._comments.length - 1; i >= 0; i--) {
-            var g = this._comments[i];
-            if (g.isPointInside(x, y, 2, true)) {
-                return g;
-            }
-        }
-        return null;
-    };
-
-    /**
      * Checks that the node type matches the node type registered, used when replacing a nodetype by a newer version during execution
      * this replaces the ones using the old version with the new version
      * @method checkNodeTypes
@@ -3507,97 +3465,6 @@
     };
 
     /**
-     * checks if a point is inside the shape of a node
-     * @method isPointInside
-     * @param {number} x
-     * @param {number} y
-     * @return {boolean}
-     */
-    LGraphNode.prototype.isPointInside = function(x, y, margin, skip_title) {
-        margin = margin || 0;
-
-        var margin_top = this.graph && this.graph.isLive() ? 0 : LiteGraph.NODE_TITLE_HEIGHT;
-        if (skip_title) {
-            margin_top = 0;
-        }
-        if (this.flags && this.flags.collapsed) {
-            //if ( distance([x,y], [this.pos[0] + this.size[0]*0.5, this.pos[1] + this.size[1]*0.5]) < LiteGraph.NODE_COLLAPSED_RADIUS)
-            if (
-                isInsideRectangle(
-                    x,
-                    y,
-                    this.pos[0] - margin,
-                    this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT - margin,
-                    (this._collapsed_width || LiteGraph.NODE_COLLAPSED_WIDTH) +
-                        2 * margin,
-                    LiteGraph.NODE_TITLE_HEIGHT + 2 * margin
-                )
-            ) {
-                return true;
-            }
-        } else if (
-            this.pos[0] - 4 - margin < x &&
-            this.pos[0] + this.size[0] + 4 + margin > x &&
-            this.pos[1] - margin_top - margin < y &&
-            this.pos[1] + this.size[1] + margin > y
-        ) {
-            return true;
-        }
-        return false;
-    };
-
-    /**
-     * checks if a point is inside a node slot, and returns info about which slot
-     * @method getSlotInPosition
-     * @param {number} x
-     * @param {number} y
-     * @return {Object} if found the object contains { input|output: slot object, slot: number, link_pos: [x,y] }
-     */
-    LGraphNode.prototype.getSlotInPosition = function(x, y) {
-        //search for inputs
-        var link_pos = new Float32Array(2);
-        if (this.inputs) {
-            for (var i = 0, l = this.inputs.length; i < l; ++i) {
-                var input = this.inputs[i];
-                node.getConnectionPos(true, i, link_pos);
-                if (
-                    isInsideRectangle(
-                        x,
-                        y,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        20,
-                        10
-                    )
-                ) {
-                    return { input: input, slot: i, link_pos: link_pos };
-                }
-            }
-        }
-
-        if (this.outputs) {
-            for (var i = 0, l = this.outputs.length; i < l; ++i) {
-                var output = this.outputs[i];
-                this.getConnectionPos(false, i, link_pos);
-                if (
-                    isInsideRectangle(
-                        x,
-                        y,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        20,
-                        10
-                    )
-                ) {
-                    return { output: output, slot: i, link_pos: link_pos };
-                }
-            }
-        }
-
-        return null;
-    };
-
-    /**
      * returns the input slot with a given name (used for dynamic slots), -1 if not found
      * @method findInputSlot
      * @param {string} name the name of the slot
@@ -4619,7 +4486,6 @@
         }
     };
 
-    LGraphComment.prototype.isPointInside = LGraphNode.prototype.isPointInside;
     LGraphComment.prototype.setDirtyCanvas = LGraphNode.prototype.setDirtyCanvas;
 
     //****************************************
@@ -5780,8 +5646,7 @@
 						}
 					}
 
-					this.selected_comment = null; //this.graph.getCommentOnPos( e.canvasX, e.canvasY );
-                    
+					this.selected_comment = null;
                     if(this.hovered && this.hovered.isComment){
                         this.selected_comment = this.hovered.comment;
                     }
@@ -6042,7 +5907,6 @@
             }
 
             //get node over
-            //var node = this.graph.getNodeOnPos(e.canvasX,e.canvasY,this.visible_nodes);
             var node = null;
             if(this.hovered && this.hovered.node){
                 node = this.hovered.node;
@@ -6278,14 +6142,7 @@
         }
 
 		//console.log("pointerevents: processMouseUp which: "+e.which);
-        /*
-        var node = this.graph.getNodeOnPos(
-            e.canvasX,
-            e.canvasY,
-            this.visible_nodes
-        );
-        */
-
+        
         var node = null;
         if(this.hovered && this.hovered.node){
             node = this.hovered.node;
@@ -6475,13 +6332,7 @@
             } //no node being dragged
             else {
                 //get node over
-                /*
-                var node = this.graph.getNodeOnPos(
-                    e.canvasX,
-                    e.canvasY,
-                    this.visible_nodes
-                );
-                */
+                
                 var node = null;
                 if(this.hovered && this.hovered.node){
                     node = this.hovered.node;
@@ -6931,8 +6782,6 @@
 
         var pos = [e.canvasX, e.canvasY];
 
-
-        //var node = this.graph ? this.graph.getNodeOnPos(pos[0], pos[1]) : null;
 
         var node = null;
         if(this.graph && this.hovered &&this.hovered.node){
@@ -13037,12 +12886,6 @@
             node = slot.node;
         }
 
-        /*
-        if (node) {
-            slot = node.getSlotInPosition(event.canvasX, event.canvasY);
-            LGraphCanvas.active_node = node;
-        }
-        */
         if (slot) {
             //on slot
             menu_info = [];
@@ -13088,12 +12931,7 @@
                 if(this.hovered && this.hovered.isComment){
                     comment= this.hovered.comment;
                 }
-                /*
-                this.graph.getCommentOnPos(
-                    event.canvasX,
-                    event.canvasY
-                );
-                */
+                
                 if (comment) {
                     //on comment
                     menu_info.push(null, {
