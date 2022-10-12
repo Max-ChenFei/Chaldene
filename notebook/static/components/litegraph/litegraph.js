@@ -5357,7 +5357,6 @@
 			return;
 		}
 
-        //var node = this.graph.getNodeOnPos( e.canvasX, e.canvasY, this.visible_nodes, 5 );
         var node = null;
         if(this.hovered && this.hovered.node){
             node = this.hovered.node;
