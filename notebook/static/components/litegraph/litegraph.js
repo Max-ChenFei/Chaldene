@@ -6245,13 +6245,7 @@
                                 slot = this.hovered.slot;
                                 node = this.hovered.node;
                             }
-/*
-                            var slot = this.isOverNodeInput(
-                                node,
-                                e.canvasX,
-                                e.canvasY
-                            );
-                            */
+
                             if (slot != -1) {
                                 this.connecting_node.connect(this.connecting_slot, node, slot);
                             } else {
@@ -6458,98 +6452,6 @@
             return true;
         }
         return false;
-    };
-
-    /**
-     * returns the INDEX if a position (in graph space) is on top of a node input slot
-     * @method isOverNodeInput
-     **/
-    LGraphCanvas.prototype.isOverNodeInput = function(
-        node,
-        canvasx,
-        canvasy,
-        slot_pos
-    ) {
-        if (node.inputs) {
-            for (var i = 0, l = node.inputs.length; i < l; ++i) {
-                var input = node.inputs[i];
-                var link_pos = node.getConnectionPos(true, i);
-                var is_inside = false;
-                if (node.horizontal) {
-                    is_inside = isInsideRectangle(
-                        canvasx,
-                        canvasy,
-                        link_pos[0] - 5,
-                        link_pos[1] - 10,
-                        10,
-                        20
-                    );
-                } else {
-                    is_inside = isInsideRectangle(
-                        canvasx,
-                        canvasy,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        40,
-                        10
-                    );
-                }
-                if (is_inside) {
-                    if (slot_pos) {
-                        slot_pos[0] = link_pos[0];
-                        slot_pos[1] = link_pos[1];
-                    }
-                    return i;
-                }
-            }
-        }
-        return -1;
-    };
-
-    /**
-     * returns the INDEX if a position (in graph space) is on top of a node output slot
-     * @method isOverNodeOuput
-     **/
-    LGraphCanvas.prototype.isOverNodeOutput = function(
-        node,
-        canvasx,
-        canvasy,
-        slot_pos
-    ) {
-        if (node.outputs) {
-            for (var i = 0, l = node.outputs.length; i < l; ++i) {
-                var output = node.outputs[i];
-                var link_pos = node.getConnectionPos(false, i);
-                var is_inside = false;
-                if (node.horizontal) {
-                    is_inside = isInsideRectangle(
-                        canvasx,
-                        canvasy,
-                        link_pos[0] - 5,
-                        link_pos[1] - 10,
-                        10,
-                        20
-                    );
-                } else {
-                    is_inside = isInsideRectangle(
-                        canvasx,
-                        canvasy,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        40,
-                        10
-                    );
-                }
-                if (is_inside) {
-                    if (slot_pos) {
-                        slot_pos[0] = link_pos[0];
-                        slot_pos[1] = link_pos[1];
-                    }
-                    return i;
-                }
-            }
-        }
-        return -1;
     };
 
     /**
