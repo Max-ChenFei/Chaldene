@@ -2203,226 +2203,11 @@
         this.flags = {};
     };
 
-    /**
-     * configure a node from an object containing the serialized info
-     * @method configure
-     */
-    LGraphNode.prototype.configure = function(info) {
-        if (this.graph) {
-            this.graph._version++;
-        }
-        for (var j in info) {
-            if (j == "properties") {
-                //i don't want to clone properties, I want to reuse the old container
-                for (var k in info.properties) {
-                    this.properties[k] = info.properties[k];
-                    if (this.onPropertyChanged) {
-                        this.onPropertyChanged( k, info.properties[k] );
-                    }
-                }
-                continue;
-            }
-
-            if (info[j] == null) {
-                continue;
-            } else if (typeof info[j] == "object") {
-                //object
-                if (this[j] && this[j].configure) {
-                    this[j].configure(info[j]);
-                } else {
-                    this[j] = LiteGraph.cloneObject(info[j], this[j]);
-                }
-            } //value
-            else {
-                this[j] = info[j];
-            }
-        }
-
-        if (!info.title) {
-            this.title = this.constructor.title;
-        }
-
-		if (this.inputs) {
-			for (var i = 0; i < this.inputs.length; ++i) {
-				var input = this.inputs[i];
-				var link_info = this.graph ? this.graph.links[input.link] : null;
-				if (this.onConnectionsChange)
-					this.onConnectionsChange( LiteGraph.INPUT, i, true, link_info, input ); //link_info has been created now, so its updated
-
-				if( this.onInputAdded )
-					this.onInputAdded(input);
-
-			}
-		}
-
-		if (this.outputs) {
-			for (var i = 0; i < this.outputs.length; ++i) {
-				var output = this.outputs[i];
-				if (!output.links) {
-					continue;
-				}
-				for (var j = 0; j < output.links.length; ++j) {
-					var link_info = this.graph 	? this.graph.links[output.links[j]] : null;
-					if (this.onConnectionsChange)
-						this.onConnectionsChange( LiteGraph.OUTPUT, i, true, link_info, output ); //link_info has been created now, so its updated
-				}
-
-				if( this.onOutputAdded )
-					this.onOutputAdded(output);
-			}
-        }
-
-		if( this.widgets )
-		{
-			for (var i = 0; i < this.widgets.length; ++i)
-			{
-				var w = this.widgets[i];
-				if(!w)
-					continue;
-				if(w.options && w.options.property && this.properties[ w.options.property ])
-					w.value = JSON.parse( JSON.stringify( this.properties[ w.options.property ] ) );
-			}
-			if (info.widgets_values) {
-				for (var i = 0; i < info.widgets_values.length; ++i) {
-					if (this.widgets[i]) {
-						this.widgets[i].value = info.widgets_values[i];
-					}
-				}
-			}
-		}
-
-        if (this.onConfigure) {
-            this.onConfigure(info);
-        }
-    };
-
-
-      /**
-     * source_code the content
-     * @method source_code
-     */
-
-    LGraphNode.prototype.sourceCode = function() {
-        //intput vs output vs code
-        return '';
-    };
-
-    /**
-     * serialize the content
-     * @method serialize
-     */
-
-    LGraphNode.prototype.serialize = function() {
-        //create serialization object
-        var o = {
-            id: this.id,
-            type: this.type,
-            pos: this.pos,
-            size: this.size,
-            flags: LiteGraph.cloneObject(this.flags),
-			order: this.order,
-        };
-
-        //special case for when there were errors
-        if (this.constructor === LGraphNode && this.last_serialization) {
-            return this.last_serialization;
-        }
-
-        if (this.inputs) {
-            o.inputs = this.inputs;
-        }
-
-        if (this.outputs) {
-            //clear outputs last data (because data in connections is never serialized but stored inside the outputs info)
-            for (var i = 0; i < this.outputs.length; i++) {
-                delete this.outputs[i]._data;
-            }
-            o.outputs = this.outputs;
-        }
-
-        if (this.title && this.title != this.constructor.title) {
-            o.title = this.title;
-        }
-
-        if (this.properties) {
-            o.properties = LiteGraph.cloneObject(this.properties);
-        }
-
-        if (this.widgets && this.serialize_widgets) {
-            o.widgets_values = [];
-            for (var i = 0; i < this.widgets.length; ++i) {
-				if(this.widgets[i])
-	                o.widgets_values[i] = this.widgets[i].value;
-				else
-					o.widgets_values[i] = null;
-            }
-        }
-
-        if (!o.type) {
-            o.type = this.constructor.type;
-        }
-
-        if (this.color) {
-            o.color = this.color;
-        }
-        if (this.bgcolor) {
-            o.bgcolor = this.bgcolor;
-        }
-        if (this.boxcolor) {
-            o.boxcolor = this.boxcolor;
-        }
-        if (this.shape) {
-            o.shape = this.shape;
-        }
-
-        if (this.onSerialize) {
-            if (this.onSerialize(o)) {
-                console.warn(
-                    "node onSerialize shouldnt return anything, data should be stored in the object pass in the first parameter"
-                );
-            }
-        }
-
-        return o;
-    };
-
-    /* Creates a clone of this node */
-    LGraphNode.prototype.clone = function() {
-        var node = LiteGraph.createNode(this.type);
-        if (!node) {
-            return null;
-        }
-
-        //we clone it because serialize returns shared containers
-        var data = LiteGraph.cloneObject(this.serialize());
-
-        //remove links
-        if (data.inputs) {
-            for (var i = 0; i < data.inputs.length; ++i) {
-                data.inputs[i].link = null;
-            }
-        }
-
-        if (data.outputs) {
-            for (var i = 0; i < data.outputs.length; ++i) {
-                if (data.outputs[i].links) {
-                    data.outputs[i].links.length = 0;
-                }
-            }
-        }
-
-        delete data["id"];
-        //remove links
-        node.configure(data);
-
-        return node;
-    };
-
+    // *********************** Node information **************************************
     /**
      * serialize and stringify
      * @method toString
      */
-
     LGraphNode.prototype.toString = function() {
         return JSON.stringify(this.serialize());
     };
@@ -2431,11 +2216,11 @@
      * get the title string
      * @method getTitle
      */
-
     LGraphNode.prototype.getTitle = function() {
         return this.title || this.constructor.title;
     };
 
+ // *********************** Node property **************************************
     /**
      * sets the value of a property
      * @method setProperty
@@ -2468,50 +2253,75 @@
 			}
     };
 
-
-    LGraphNode.prototype.getOutputSlotName = function(slot) {
-        return `Node${this.id}_${slot}`
-    }
-
-    LGraphNode.prototype.getInputNodeSlotName = function(slot) {
-        if (!this.inputs) {
-            return;
-        } //undefined;
-
-        if (slot >= this.inputs.length || this.inputs[slot].link == null) {
-            return;
-        }
-
-        var link_id = this.inputs[slot].link;
-        var link = this.graph.links[link_id];
-        if (!link) {
-            //bug: weird case but it happens sometimes
-            return null;
-        }
-
-        var node = this.graph.getNodeById(link.origin_id);
-        if (node) {
-            return node.getOutputSlotName(link.origin_slot);
-        }
-        return null;
-    }
-
     /**
-     * tells you info about an input connection (which node, type, etc) and used in context menu
-     * @method getInputInfo
-     * @param {number} slot
-     * @return {Object} object or null { link: id, name: string, type: string or 0 }
+     * add a new property to this node
+     * @method addProperty
+     * @param {string} name
+     * @param {*} default_value
+     * @param {string} type string defining the output type ("vec3","number",...)
+     * @param {Object} extra_info this can be used to have special properties of the property (like values, etc)
      */
-    LGraphNode.prototype.getInputInfo = function(slot) {
-        if (!this.inputs) {
-            return null;
+    LGraphNode.prototype.addProperty = function(name, default_value, type, extra_info) {
+        var o = { name: name, type: type, default_value: default_value };
+        if (extra_info) {
+            for (var i in extra_info) {
+                o[i] = extra_info[i];
+            }
         }
-        if (slot < this.inputs.length) {
-            return this.inputs[slot];
+        if (!this.properties_info) {
+            this.properties_info = [];
         }
-        return null;
+        this.properties_info.push(o);
+        if (!this.properties) {
+            this.properties = {};
+        }
+        this.properties[name] = default_value;
+        return o;
     };
 
+    /**
+     * returns all the info available about a property of this node.
+     *
+     * @method getPropertyInfo
+     * @param {String} property name of the property
+     * @return {Object} the object with all the available info
+    */
+    LGraphNode.prototype.getPropertyInfo = function( property ) {
+        var info = null;
+
+		//there are several ways to define info about a property
+		//legacy mode
+		if (this.properties_info) {
+            for (var i = 0; i < this.properties_info.length; ++i) {
+                if (this.properties_info[i].name == property) {
+                    info = this.properties_info[i];
+                    break;
+                }
+            }
+        }
+		//litescene mode using the constructor
+		if(this.constructor["@" + property])
+			info = this.constructor["@" + property];
+
+		if(this.constructor.widgets_info && this.constructor.widgets_info[property])
+			info = this.constructor.widgets_info[property];
+
+		//litescene mode using the constructor
+		if (!info && this.onGetPropertyInfo) {
+            info = this.onGetPropertyInfo(property);
+        }
+
+        if (!info)
+            info = {};
+		if(!info.type)
+			info.type = typeof this.properties[property];
+		if(info.widget == "combo")
+			info.type = "enum";
+
+		return info;
+	}
+
+	// ******************* slots (create, remove, query and get connected node) *****************
     /**
      * returns the node connected in the input slot
      * @method getInputNode
@@ -2534,23 +2344,6 @@
             return null;
         }
         return this.graph.getNodeById(link_info.origin_id);
-    };
-
-
-    /**
-     * tells you info about an output connection (which node, type, etc)
-     * @method getOutputInfo
-     * @param {number} slot
-     * @return {Object}  object or null { name: string, type: string, links: [ ids of links in number ] }
-     */
-    LGraphNode.prototype.getOutputInfo = function(slot) {
-        if (!this.outputs) {
-            return null;
-        }
-        if (slot < this.outputs.length) {
-            return this.outputs[slot];
-        }
-        return null;
     };
 
     /**
@@ -2586,51 +2379,6 @@
         }
         return r;
     };
-
-    /**
-     * changes node size and triggers callback
-     * @method setSize
-     * @param {vec2} size
-     */
-    LGraphNode.prototype.setSize = function(size)
-	{
-		this.size = size;
-		if(this.onResize)
-			this.onResize(this.size);
-	}
-
-    /**
-     * add a new property to this node
-     * @method addProperty
-     * @param {string} name
-     * @param {*} default_value
-     * @param {string} type string defining the output type ("vec3","number",...)
-     * @param {Object} extra_info this can be used to have special properties of the property (like values, etc)
-     */
-    LGraphNode.prototype.addProperty = function(
-        name,
-        default_value,
-        type,
-        extra_info
-    ) {
-        var o = { name: name, type: type, default_value: default_value };
-        if (extra_info) {
-            for (var i in extra_info) {
-                o[i] = extra_info[i];
-            }
-        }
-        if (!this.properties_info) {
-            this.properties_info = [];
-        }
-        this.properties_info.push(o);
-        if (!this.properties) {
-            this.properties = {};
-        }
-        this.properties[name] = default_value;
-        return o;
-    };
-
-    //connections
 
     /**
      * add a new output slot to use in this node
@@ -2811,321 +2559,6 @@
     };
 
     /**
-     * computes the minimum size of a node according to its inputs and output slots
-     * @method computeSize
-     * @param {number} minHeight
-     * @return {number} the total size
-     */
-    LGraphNode.prototype.computeSize = function(out) {
-        if (this.constructor.size) {
-            return this.constructor.size.concat();
-        }
-
-        var rows = Math.max(
-            this.inputs ? this.inputs.length : 1,
-            this.outputs ? this.outputs.length : 1
-        );
-        var size = out || new Float32Array([0, 0]);
-        rows = Math.max(rows, 1);
-        var font_size = LiteGraph.NODE_TEXT_SIZE; //although it should be graphcanvas.inner_text_font size
-
-        var title_width = compute_text_size(this.title);
-        var input_width = 0;
-        var output_width = 0;
-
-        if (this.inputs) {
-            for (var i = 0, l = this.inputs.length; i < l; ++i) {
-                var input = this.inputs[i];
-                var text = input.label || input.name || "";
-                var text_width = compute_text_size(text);
-                if (input_width < text_width) {
-                    input_width = text_width;
-                }
-            }
-        }
-
-        if (this.outputs) {
-            for (var i = 0, l = this.outputs.length; i < l; ++i) {
-                var output = this.outputs[i];
-                var text = output.label || output.name || "";
-                var text_width = compute_text_size(text);
-                if (output_width < text_width) {
-                    output_width = text_width;
-                }
-            }
-        }
-
-        size[0] = Math.max(input_width + output_width + 10, title_width);
-        size[0] = Math.max(size[0], LiteGraph.NODE_WIDTH);
-        if (this.widgets && this.widgets.length) {
-            size[0] = Math.max(size[0], LiteGraph.NODE_WIDTH * 1.5);
-        }
-
-        size[1] = (this.constructor.slot_start_y || 0) + rows * LiteGraph.NODE_SLOT_HEIGHT;
-
-        var widgets_height = 0;
-        if (this.widgets && this.widgets.length) {
-            for (var i = 0, l = this.widgets.length; i < l; ++i) {
-                if (this.widgets[i].computeSize)
-                    widgets_height += this.widgets[i].computeSize(size[0])[1] + 4;
-                else
-                    widgets_height += LiteGraph.NODE_WIDGET_HEIGHT + 4;
-            }
-            widgets_height += 8;
-        }
-
-        //compute height using widgets height
-        if( this.widgets_up )
-            size[1] = Math.max( size[1], widgets_height );
-        else if( this.widgets_start_y != null )
-            size[1] = Math.max( size[1], widgets_height + this.widgets_start_y );
-        else
-            size[1] += widgets_height;
-
-        function compute_text_size(text) {
-            if (!text) {
-                return 0;
-            }
-            return font_size * text.length * 0.6;
-        }
-
-        if (
-            this.constructor.min_height &&
-            size[1] < this.constructor.min_height
-        ) {
-            size[1] = this.constructor.min_height;
-        }
-
-        size[1] += 6; //margin
-
-        return size;
-    };
-
-    /**
-     * returns all the info available about a property of this node.
-     *
-     * @method getPropertyInfo
-     * @param {String} property name of the property
-     * @return {Object} the object with all the available info
-    */
-    LGraphNode.prototype.getPropertyInfo = function( property )
-	{
-        var info = null;
-
-		//there are several ways to define info about a property
-		//legacy mode
-		if (this.properties_info) {
-            for (var i = 0; i < this.properties_info.length; ++i) {
-                if (this.properties_info[i].name == property) {
-                    info = this.properties_info[i];
-                    break;
-                }
-            }
-        }
-		//litescene mode using the constructor
-		if(this.constructor["@" + property])
-			info = this.constructor["@" + property];
-
-		if(this.constructor.widgets_info && this.constructor.widgets_info[property])
-			info = this.constructor.widgets_info[property];
-
-		//litescene mode using the constructor
-		if (!info && this.onGetPropertyInfo) {
-            info = this.onGetPropertyInfo(property);
-        }
-
-        if (!info)
-            info = {};
-		if(!info.type)
-			info.type = typeof this.properties[property];
-		if(info.widget == "combo")
-			info.type = "enum";
-
-		return info;
-	}
-
-    /**
-     * Defines a widget inside the node, it will be rendered on top of the node, you can control lots of properties
-     *
-     * @method addWidget
-     * @param {String} type the widget type (could be "number","string","combo"
-     * @param {String} name the text to show on the widget
-     * @param {String} value the default value
-     * @param {Function|String} callback function to call when it changes (optionally, it can be the name of the property to modify)
-     * @param {Object} options the object that contains special properties of this widget
-     * @return {Object} the created widget object
-     */
-    LGraphNode.prototype.addWidget = function( type, name, value, callback, options )
-	{
-        if (!this.widgets) {
-            this.widgets = [];
-        }
-
-		if(!options && callback && callback.constructor === Object)
-		{
-			options = callback;
-			callback = null;
-		}
-
-		if(options && options.constructor === String) //options can be the property name
-			options = { property: options };
-
-		if(callback && callback.constructor === String) //callback can be the property name
-		{
-			if(!options)
-				options = {};
-			options.property = callback;
-			callback = null;
-		}
-
-		if(callback && callback.constructor !== Function)
-		{
-			console.warn("addWidget: callback must be a function");
-			callback = null;
-		}
-
-        var w = {
-            type: type.toLowerCase(),
-            name: name,
-            value: value,
-            callback: callback,
-            options: options || {}
-        };
-
-        if (w.options.y !== undefined) {
-            w.y = w.options.y;
-        }
-
-        if (!callback && !w.options.callback && !w.options.property) {
-            console.warn("LiteGraph addWidget(...) without a callback or property assigned");
-        }
-        if (type == "combo" && !w.options.values) {
-            throw "LiteGraph addWidget('combo',...) requires to pass values in options: { values:['red','blue'] }";
-        }
-        this.widgets.push(w);
-		this.setSize( this.computeSize() );
-        return w;
-    };
-
-    LGraphNode.prototype.addCustomWidget = function(custom_widget) {
-        if (!this.widgets) {
-            this.widgets = [];
-        }
-        this.widgets.push(custom_widget);
-        return custom_widget;
-    };
-
-    /**
-     * returns the bounding of the object, used for rendering purposes
-     * bounding is: [topleft_cornerx, topleft_cornery, width, height]
-     * @method getBounding
-     * @return {Float32Array[4]} the total size
-     */
-    LGraphNode.prototype.getBounding = function(out) {
-        out = out || new Float32Array(4);
-        out[0] = this.pos[0] - 4;
-        out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT;
-        out[2] = this.size[0] + 4;
-        out[3] = this.flags.collapsed ? LiteGraph.NODE_TITLE_HEIGHT : this.size[1] + LiteGraph.NODE_TITLE_HEIGHT;
-
-        if (this.onBounding) {
-            this.onBounding(out);
-        }
-        return out;
-    };
-
-    /**
-     * checks if a point is inside the shape of a node
-     * @method isPointInside
-     * @param {number} x
-     * @param {number} y
-     * @return {boolean}
-     */
-    LGraphNode.prototype.isPointInside = function(x, y, margin, skip_title) {
-        margin = margin || 0;
-
-        var margin_top = this.graph && this.graph.isLive() ? 0 : LiteGraph.NODE_TITLE_HEIGHT;
-        if (skip_title) {
-            margin_top = 0;
-        }
-        if (this.flags && this.flags.collapsed) {
-            //if ( distance([x,y], [this.pos[0] + this.size[0]*0.5, this.pos[1] + this.size[1]*0.5]) < LiteGraph.NODE_COLLAPSED_RADIUS)
-            if (
-                isInsideRectangle(
-                    x,
-                    y,
-                    this.pos[0] - margin,
-                    this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT - margin,
-                    (this._collapsed_width || LiteGraph.NODE_COLLAPSED_WIDTH) +
-                        2 * margin,
-                    LiteGraph.NODE_TITLE_HEIGHT + 2 * margin
-                )
-            ) {
-                return true;
-            }
-        } else if (
-            this.pos[0] - 4 - margin < x &&
-            this.pos[0] + this.size[0] + 4 + margin > x &&
-            this.pos[1] - margin_top - margin < y &&
-            this.pos[1] + this.size[1] + margin > y
-        ) {
-            return true;
-        }
-        return false;
-    };
-
-    /**
-     * checks if a point is inside a node slot, and returns info about which slot
-     * @method getSlotInPosition
-     * @param {number} x
-     * @param {number} y
-     * @return {Object} if found the object contains { input|output: slot object, slot: number, link_pos: [x,y] }
-     */
-    LGraphNode.prototype.getSlotInPosition = function(x, y) {
-        //search for inputs
-        var link_pos = new Float32Array(2);
-        if (this.inputs) {
-            for (var i = 0, l = this.inputs.length; i < l; ++i) {
-                var input = this.inputs[i];
-                this.getConnectionPos(true, i, link_pos);
-                if (
-                    isInsideRectangle(
-                        x,
-                        y,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        20,
-                        10
-                    )
-                ) {
-                    return { input: input, slot: i, link_pos: link_pos };
-                }
-            }
-        }
-
-        if (this.outputs) {
-            for (var i = 0, l = this.outputs.length; i < l; ++i) {
-                var output = this.outputs[i];
-                this.getConnectionPos(false, i, link_pos);
-                if (
-                    isInsideRectangle(
-                        x,
-                        y,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        20,
-                        10
-                    )
-                ) {
-                    return { output: output, slot: i, link_pos: link_pos };
-                }
-            }
-        }
-
-        return null;
-    };
-
-    /**
      * returns the input slot with a given name (used for dynamic slots), -1 if not found
      * @method findInputSlot
      * @param {string} name the name of the slot
@@ -3289,6 +2722,79 @@
             }
         }
         return -1;
+    };
+
+    // *********************** node manipulation **************************************
+    /* Creates a clone of this node */
+    LGraphNode.prototype.clone = function() {
+        var node = LiteGraph.createNode(this.type);
+        if (!node) {
+            return null;
+        }
+
+        //we clone it because serialize returns shared containers
+        var data = LiteGraph.cloneObject(this.serialize());
+
+        //remove links
+        if (data.inputs) {
+            for (var i = 0; i < data.inputs.length; ++i) {
+                data.inputs[i].link = null;
+            }
+        }
+
+        if (data.outputs) {
+            for (var i = 0; i < data.outputs.length; ++i) {
+                if (data.outputs[i].links) {
+                    data.outputs[i].links.length = 0;
+                }
+            }
+        }
+
+        delete data["id"];
+        //remove links
+        node.configure(data);
+
+        return node;
+    };
+
+    /**
+     * Collapse the node to make it smaller on the canvas
+     * @method collapse
+     **/
+    LGraphNode.prototype.collapse = function(force) {
+        this.graph._version++;
+        if (this.constructor.collapsable === false && !force) {
+            return;
+        }
+        if (!this.flags.collapsed) {
+            this.flags.collapsed = true;
+        } else {
+            this.flags.collapsed = false;
+        }
+        this.setDirtyCanvas(true, true);
+    };
+
+    /**
+     * Forces the node to do not move or realign on Z
+     * @method pin
+     **/
+    LGraphNode.prototype.pin = function(v) {
+        this.graph._version++;
+        if (v === undefined) {
+            this.flags.pinned = !this.flags.pinned;
+        } else {
+            this.flags.pinned = v;
+        }
+    };
+
+    /* Force align to grid */
+    LGraphNode.prototype.alignToGrid = function() {
+        this.pos[0] =
+            LiteGraph.CANVAS_GRID_SIZE *
+            Math.round(this.pos[0] / LiteGraph.CANVAS_GRID_SIZE);
+        this.pos[1] =
+            LiteGraph.CANVAS_GRID_SIZE *
+            Math.round(this.pos[1] / LiteGraph.CANVAS_GRID_SIZE);
     };
 
     /**
@@ -3946,16 +3452,7 @@
         return out;
     };
 
-    /* Force align to grid */
-    LGraphNode.prototype.alignToGrid = function() {
-        this.pos[0] =
-            LiteGraph.CANVAS_GRID_SIZE *
-            Math.round(this.pos[0] / LiteGraph.CANVAS_GRID_SIZE);
-        this.pos[1] =
-            LiteGraph.CANVAS_GRID_SIZE *
-            Math.round(this.pos[1] / LiteGraph.CANVAS_GRID_SIZE);
-    };
-
+    // *********************** rendering **************************************
     /* Forces to redraw or the main canvas (LGraphNode) or the bg canvas (links) */
     LGraphNode.prototype.setDirtyCanvas = function(
         dirty_foreground,
@@ -3970,36 +3467,532 @@
         ]);
     };
 
+    // *********************** overlap detection **************************************
     /**
-     * Collapse the node to make it smaller on the canvas
-     * @method collapse
-     **/
-    LGraphNode.prototype.collapse = function(force) {
-        this.graph._version++;
-        if (this.constructor.collapsable === false && !force) {
+     * changes node size and triggers callback
+     * @method setSize
+     * @param {vec2} size
+     */
+    LGraphNode.prototype.setSize = function(size) {
+		this.size = size;
+		if(this.onResize)
+			this.onResize(this.size);
+	}
+
+	/**
+     * computes the minimum size of a node according to its inputs and output slots
+     * @method computeSize
+     * @param {number} minHeight
+     * @return {number} the total size
+     */
+    LGraphNode.prototype.computeSize = function(out) {
+        if (this.constructor.size) {
+            return this.constructor.size.concat();
+        }
+
+        var rows = Math.max(
+            this.inputs ? this.inputs.length : 1,
+            this.outputs ? this.outputs.length : 1
+        );
+        var size = out || new Float32Array([0, 0]);
+        rows = Math.max(rows, 1);
+        var font_size = LiteGraph.NODE_TEXT_SIZE; //although it should be graphcanvas.inner_text_font size
+
+        var title_width = compute_text_size(this.title);
+        var input_width = 0;
+        var output_width = 0;
+
+        if (this.inputs) {
+            for (var i = 0, l = this.inputs.length; i < l; ++i) {
+                var input = this.inputs[i];
+                var text = input.label || input.name || "";
+                var text_width = compute_text_size(text);
+                if (input_width < text_width) {
+                    input_width = text_width;
+                }
+            }
+        }
+
+        if (this.outputs) {
+            for (var i = 0, l = this.outputs.length; i < l; ++i) {
+                var output = this.outputs[i];
+                var text = output.label || output.name || "";
+                var text_width = compute_text_size(text);
+                if (output_width < text_width) {
+                    output_width = text_width;
+                }
+            }
+        }
+
+        size[0] = Math.max(input_width + output_width + 10, title_width);
+        size[0] = Math.max(size[0], LiteGraph.NODE_WIDTH);
+        if (this.widgets && this.widgets.length) {
+            size[0] = Math.max(size[0], LiteGraph.NODE_WIDTH * 1.5);
+        }
+
+        size[1] = (this.constructor.slot_start_y || 0) + rows * LiteGraph.NODE_SLOT_HEIGHT;
+
+        var widgets_height = 0;
+        if (this.widgets && this.widgets.length) {
+            for (var i = 0, l = this.widgets.length; i < l; ++i) {
+                if (this.widgets[i].computeSize)
+                    widgets_height += this.widgets[i].computeSize(size[0])[1] + 4;
+                else
+                    widgets_height += LiteGraph.NODE_WIDGET_HEIGHT + 4;
+            }
+            widgets_height += 8;
+        }
+
+        //compute height using widgets height
+        if( this.widgets_up )
+            size[1] = Math.max( size[1], widgets_height );
+        else if( this.widgets_start_y != null )
+            size[1] = Math.max( size[1], widgets_height + this.widgets_start_y );
+        else
+            size[1] += widgets_height;
+
+        function compute_text_size(text) {
+            if (!text) {
+                return 0;
+            }
+            return font_size * text.length * 0.6;
+        }
+
+        if (
+            this.constructor.min_height &&
+            size[1] < this.constructor.min_height
+        ) {
+            size[1] = this.constructor.min_height;
+        }
+
+        size[1] += 6; //margin
+
+        return size;
+    };
+
+    /**
+     * checks if a point is inside a node slot, and returns info about which slot
+     * @method getSlotInPosition
+     * @param {number} x
+     * @param {number} y
+     * @return {Object} if found the object contains { input|output: slot object, slot: number, link_pos: [x,y] }
+     */
+    LGraphNode.prototype.getSlotInPosition = function(x, y) {
+        //search for inputs
+        var link_pos = new Float32Array(2);
+        if (this.inputs) {
+            for (var i = 0, l = this.inputs.length; i < l; ++i) {
+                var input = this.inputs[i];
+                this.getConnectionPos(true, i, link_pos);
+                if (
+                    isInsideRectangle(
+                        x,
+                        y,
+                        link_pos[0] - 10,
+                        link_pos[1] - 5,
+                        20,
+                        10
+                    )
+                ) {
+                    return { input: input, slot: i, link_pos: link_pos };
+                }
+            }
+        }
+
+        if (this.outputs) {
+            for (var i = 0, l = this.outputs.length; i < l; ++i) {
+                var output = this.outputs[i];
+                this.getConnectionPos(false, i, link_pos);
+                if (
+                    isInsideRectangle(
+                        x,
+                        y,
+                        link_pos[0] - 10,
+                        link_pos[1] - 5,
+                        20,
+                        10
+                    )
+                ) {
+                    return { output: output, slot: i, link_pos: link_pos };
+                }
+            }
+        }
+
+        return null;
+    };
+
+    /**
+     * returns the bounding of the object, used for rendering purposes
+     * bounding is: [topleft_cornerx, topleft_cornery, width, height]
+     * @method getBounding
+     * @return {Float32Array[4]} the total size
+     */
+    LGraphNode.prototype.getBounding = function(out) {
+        out = out || new Float32Array(4);
+        out[0] = this.pos[0] - 4;
+        out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT;
+        out[2] = this.size[0] + 4;
+        out[3] = this.flags.collapsed ? LiteGraph.NODE_TITLE_HEIGHT : this.size[1] + LiteGraph.NODE_TITLE_HEIGHT;
+
+        if (this.onBounding) {
+            this.onBounding(out);
+        }
+        return out;
+    };
+
+    /**
+     * checks if a point is inside the shape of a node
+     * @method isPointInside
+     * @param {number} x
+     * @param {number} y
+     * @return {boolean}
+     */
+    LGraphNode.prototype.isPointInside = function(x, y, margin, skip_title) {
+        margin = margin || 0;
+
+        var margin_top = this.graph && this.graph.isLive() ? 0 : LiteGraph.NODE_TITLE_HEIGHT;
+        if (skip_title) {
+            margin_top = 0;
+        }
+        if (this.flags && this.flags.collapsed) {
+            //if ( distance([x,y], [this.pos[0] + this.size[0]*0.5, this.pos[1] + this.size[1]*0.5]) < LiteGraph.NODE_COLLAPSED_RADIUS)
+            if (
+                isInsideRectangle(
+                    x,
+                    y,
+                    this.pos[0] - margin,
+                    this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT - margin,
+                    (this._collapsed_width || LiteGraph.NODE_COLLAPSED_WIDTH) +
+                        2 * margin,
+                    LiteGraph.NODE_TITLE_HEIGHT + 2 * margin
+                )
+            ) {
+                return true;
+            }
+        } else if (
+            this.pos[0] - 4 - margin < x &&
+            this.pos[0] + this.size[0] + 4 + margin > x &&
+            this.pos[1] - margin_top - margin < y &&
+            this.pos[1] + this.size[1] + margin > y
+        ) {
+            return true;
+        }
+        return false;
+    };
+
+    // *********************** context menu for the node **************************************
+    /**
+     * tells you info about an input connection (which node, type, etc) and used in context menu
+     * @method getInputInfo
+     * @param {number} slot
+     * @return {Object} object or null { link: id, name: string, type: string or 0 }
+     */
+    LGraphNode.prototype.getInputInfo = function(slot) {
+        if (!this.inputs) {
+            return null;
+        }
+        if (slot < this.inputs.length) {
+            return this.inputs[slot];
+        }
+        return null;
+    };
+
+    /**
+     * tells you info about an output connection (which node, type, etc)
+     * @method getOutputInfo
+     * @param {number} slot
+     * @return {Object}  object or null { name: string, type: string, links: [ ids of links in number ] }
+     */
+    LGraphNode.prototype.getOutputInfo = function(slot) {
+        if (!this.outputs) {
+            return null;
+        }
+        if (slot < this.outputs.length) {
+            return this.outputs[slot];
+        }
+        return null;
+    };
+
+    // *********************** widgets **************************************
+    /**
+     * Defines a widget inside the node, it will be rendered on top of the node, you can control lots of properties
+     *
+     * @method addWidget
+     * @param {String} type the widget type (could be "number","string","combo"
+     * @param {String} name the text to show on the widget
+     * @param {String} value the default value
+     * @param {Function|String} callback function to call when it changes (optionally, it can be the name of the property to modify)
+     * @param {Object} options the object that contains special properties of this widget
+     * @return {Object} the created widget object
+     */
+    LGraphNode.prototype.addWidget = function( type, name, value, callback, options )
+	{
+        if (!this.widgets) {
+            this.widgets = [];
+        }
+
+		if(!options && callback && callback.constructor === Object)
+		{
+			options = callback;
+			callback = null;
+		}
+
+		if(options && options.constructor === String) //options can be the property name
+			options = { property: options };
+
+		if(callback && callback.constructor === String) //callback can be the property name
+		{
+			if(!options)
+				options = {};
+			options.property = callback;
+			callback = null;
+		}
+
+		if(callback && callback.constructor !== Function)
+		{
+			console.warn("addWidget: callback must be a function");
+			callback = null;
+		}
+
+        var w = {
+            type: type.toLowerCase(),
+            name: name,
+            value: value,
+            callback: callback,
+            options: options || {}
+        };
+
+        if (w.options.y !== undefined) {
+            w.y = w.options.y;
+        }
+
+        if (!callback && !w.options.callback && !w.options.property) {
+            console.warn("LiteGraph addWidget(...) without a callback or property assigned");
+        }
+        if (type == "combo" && !w.options.values) {
+            throw "LiteGraph addWidget('combo',...) requires to pass values in options: { values:['red','blue'] }";
+        }
+        this.widgets.push(w);
+		this.setSize( this.computeSize() );
+        return w;
+    };
+
+    LGraphNode.prototype.addCustomWidget = function(custom_widget) {
+        if (!this.widgets) {
+            this.widgets = [];
+        }
+        this.widgets.push(custom_widget);
+        return custom_widget;
+    };
+
+    // *********************** serialization **************************************
+    /**
+     * configure a node from an object containing the serialized info
+     * @method configure
+     */
+    LGraphNode.prototype.configure = function(info) {
+        if (this.graph) {
+            this.graph._version++;
+        }
+        for (var j in info) {
+            if (j == "properties") {
+                //i don't want to clone properties, I want to reuse the old container
+                for (var k in info.properties) {
+                    this.properties[k] = info.properties[k];
+                    if (this.onPropertyChanged) {
+                        this.onPropertyChanged( k, info.properties[k] );
+                    }
+                }
+                continue;
+            }
+
+            if (info[j] == null) {
+                continue;
+            } else if (typeof info[j] == "object") {
+                //object
+                if (this[j] && this[j].configure) {
+                    this[j].configure(info[j]);
+                } else {
+                    this[j] = LiteGraph.cloneObject(info[j], this[j]);
+                }
+            } //value
+            else {
+                this[j] = info[j];
+            }
+        }
+
+        if (!info.title) {
+            this.title = this.constructor.title;
+        }
+
+		if (this.inputs) {
+			for (var i = 0; i < this.inputs.length; ++i) {
+				var input = this.inputs[i];
+				var link_info = this.graph ? this.graph.links[input.link] : null;
+				if (this.onConnectionsChange)
+					this.onConnectionsChange( LiteGraph.INPUT, i, true, link_info, input ); //link_info has been created now, so its updated
+
+				if( this.onInputAdded )
+					this.onInputAdded(input);
+
+			}
+		}
+
+		if (this.outputs) {
+			for (var i = 0; i < this.outputs.length; ++i) {
+				var output = this.outputs[i];
+				if (!output.links) {
+					continue;
+				}
+				for (var j = 0; j < output.links.length; ++j) {
+					var link_info = this.graph 	? this.graph.links[output.links[j]] : null;
+					if (this.onConnectionsChange)
+						this.onConnectionsChange( LiteGraph.OUTPUT, i, true, link_info, output ); //link_info has been created now, so its updated
+				}
+
+				if( this.onOutputAdded )
+					this.onOutputAdded(output);
+			}
+        }
+
+		if( this.widgets )
+		{
+			for (var i = 0; i < this.widgets.length; ++i)
+			{
+				var w = this.widgets[i];
+				if(!w)
+					continue;
+				if(w.options && w.options.property && this.properties[ w.options.property ])
+					w.value = JSON.parse( JSON.stringify( this.properties[ w.options.property ] ) );
+			}
+			if (info.widgets_values) {
+				for (var i = 0; i < info.widgets_values.length; ++i) {
+					if (this.widgets[i]) {
+						this.widgets[i].value = info.widgets_values[i];
+					}
+				}
+			}
+		}
+
+        if (this.onConfigure) {
+            this.onConfigure(info);
+        }
+    };
+
+    /**
+     * serialize the content
+     * @method serialize
+     */
+    LGraphNode.prototype.serialize = function() {
+        //create serialization object
+        var o = {
+            id: this.id,
+            type: this.type,
+            pos: this.pos,
+            size: this.size,
+            flags: LiteGraph.cloneObject(this.flags),
+			order: this.order,
+        };
+
+        //special case for when there were errors
+        if (this.constructor === LGraphNode && this.last_serialization) {
+            return this.last_serialization;
+        }
+
+        if (this.inputs) {
+            o.inputs = this.inputs;
+        }
+
+        if (this.outputs) {
+            //clear outputs last data (because data in connections is never serialized but stored inside the outputs info)
+            for (var i = 0; i < this.outputs.length; i++) {
+                delete this.outputs[i]._data;
+            }
+            o.outputs = this.outputs;
+        }
+
+        if (this.title && this.title != this.constructor.title) {
+            o.title = this.title;
+        }
+
+        if (this.properties) {
+            o.properties = LiteGraph.cloneObject(this.properties);
+        }
+
+        if (this.widgets && this.serialize_widgets) {
+            o.widgets_values = [];
+            for (var i = 0; i < this.widgets.length; ++i) {
+				if(this.widgets[i])
+	                o.widgets_values[i] = this.widgets[i].value;
+				else
+					o.widgets_values[i] = null;
+            }
+        }
+
+        if (!o.type) {
+            o.type = this.constructor.type;
+        }
+
+        if (this.color) {
+            o.color = this.color;
+        }
+        if (this.bgcolor) {
+            o.bgcolor = this.bgcolor;
+        }
+        if (this.boxcolor) {
+            o.boxcolor = this.boxcolor;
+        }
+        if (this.shape) {
+            o.shape = this.shape;
+        }
+
+        if (this.onSerialize) {
+            if (this.onSerialize(o)) {
+                console.warn(
+                    "node onSerialize shouldnt return anything, data should be stored in the object pass in the first parameter"
+                );
+            }
+        }
+
+        return o;
+    };
+
+    // *********************** source code generation *******************************
+    /**
+     * source_code the content
+     * @method source_code
+     */
+    LGraphNode.prototype.sourceCode = function() {
+        //intput vs output vs code
+        return '';
+    };
+
+    LGraphNode.prototype.getOutputSlotName = function(slot) {
+        return `Node${this.id}_${slot}`
+    }
+
+    LGraphNode.prototype.getInputNodeSlotName = function(slot) {
+        if (!this.inputs) {
+            return;
+        } //undefined;
+
+        if (slot >= this.inputs.length || this.inputs[slot].link == null) {
             return;
         }
-        if (!this.flags.collapsed) {
-            this.flags.collapsed = true;
-        } else {
-            this.flags.collapsed = false;
-        }
-        this.setDirtyCanvas(true, true);
-    };
 
-    /**
-     * Forces the node to do not move or realign on Z
-     * @method pin
-     **/
-
-    LGraphNode.prototype.pin = function(v) {
-        this.graph._version++;
-        if (v === undefined) {
-            this.flags.pinned = !this.flags.pinned;
-        } else {
-            this.flags.pinned = v;
+        var link_id = this.inputs[slot].link;
+        var link = this.graph.links[link_id];
+        if (!link) {
+            //bug: weird case but it happens sometimes
+            return null;
         }
-    };
+
+        var node = this.graph.getNodeById(link.origin_id);
+        if (node) {
+            return node.getOutputSlotName(link.origin_slot);
+        }
+        return null;
+    }
 
     function LGraphComment(title) {
         this._ctor(title);
