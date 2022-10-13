@@ -5427,16 +5427,8 @@
                 //not dragging mouse to connect two slots
                 if ( !this.connecting_node && !node.flags.collapsed && !this.live_mode ) {
                     //Search for corner for resize
-                    if ( !skip_action &&
-                        node.resizable !== false &&
-                        isInsideRectangle( e.canvasX,
-                            e.canvasY,
-                            node.pos[0] + node.size[0] - 5,
-                            node.pos[1] + node.size[1] - 5,
-                            10,
-                            10
-                        )
-                    ) {
+                    if ( this.hovered && this.hovered.isNodeCorner) {
+                        console.log("isNodeCorner")
 						this.graph.beforeChange();
                         this.resizing_node = node;
                         this.canvas.style.cursor = "se-resize";
@@ -8257,6 +8249,10 @@
         }
 
         ctx.globalAlpha = 1.0;
+        
+        if(this.resizable !== false){
+            this.addNodeCornerToHoverables(node);
+        }
     };
 
     LGraphCanvas.prototype.addSlotToHoverables = function(input,output,i,node,pos){
@@ -8306,6 +8302,29 @@
         this.hoverables.push(tmp);
     }
 
+    /*
+        Adds node to hoverables
+    */
+    LGraphCanvas.prototype.addNodeCornerToHoverables = function(node)
+    {
+        if(!node.flags || !node.flags.collapsed){
+            let tmp = {};
+            tmp.node = node;
+            tmp.isNodeCorner = true;
+            tmp.bbox = {
+                left: 
+                node.pos[0] + node.size[0] - 5,
+                top: 
+                node.pos[1] + node.size[1] - 5,
+                width: 10,
+                height:10
+            }
+                
+            this.hoverables.push(tmp);
+        } 
+
+    }
+    
     LGraphCanvas.prototype.addCommentToHoverables = function(comment){
         let tmp = {};
         tmp.isComment = true;
