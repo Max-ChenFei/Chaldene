@@ -5441,125 +5441,100 @@
                         this.resizing_node = node;
                         this.canvas.style.cursor = "se-resize";
                         skip_action = true;
-                    } else {
-                        //search for outputs
-                        if (node.outputs) {
-                            for ( var i = 0, l = node.outputs.length; i < l; ++i ) {
-                                var output = node.outputs[i];
-                                var link_pos = node.getConnectionPos(false, i);
-                                if (
-                                    isInsideRectangle(
-                                        e.canvasX,
-                                        e.canvasY,
-                                        link_pos[0] - 15,
-                                        link_pos[1] - 10,
-                                        30,
-                                        20
-                                    )
-                                ) {
-                                    this.connecting_node = node;
-                                    this.connecting_output = output;
-                                    this.connecting_output.slot_index = i;
-                                    this.connecting_pos = node.getConnectionPos( false, i );
-                                    this.connecting_slot = i;
+                    } else if(this.hovered && this.hovered.isSlot ){
+                        if(this.hovered.output){
+                            var output = this.hovered.output;
+                            var link_pos = this.hovered.link_pos;
+                            var i = this.hovered.slot;
 
-                                    if (LiteGraph.shift_click_do_break_link_from){
-                                        if (e.shiftKey) {
-                                            node.disconnectOutput(i);
-                                        }
-                                    }
+                            this.connecting_node = this.hovered.node;
+                            this.connecting_output = output;
+                            this.connecting_output.slot_index = i;
+                            this.connecting_pos = link_pos;
+                            this.connecting_slot = i;
 
-                                    if (is_double_click) {
-                                        if (node.onOutputDblClick) {
-                                            node.onOutputDblClick(i, e);
-                                        }
-                                    } else {
-                                        if (node.onOutputClick) {
-                                            node.onOutputClick(i, e);
-                                        }
-                                    }
-
-                                    skip_action = true;
-                                    break;
+                            if (LiteGraph.shift_click_do_break_link_from){
+                                if (e.shiftKey) {
+                                    node.disconnectOutput(i);
                                 }
                             }
+
+                            if (is_double_click) {
+                                if (node.onOutputDblClick) {
+                                    node.onOutputDblClick(i, e);
+                                }
+                            } else {
+                                if (node.onOutputClick) {
+                                    node.onOutputClick(i, e);
+                                }
+                            }
+
+                            skip_action = true;
+                           
                         }
 
                         //search for inputs
-                        if (node.inputs) {
-                            for ( var i = 0, l = node.inputs.length; i < l; ++i ) {
-                                var input = node.inputs[i];
-                                var link_pos = node.getConnectionPos(true, i);
+                        if (this.hovered.input) {
+                            var input = this.hovered.input;
+                            var link_pos = this.hovered.link_pos;
+                            var node = this.hovered.node;
+                            var i = this.hovered.slot;
+                            
+                            if (is_double_click) {
+                                if (node.onInputDblClick) {
+                                    node.onInputDblClick(i, e);
+                                }
+                            } else {
+                                if (node.onInputClick) {
+                                    node.onInputClick(i, e);
+                                }
+                            }
+
+                            if (input.link !== null) {
+                                var link_info = this.graph.links[
+                                    input.link
+                                ]; //before disconnecting
+                                if (LiteGraph.click_do_break_link_to){
+                                    node.disconnectInput(i);
+                                    this.dirty_bgcanvas = true;
+                                    skip_action = true;
+                                }else{
+                                    // do same action as has not node ?
+                                }
+
                                 if (
-                                    isInsideRectangle(
-                                        e.canvasX,
-                                        e.canvasY,
-                                        link_pos[0] - 15,
-                                        link_pos[1] - 10,
-                                        30,
-                                        20
-                                    )
+                                    this.allow_reconnect_links ||
+                                    //this.move_destination_link_without_shift ||
+                                    e.shiftKey
                                 ) {
-                                    if (is_double_click) {
-                                        if (node.onInputDblClick) {
-                                            node.onInputDblClick(i, e);
-                                        }
-                                    } else {
-                                        if (node.onInputClick) {
-                                            node.onInputClick(i, e);
-                                        }
+                                    if (!LiteGraph.click_do_break_link_to){
+                                        node.disconnectInput(i);
                                     }
+                                    this.connecting_node = this.graph._nodes_by_id[
+                                        link_info.origin_id
+                                    ];
+                                    this.connecting_slot =
+                                        link_info.origin_slot;
+                                    this.connecting_output = this.connecting_node.outputs[
+                                        this.connecting_slot
+                                    ];
+                                    this.connecting_pos = this.connecting_node.getConnectionPos( false, this.connecting_slot );
 
-                                    if (input.link !== null) {
-                                        var link_info = this.graph.links[
-                                            input.link
-                                        ]; //before disconnecting
-                                        if (LiteGraph.click_do_break_link_to){
-                                            node.disconnectInput(i);
-                                            this.dirty_bgcanvas = true;
-                                            skip_action = true;
-                                        }else{
-                                            // do same action as has not node ?
-                                        }
-
-                                        if (
-                                            this.allow_reconnect_links ||
-											//this.move_destination_link_without_shift ||
-                                            e.shiftKey
-                                        ) {
-                                            if (!LiteGraph.click_do_break_link_to){
-                                                node.disconnectInput(i);
-                                            }
-                                            this.connecting_node = this.graph._nodes_by_id[
-                                                link_info.origin_id
-                                            ];
-                                            this.connecting_slot =
-                                                link_info.origin_slot;
-                                            this.connecting_output = this.connecting_node.outputs[
-                                                this.connecting_slot
-                                            ];
-                                            this.connecting_pos = this.connecting_node.getConnectionPos( false, this.connecting_slot );
-
-                                            this.dirty_bgcanvas = true;
-                                            skip_action = true;
-                                        }
+                                    this.dirty_bgcanvas = true;
+                                    skip_action = true;
+                                }
 
 
-                                    }else{
-                                        // has not node
-                                    }
+                                if (!skip_action){
+                                    // connect from in to out, from to to from
+                                    this.connecting_node = node;
+                                    this.connecting_input = input;
+                                    this.connecting_input.slot_index = i;
+                                    this.connecting_pos = link_pos;
+                                    this.connecting_slot = i;
 
-                                    if (!skip_action){
-                                        // connect from in to out, from to to from
-                                        this.connecting_node = node;
-                                        this.connecting_input = input;
-                                        this.connecting_input.slot_index = i;
-                                        this.connecting_pos = node.getConnectionPos( true, i );
-                                        this.connecting_slot = i;
-
-                                        this.dirty_bgcanvas = true;
-                                        skip_action = true;
-                                    }
+                                    this.dirty_bgcanvas = true;
+                                    skip_action = true;
                                 }
                             }
                         }
