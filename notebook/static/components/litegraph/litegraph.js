@@ -7563,18 +7563,6 @@
 		return was_clicked;
 	}
 
-	LGraphCanvas.prototype.isAreaClicked = function( x,y,w,h, hold_click )
-	{
-		var pos = this.mouse;
-		var hover = LiteGraph.isInsideRectangle( pos[0], pos[1], x,y,w,h );
-		pos = this.last_click_position;
-		var clicked = pos && LiteGraph.isInsideRectangle( pos[0], pos[1], x,y,w,h );
-		var was_clicked = clicked && !this.block_click;
-		if(clicked && hold_click)
-			this.blockClick();
-		return was_clicked;
-	}
-
     /**
      * draws some useful stats in the corner of the canvas
      * @method renderInfo
