@@ -5969,14 +5969,7 @@
                 //Search for corner
                 if (this.canvas) {
                     if (
-                        isInsideRectangle(
-                            e.canvasX,
-                            e.canvasY,
-                            node.pos[0] + node.size[0] - 5,
-                            node.pos[1] + node.size[1] - 5,
-                            5,
-                            5
-                        )
+                        this.hovered && this.hovered.isNodeCorner
                     ) {
                         this.canvas.style.cursor = "se-resize";
                     } else {
