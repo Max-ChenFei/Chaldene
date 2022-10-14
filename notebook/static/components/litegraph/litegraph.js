@@ -5920,10 +5920,7 @@
 
                         var pos = this._highlight_input || [0, 0]; //to store the output of isOverNodeInput
 
-                        //on top of input
-                        if (this.isOverNodeBox(node, e.canvasX, e.canvasY)) {
-                            //mouse on top of the corner box, don't know what to do
-                        } else {
+                        {
                             //check if I have a slot below de mouse
                             var slot = -1;
                             if(this.hovered && this.hovered.isSlot && this.hovered.input) {
@@ -5948,9 +5945,7 @@
                         var pos = this._highlight_output || [0, 0]; //to store the output of isOverNodeOutput
 
                         //on top of output
-                        if (this.isOverNodeBox(node, e.canvasX, e.canvasY)) {
-                            //mouse on top of the corner box, don't know what to do
-                        } else {
+                        {
                             //check if I have a slot below de mouse
                             var slot = -1;
                             if(this.hovered && this.hovered.isSlot && this.hovered.output) {
@@ -6205,44 +6200,48 @@
 
                 //node below mouse
                 if (node) {
-                        if (this.connecting_output){
 
-                            var slot = -1;
-                            if(this.hovered && this.hovered.isSlot && this.hovered.input) {
-                                slot = this.hovered.slot;
-                                node = this.hovered.node;
-                            }
-
-                            if (slot != -1) {
-                                this.connecting_node.connect(this.connecting_slot, node, slot);
-                            } else {
-                                //not on top of an input
-                                // look for a good slot
-                                this.connecting_node.connectByType(this.connecting_slot,node,connType);
-                            }
-
-                        }else if (this.connecting_input){
-
-                            var slot = -1;
-                            if(this.hovered && this.hovered.isSlot && this.hovered.output) {
-                                slot = this.hovered.slot;
-                                node = this.hovered.node;
-                            }
-                           /* var slot = this.isOverNodeOutput(
-                                node,
-                                e.canvasX,
-                                e.canvasY
-                            );*/
-
-                            if (slot != -1) {
-                                node.connect(slot, this.connecting_node, this.connecting_slot); // this is inverted has output-input nature like
-                            } else {
-                                //not on top of an input
-                                // look for a good slot
-                                this.connecting_node.connectByTypeOutput(this.connecting_slot,node,connType);
-                            }
-
+                    if (this.connecting_output){
+                        var slot = -1;
+                        if(this.hovered && this.hovered.isSlot && this.hovered.input) {
+                            slot = this.hovered.slot;
+                            node = this.hovered.node;
                         }
+
+                        if (slot != -1) {
+                            this.connecting_node.connect(this.connecting_slot, node, slot);
+                        } else {
+                            //not on top of an input
+                            // look for a good slot
+                            this.connecting_node.connectByType(this.connecting_slot,node,connType);
+                        }
+
+                    }else if (this.connecting_input){
+
+                        var slot = -1;
+                        if(this.hovered && this.hovered.isSlot && this.hovered.output) {
+                            slot = this.hovered.slot;
+                            node = this.hovered.node;
+                        }
+                        /* var slot = this.isOverNodeOutput(
+                            node,
+                            e.canvasX,
+                            e.canvasY
+                        );*/
+
+                        if (slot != -1) {
+                            node.connect(slot, this.connecting_node, this.connecting_slot); // this is inverted has output-input nature like
+                        } else {
+                            //not on top of an input
+                            // look for a good slot
+                            this.connecting_node.connectByTypeOutput(this.connecting_slot,node,connType);
+                        }
+
+                    }
+
+
+                    
+
                 }else{
 
                     // add menu when releasing link in empty space
@@ -6398,27 +6397,6 @@
 
         e.preventDefault();
         return false; // prevent default
-    };
-
-    /**
-     * returns true if a position (in graph space) is on top of a node little corner box
-     * @method isOverNodeBox
-     **/
-    LGraphCanvas.prototype.isOverNodeBox = function(node, canvasx, canvasy) {
-        var title_height = LiteGraph.NODE_TITLE_HEIGHT;
-        if (
-            isInsideRectangle(
-                canvasx,
-                canvasy,
-                node.pos[0] + 2,
-                node.pos[1] + 2 - title_height,
-                title_height - 4,
-                title_height - 4
-            )
-        ) {
-            return true;
-        }
-        return false;
     };
 
     /**
