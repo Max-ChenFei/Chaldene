@@ -5666,71 +5666,6 @@
                 this.dragging_rectangle[3] = 1;
             }
 
-        } else if (e.which == 2) {
-            //middle button
-
-			if (LiteGraph.middle_click_slot_add_default_node){
-				if (node && this.allow_interaction && !skip_action && !this.read_only){
-					//not dragging mouse to connect two slots
-					if (
-						!this.connecting_node &&
-						!node.flags.collapsed &&
-						!this.live_mode
-					) {
-						var mClikSlot = false;
-						var mClikSlot_index = false;
-						var mClikSlot_isOut = false;
-						//search for outputs
-						if (node.outputs) {
-							for ( var i = 0, l = node.outputs.length; i < l; ++i ) {
-								var output = node.outputs[i];
-								var link_pos = node.getConnectionPos(false, i);
-								if (isInsideRectangle(e.canvasX,e.canvasY,link_pos[0] - 15,link_pos[1] - 10,30,20)) {
-									mClikSlot = output;
-									mClikSlot_index = i;
-									mClikSlot_isOut = true;
-									break;
-								}
-							}
-						}
-
-						//search for inputs
-						if (node.inputs) {
-							for ( var i = 0, l = node.inputs.length; i < l; ++i ) {
-								var input = node.inputs[i];
-								var link_pos = node.getConnectionPos(true, i);
-								if (isInsideRectangle(e.canvasX,e.canvasY,link_pos[0] - 15,link_pos[1] - 10,30,20)) {
-									mClikSlot = input;
-									mClikSlot_index = i;
-									mClikSlot_isOut = false;
-									break;
-								}
-							}
-						}
-						//console.log("middleClickSlots? "+mClikSlot+" & "+(mClikSlot_index!==false));
-						if (mClikSlot && mClikSlot_index!==false){
-
-							var alphaPosY = 0.5-((mClikSlot_index+1)/((mClikSlot_isOut?node.outputs.length:node.inputs.length)));
-							var node_bounding = node.getBounding();
-							// estimate a position: this is a bad semi-bad-working mess .. REFACTOR with a correct autoplacement that knows about the others slots and nodes
-							var posRef = [	(!mClikSlot_isOut?node_bounding[0]:node_bounding[0]+node_bounding[2])// + node_bounding[0]/this.canvas.width*150
-											,e.canvasY-80// + node_bounding[0]/this.canvas.width*66 // vertical "derive"
-										  ];
-							var nodeCreated = this.createDefaultNodeForSlot({   	nodeFrom: !mClikSlot_isOut?null:node
-																					,slotFrom: !mClikSlot_isOut?null:mClikSlot_index
-																					,nodeTo: !mClikSlot_isOut?node:null
-																					,slotTo: !mClikSlot_isOut?mClikSlot_index:null
-																					,position: posRef //,e: e
-																					,nodeType: "AUTO" //nodeNewType
-																					,posAdd:[!mClikSlot_isOut?-30:30, -alphaPosY*130] //-alphaPosY*30]
-																					,posSizeFix:[!mClikSlot_isOut?-1:0, 0] //-alphaPosY*2*/
-																				});
-
-						}
-					}
-				}
-			}
-
         } else if (e.which == 3 || this.pointer_is_double) {
             this.just_pressed_rmb = true;
 
@@ -6309,11 +6244,6 @@
                     ]);
                 }
             }
-        } else if (e.which == 2) {
-            //middle button
-            //trace("middle");
-            this.dirty_canvas = true;
-            this.dragging_canvas = false;
         } else if (e.which == 3) {
             //right button
             //trace("right");
