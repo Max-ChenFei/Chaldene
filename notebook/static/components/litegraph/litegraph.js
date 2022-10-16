@@ -237,14 +237,12 @@
          * @param {Function} func
          * @param {Array} param_types [optional] an array containing the type of every parameter, otherwise parameters will accept any type
          * @param {String} return_type [optional] string with the return type, otherwise it will be generic
-         * @param {Object} properties [optional] properties to be configurable
          */
         wrapFunctionAsNode(
             name,
             func,
             param_types,
-            return_type,
-            properties
+            return_type
         ) {
             var params = Array(func.length);
             var code = "";
@@ -263,10 +261,6 @@
                 "this.addOutput('out'," +
                 (return_type ? "'" + return_type + "'" : 0) +
                 ");\n";
-            if (properties) {
-                code +=
-                    "this.properties = " + JSON.stringify(properties) + ";\n";
-            }
             var classobj = Function(code);
             classobj.title = name.split("/").pop();
             classobj.desc = "Generated from " + func.name;
@@ -341,12 +335,6 @@
 
             node.type = type;
 
-            if (!node.properties) {
-                node.properties = {};
-            }
-            if (!node.properties_info) {
-                node.properties_info = [];
-            }
             if (!node.flags) {
                 node.flags = {};
             }
@@ -626,14 +614,12 @@
             name,
             func,
             param_types,
-            return_type,
-            properties
+            return_type
         ) {
             return this.node_factory.wrapFunctionAsNode( name,
             func,
             param_types,
-            return_type,
-            properties);
+            return_type);
         },
 
         /**
@@ -2190,10 +2176,6 @@
         this.outputs = [];
         this.connections = [];
 
-        //local data
-        this.properties = {}; //for the values
-        this.properties_info = []; //for the info
-
         this.flags = {};
     };
 
@@ -2205,107 +2187,6 @@
     LGraphNode.prototype.getTitle = function() {
         return this.title || this.constructor.title;
     };
-
- // *********************** Node property **************************************
-    /**
-     * sets the value of a property
-     * @method setProperty
-     * @param {String} name
-     * @param {*} value
-     */
-    LGraphNode.prototype.setProperty = function(name, value) {
-        if (!this.properties) {
-            this.properties = {};
-        }
-		if( value === this.properties[name] )
-			return;
-		var prev_value = this.properties[name];
-        this.properties[name] = value;
-        if (this.onPropertyChanged) {
-            if( this.onPropertyChanged(name, value, prev_value) === false ) //abort change
-				this.properties[name] = prev_value;
-        }
-		if(this.widgets) //widgets could be linked to properties
-			for(var i = 0; i < this.widgets.length; ++i)
-			{
-				var w = this.widgets[i];
-				if(!w)
-					continue;
-				if(w.options.property == name)
-				{
-					w.value = value;
-					break;
-				}
-			}
-    };
-
-    /**
-     * add a new property to this node
-     * @method addProperty
-     * @param {string} name
-     * @param {*} default_value
-     * @param {string} type string defining the output type ("vec3","number",...)
-     * @param {Object} extra_info this can be used to have special properties of the property (like values, etc)
-     */
-    LGraphNode.prototype.addProperty = function(name, default_value, type, extra_info) {
-        var o = { name: name, type: type, default_value: default_value };
-        if (extra_info) {
-            for (var i in extra_info) {
-                o[i] = extra_info[i];
-            }
-        }
-        if (!this.properties_info) {
-            this.properties_info = [];
-        }
-        this.properties_info.push(o);
-        if (!this.properties) {
-            this.properties = {};
-        }
-        this.properties[name] = default_value;
-        return o;
-    };
-
-    /**
-     * returns all the info available about a property of this node.
-     *
-     * @method getPropertyInfo
-     * @param {String} property name of the property
-     * @return {Object} the object with all the available info
-    */
-    LGraphNode.prototype.getPropertyInfo = function( property ) {
-        var info = null;
-
-		//there are several ways to define info about a property
-		//legacy mode
-		if (this.properties_info) {
-            for (var i = 0; i < this.properties_info.length; ++i) {
-                if (this.properties_info[i].name == property) {
-                    info = this.properties_info[i];
-                    break;
-                }
-            }
-        }
-		//litescene mode using the constructor
-		if(this.constructor["@" + property])
-			info = this.constructor["@" + property];
-
-		if(this.constructor.widgets_info && this.constructor.widgets_info[property])
-			info = this.constructor.widgets_info[property];
-
-		//litescene mode using the constructor
-		if (!info && this.onGetPropertyInfo) {
-            info = this.onGetPropertyInfo(property);
-        }
-
-        if (!info)
-            info = {};
-		if(!info.type)
-			info.type = typeof this.properties[property];
-		if(info.widget == "combo")
-			info.type = "enum";
-
-		return info;
-	}
 
 	// ******************* slots (create, remove, query and get connected node) *****************
     /**
@@ -3699,78 +3580,6 @@
         return null;
     };
 
-    // *********************** widgets **************************************
-    /**
-     * Defines a widget inside the node, it will be rendered on top of the node, you can control lots of properties
-     *
-     * @method addWidget
-     * @param {String} type the widget type (could be "number","string","combo"
-     * @param {String} name the text to show on the widget
-     * @param {String} value the default value
-     * @param {Function|String} callback function to call when it changes (optionally, it can be the name of the property to modify)
-     * @param {Object} options the object that contains special properties of this widget
-     * @return {Object} the created widget object
-     */
-    LGraphNode.prototype.addWidget = function( type, name, value, callback, options )
-	{
-        if (!this.widgets) {
-            this.widgets = [];
-        }
-
-		if(!options && callback && callback.constructor === Object)
-		{
-			options = callback;
-			callback = null;
-		}
-
-		if(options && options.constructor === String) //options can be the property name
-			options = { property: options };
-
-		if(callback && callback.constructor === String) //callback can be the property name
-		{
-			if(!options)
-				options = {};
-			options.property = callback;
-			callback = null;
-		}
-
-		if(callback && callback.constructor !== Function)
-		{
-			console.warn("addWidget: callback must be a function");
-			callback = null;
-		}
-
-        var w = {
-            type: type.toLowerCase(),
-            name: name,
-            value: value,
-            callback: callback,
-            options: options || {}
-        };
-
-        if (w.options.y !== undefined) {
-            w.y = w.options.y;
-        }
-
-        if (!callback && !w.options.callback && !w.options.property) {
-            console.warn("LiteGraph addWidget(...) without a callback or property assigned");
-        }
-        if (type == "combo" && !w.options.values) {
-            throw "LiteGraph addWidget('combo',...) requires to pass values in options: { values:['red','blue'] }";
-        }
-        this.widgets.push(w);
-		this.setSize( this.computeSize() );
-        return w;
-    };
-
-    LGraphNode.prototype.addCustomWidget = function(custom_widget) {
-        if (!this.widgets) {
-            this.widgets = [];
-        }
-        this.widgets.push(custom_widget);
-        return custom_widget;
-    };
-
     // *********************** serialization **************************************
     /**
      * configure a node from an object containing the serialized info
@@ -3781,17 +3590,6 @@
             this.graph._version++;
         }
         for (var j in info) {
-            if (j == "properties") {
-                //i don't want to clone properties, I want to reuse the old container
-                for (var k in info.properties) {
-                    this.properties[k] = info.properties[k];
-                    if (this.onPropertyChanged) {
-                        this.onPropertyChanged( k, info.properties[k] );
-                    }
-                }
-                continue;
-            }
-
             if (info[j] == null) {
                 continue;
             } else if (typeof info[j] == "object") {
@@ -3841,25 +3639,6 @@
 			}
         }
 
-		if( this.widgets )
-		{
-			for (var i = 0; i < this.widgets.length; ++i)
-			{
-				var w = this.widgets[i];
-				if(!w)
-					continue;
-				if(w.options && w.options.property && this.properties[ w.options.property ])
-					w.value = JSON.parse( JSON.stringify( this.properties[ w.options.property ] ) );
-			}
-			if (info.widgets_values) {
-				for (var i = 0; i < info.widgets_values.length; ++i) {
-					if (this.widgets[i]) {
-						this.widgets[i].value = info.widgets_values[i];
-					}
-				}
-			}
-		}
-
         if (this.onConfigure) {
             this.onConfigure(info);
         }
@@ -3901,19 +3680,6 @@
             o.title = this.title;
         }
 
-        if (this.properties) {
-            o.properties = LiteGraph.cloneObject(this.properties);
-        }
-
-        if (this.widgets && this.serialize_widgets) {
-            o.widgets_values = [];
-            for (var i = 0; i < this.widgets.length; ++i) {
-				if(this.widgets[i])
-	                o.widgets_values[i] = this.widgets[i].value;
-				else
-					o.widgets_values[i] = null;
-            }
-        }
 
         if (!o.type) {
             o.type = this.constructor.type;
@@ -14045,9 +13811,6 @@ if (typeof exports != "undefined") {
 
     function ImageIOImRead() {
 		this.addOutput("image", "numpy.ndarray");
-        this.addProperty("value", "");
-        this.widget = this.addWidget("text", "image uri", '', "value");
-        this.widgets_up = true;
         this.size = [140, 50];
         this.fromlibrary ='import imageio';
     }
@@ -14061,15 +13824,10 @@ if (typeof exports != "undefined") {
         return `${this.getOutputSlotName(0)} = imageio.imread(r'${this.properties["value"]}')`;
     };
 
-	ImageIOImRead.prototype.setValue = ImageIOImRead.prototype.setValue;
-
     LiteGraph.registerNodeType("image.imread", ImageIOImRead);
 
     function ImageIOImWrite() {
         this.addInput("image", "numpy.ndarray")
-        this.addProperty("value", "");
-        this.widget = this.addWidget("text", "uri", '', "value");
-        this.widgets_up = true;
         this.size = [140, 50];
         this.fromlibrary ='import imageio';
     }
@@ -14087,11 +13845,6 @@ if (typeof exports != "undefined") {
 
     function ImageShow() {
         this.addInput("image", "numpy.ndarray")
-        // this.addProperty("image", null);
-        // this.addInput("cmap", "string");
-        this.addProperty("cmap", "plt.cm.gray", "string");
-        // this.widget = this.addWidget("string", "cmap", 'plt.cm.gray', "cmap");
-        // this.widgets_up = true;
         this.size = [140, 50];
         this.fromlibrary ='import matplotlib.pyplot as plt';
     }
@@ -14110,7 +13863,6 @@ function ImageGaussianFilter() {
     this.addInput("input", "numpy.ndarray");
     this.addInput("sigma", "number");
     this.addOutput("output", "numpy.ndarray");
-    this.addProperty("sigma", 1);
     this.size = [180, 50];
     this.fromlibrary ='from scipy.ndimage import gaussian_filter';
 }
