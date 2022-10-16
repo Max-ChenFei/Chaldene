@@ -76,10 +76,10 @@
                 console.log("Node registered: " + type);
             }
 
-            var categories = type.split("/");
+            var categories = type.split(".");
             var classname = base_class.name;
 
-            var pos = type.lastIndexOf("/");
+            var pos = type.lastIndexOf(".");
             base_class.category = type.substr(0, pos);
 
             if (!base_class.title) {
@@ -9617,8 +9617,8 @@
                     return;
 
                 var base_category_regex = new RegExp('^(' + base_category + ')');
-                var category_name = category.replace(base_category_regex,"").split('/')[0];
-                var category_path = base_category  === '' ? category_name + '/' : base_category + category_name + '/';
+                var category_name = category.replace(base_category_regex,"").split('.')[0];
+                var category_path = base_category  === '' ? category_name + '.' : base_category + category_name + '.';
 
                 var name = category_name;
                 if(name.indexOf("::") != -1) //in case it has a namespace like "shader::math/rand" it hides the namespace
@@ -15066,7 +15066,7 @@ if (typeof exports != "undefined") {
 
 	ImageIOImRead.prototype.setValue = ImageIOImRead.prototype.setValue;
 
-    LiteGraph.registerNodeType("image/imread", ImageIOImRead);
+    LiteGraph.registerNodeType("image.imread", ImageIOImRead);
 
     function ImageIOImWrite() {
         this.addInput("image", "numpy.ndarray")
@@ -15085,7 +15085,7 @@ if (typeof exports != "undefined") {
         return `imageio.imwrite(r'${this.properties["value"]}', ${image})`;
     };
 
-    LiteGraph.registerNodeType("image/imwrite", ImageIOImWrite);
+    LiteGraph.registerNodeType("image.imwrite", ImageIOImWrite);
 
 
     function ImageShow() {
@@ -15107,7 +15107,7 @@ if (typeof exports != "undefined") {
         return `plt.imshow(${image}, cmap=${this.properties["cmap"]})`;
     };
 
-    LiteGraph.registerNodeType("image/imshow", ImageShow);
+    LiteGraph.registerNodeType("image.imshow", ImageShow);
 
 function ImageGaussianFilter() {
     this.addInput("input", "numpy.ndarray");
@@ -15123,7 +15123,7 @@ ImageGaussianFilter.prototype.sourceCode = function() {
     var image = this.getInputNodeSlotName(0);
     return `${this.getOutputSlotName(0)} = gaussian_filter(${image}, sigma=1)`;
 };
-LiteGraph.registerNodeType("image/Gaussian2DFilter", ImageGaussianFilter);
+LiteGraph.registerNodeType("image.Gaussian2DFilter", ImageGaussianFilter);
 })(this);
 
 //import './nodes/fijiimageJ.js'
