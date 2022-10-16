@@ -2199,14 +2199,6 @@
 
     // *********************** Node information **************************************
     /**
-     * serialize and stringify
-     * @method toString
-     */
-    LGraphNode.prototype.toString = function() {
-        return JSON.stringify(this.serialize());
-    };
-
-    /**
      * get the title string
      * @method getTitle
      */
