@@ -2101,7 +2101,6 @@
 		+ skip_repeated_outputs: when adding new outputs, it wont show if there is one already connected
 		+ resizable: if set to false it wont be resizable with the mouse
 		+ horizontal: slots are distributed horizontally
-		+ widgets_start_y: widgets start at y distance from the top of the node
 
 	flags object:
 		+ collapsed: if it is collapsed
@@ -3398,25 +3397,6 @@
         }
 
         size[1] = (this.constructor.slot_start_y || 0) + rows * LiteGraph.NODE_SLOT_HEIGHT;
-
-        var widgets_height = 0;
-        if (this.widgets && this.widgets.length) {
-            for (var i = 0, l = this.widgets.length; i < l; ++i) {
-                if (this.widgets[i].computeSize)
-                    widgets_height += this.widgets[i].computeSize(size[0])[1] + 4;
-                else
-                    widgets_height += LiteGraph.NODE_WIDGET_HEIGHT + 4;
-            }
-            widgets_height += 8;
-        }
-
-        //compute height using widgets height
-        if( this.widgets_up )
-            size[1] = Math.max( size[1], widgets_height );
-        else if( this.widgets_start_y != null )
-            size[1] = Math.max( size[1], widgets_height + this.widgets_start_y );
-        else
-            size[1] += widgets_height;
 
         function compute_text_size(text) {
             if (!text) {
