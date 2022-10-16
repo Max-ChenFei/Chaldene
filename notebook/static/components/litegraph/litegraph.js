@@ -310,11 +310,10 @@
          * Create a node of a given type with a name. The node is not attached to any graph yet.
          * @method createNode
          * @param {String} type full name of the node class. p.e. "math/sin"
-         * @param {String} name a name to distinguish from other nodes
          * @param {Object} options to set options
          */
 
-        createNode(type, title, options) {
+        createNode(type, options) {
             var base_class = this.registered_node_types[type];
             if (!base_class) {
                 if (LiteGraph.debug) {
@@ -327,26 +326,21 @@
 
             var prototype = base_class.prototype || base_class;
 
-            title = title || base_class.title || type;
-
             var node = null;
 
             if (LiteGraph.catch_exceptions) {
                 try {
-                    node = new base_class(title);
+                    node = new base_class();
                 } catch (err) {
                     console.error(err);
                     return null;
                 }
             } else {
-                node = new base_class(title);
+                node = new base_class();
             }
 
             node.type = type;
 
-            if (!node.title && title) {
-                node.title = title;
-            }
             if (!node.properties) {
                 node.properties = {};
             }
@@ -657,8 +651,8 @@
          * @param {Object} options to set options
          */
 
-        createNode: function(type, title, options) {
-            return this.node_factory.createNode(type, title, options);
+        createNode: function(type, options) {
+            return this.node_factory.createNode(type, options);
         },
 
         /**
@@ -2161,14 +2155,14 @@
      * @param {String} name a name for the node
      */
 
-    function LGraphNode(title) {
-        this._ctor(title);
+    function LGraphNode() {
+        this._ctor();
     }
 
     global.LGraphNode = LiteGraph.LGraphNode = LGraphNode;
 
-    LGraphNode.prototype._ctor = function(title) {
-        this.title = title || "Unnamed";
+    LGraphNode.prototype._ctor = function() {
+        this.title = "Unnamed";
         this.size = [LiteGraph.NODE_WIDTH, 60];
         this.graph = null;
         this.fromlibrary = null;
