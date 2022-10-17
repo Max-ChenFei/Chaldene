@@ -2097,7 +2097,6 @@
 		+  { name:string, type:string, pos: [x,y]=Optional, direction: "input"|"output", links: Array });
 
 	general properties:
-		+ clip_area: if you render outside the node, it will be clipped
 		+ skip_repeated_outputs: when adding new outputs, it wont show if there is one already connected
 		+ resizable: if set to false it wont be resizable with the mouse
 		+ horizontal: slots are distributed horizontally
@@ -7282,26 +7281,6 @@
             }
         }
 
-        if (node.clip_area) {
-            //Start clipping
-            ctx.save();
-            ctx.beginPath();
-            if (shape == LiteGraph.BOX_SHAPE) {
-                ctx.rect(0, 0, size[0], size[1]);
-            } else if (shape == LiteGraph.ROUND_SHAPE) {
-                ctx.roundRect(0, 0, size[0], size[1], [10]);
-            } else if (shape == LiteGraph.CIRCLE_SHAPE) {
-                ctx.arc(
-                    size[0] * 0.5,
-                    size[1] * 0.5,
-                    size[0] * 0.5,
-                    0,
-                    Math.PI * 2
-                );
-            }
-            ctx.clip();
-        }
-
         //draw shape
         if (node.has_errors) {
             bgcolor = "red";
@@ -7637,10 +7616,6 @@
                 ctx.fill();
                 //ctx.stroke();
             }
-        }
-
-        if (node.clip_area) {
-            ctx.restore();
         }
 
         ctx.globalAlpha = 1.0;
