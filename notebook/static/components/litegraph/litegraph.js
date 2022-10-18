@@ -2099,7 +2099,6 @@
 	general properties:
 		+ skip_repeated_outputs: when adding new outputs, it wont show if there is one already connected
 		+ resizable: if set to false it wont be resizable with the mouse
-		+ horizontal: slots are distributed horizontally
 
 	flags object:
 		+ collapsed: if it is collapsed
@@ -3244,21 +3243,12 @@
 
         if (this.flags.collapsed) {
             var w = this._collapsed_width || LiteGraph.NODE_COLLAPSED_WIDTH;
-            if (this.horizontal) {
-                out[0] = this.pos[0] + w * 0.5;
-                if (is_input) {
-                    out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT;
-                } else {
-                    out[1] = this.pos[1];
-                }
+            if (is_input) {
+                out[0] = this.pos[0];
             } else {
-                if (is_input) {
-                    out[0] = this.pos[0];
-                } else {
-                    out[0] = this.pos[0] + w;
-                }
-                out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT * 0.5;
+                out[0] = this.pos[0] + w;
             }
+            out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT * 0.5;
             return out;
         }
 
@@ -3289,18 +3279,6 @@
         ) {
             out[0] = this.pos[0] + this.outputs[slot_number].pos[0];
             out[1] = this.pos[1] + this.outputs[slot_number].pos[1];
-            return out;
-        }
-
-        //horizontal distributed slots
-        if (this.horizontal) {
-            out[0] =
-                this.pos[0] + (slot_number + 0.5) * (this.size[0] / num_slots);
-            if (is_input) {
-                out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT;
-            } else {
-                out[1] = this.pos[1] + this.size[1];
-            }
             return out;
         }
 
@@ -5753,25 +5731,14 @@
                 var input = node.inputs[i];
                 var link_pos = node.getConnectionPos(true, i);
                 var is_inside = false;
-                if (node.horizontal) {
-                    is_inside = isInsideRectangle(
-                        canvasx,
-                        canvasy,
-                        link_pos[0] - 5,
-                        link_pos[1] - 10,
-                        10,
-                        20
-                    );
-                } else {
-                    is_inside = isInsideRectangle(
-                        canvasx,
-                        canvasy,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        40,
-                        10
-                    );
-                }
+                is_inside = isInsideRectangle(
+                    canvasx,
+                    canvasy,
+                    link_pos[0] - 10,
+                    link_pos[1] - 5,
+                    40,
+                    10
+                );
                 if (is_inside) {
                     if (slot_pos) {
                         slot_pos[0] = link_pos[0];
@@ -5799,25 +5766,14 @@
                 var output = node.outputs[i];
                 var link_pos = node.getConnectionPos(false, i);
                 var is_inside = false;
-                if (node.horizontal) {
-                    is_inside = isInsideRectangle(
-                        canvasx,
-                        canvasy,
-                        link_pos[0] - 5,
-                        link_pos[1] - 10,
-                        10,
-                        20
-                    );
-                } else {
-                    is_inside = isInsideRectangle(
-                        canvasx,
-                        canvasy,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        40,
-                        10
-                    );
-                }
+                is_inside = isInsideRectangle(
+                    canvasx,
+                    canvasy,
+                    link_pos[0] - 10,
+                    link_pos[1] - 5,
+                    40,
+                    10
+                );
                 if (is_inside) {
                     if (slot_pos) {
                         slot_pos[0] = link_pos[0];
@@ -6611,9 +6567,9 @@
 				if(connDir == null)
 				{
 					if (this.connecting_output)
-						connDir = this.connecting_node.horizontal ? LiteGraph.DOWN : LiteGraph.RIGHT;
+						connDir = LiteGraph.RIGHT;
 					else
-						connDir = this.connecting_node.horizontal ? LiteGraph.UP : LiteGraph.LEFT;
+						connDir = LiteGraph.LEFT;
 				}
                 var connShape = connInOrOut.shape;
 
@@ -7265,7 +7221,6 @@
         var shape = node._shape || LiteGraph.BOX_SHAPE;
         var size = temp_vec2;
         temp_vec2.set(node.size);
-        var horizontal = node.horizontal; // || node.flags.horizontal;
 
         if (node.flags.collapsed) {
             ctx.font = this.inner_text_font;
@@ -7302,7 +7257,7 @@
         }
 
         //connection slots
-        ctx.textAlign = horizontal ? "center" : "left";
+        ctx.textAlign = "left";
         ctx.font = this.inner_text_font;
 
         var render_text = !low_quality;
@@ -7359,21 +7314,12 @@
                         slot.type === LiteGraph.EVENT ||
                         slot.shape === LiteGraph.BOX_SHAPE
                     ) {
-                        if (horizontal) {
-                            ctx.rect(
-                                pos[0] - 5 + 0.5,
-                                pos[1] - 8 + 0.5,
-                                10,
-                                14
-                            );
-                        } else {
-                            ctx.rect(
-                                pos[0] - 6 + 0.5,
-                                pos[1] - 5 + 0.5,
-                                14,
-                                10
-                            );
-                        }
+                        ctx.rect(
+                            pos[0] - 6 + 0.5,
+                            pos[1] - 5 + 0.5,
+                            14,
+                            10
+                        );
                     } else if (slot_shape === LiteGraph.ARROW_SHAPE) {
                         ctx.moveTo(pos[0] + 8, pos[1] + 0.5);
                         ctx.lineTo(pos[0] - 4, pos[1] + 6 + 0.5);
@@ -7403,7 +7349,7 @@
                         var text = slot.label != null ? slot.label : slot.name;
                         if (text) {
                             ctx.fillStyle = LiteGraph.NODE_TEXT_COLOR;
-                            if (horizontal || slot.dir == LiteGraph.UP) {
+                            if (slot.dir == LiteGraph.UP) {
                                 ctx.fillText(text, pos[0], pos[1] - 10);
                             } else {
                                 ctx.fillText(text, pos[0] + 10, pos[1] + 5);
@@ -7415,7 +7361,7 @@
 
             //output connection slots
 
-            ctx.textAlign = horizontal ? "center" : "right";
+            ctx.textAlign = "right";
             ctx.strokeStyle = "black";
             if (node.outputs) {
                 for (var i = 0; i < node.outputs.length; i++) {
@@ -7458,21 +7404,13 @@
                         slot_type === LiteGraph.EVENT ||
                         slot_shape === LiteGraph.BOX_SHAPE
                     ) {
-                        if (horizontal) {
-                            ctx.rect(
-                                pos[0] - 5 + 0.5,
-                                pos[1] - 8 + 0.5,
-                                10,
-                                14
-                            );
-                        } else {
-                            ctx.rect(
-                                pos[0] - 6 + 0.5,
-                                pos[1] - 5 + 0.5,
-                                14,
-                                10
-                            );
-                        }
+                        ctx.rect(
+                            pos[0] - 6 + 0.5,
+                            pos[1] - 5 + 0.5,
+                            14,
+                            10
+                        );
+
                     } else if (slot_shape === LiteGraph.ARROW_SHAPE) {
                         ctx.moveTo(pos[0] + 8, pos[1] + 0.5);
                         ctx.lineTo(pos[0] - 4, pos[1] + 6 + 0.5);
@@ -7510,7 +7448,7 @@
                         var text = slot.label != null ? slot.label : slot.name;
                         if (text) {
                             ctx.fillStyle = LiteGraph.NODE_TEXT_COLOR;
-                            if (horizontal || slot.dir == LiteGraph.DOWN) {
+                            if (slot.dir == LiteGraph.DOWN) {
                                 ctx.fillText(text, pos[0], pos[1] - 8);
                             } else {
                                 ctx.fillText(text, pos[0] - 10, pos[1] + 5);
@@ -7525,7 +7463,7 @@
 
             if (node.widgets) {
 				var widgets_y = max_y;
-                if (horizontal || node.widgets_up) {
+                if (node.widgets_up) {
                     widgets_y = 2;
                 }
 				if( node.widgets_start_y != null )
@@ -7568,10 +7506,6 @@
             if (input_slot) {
                 var x = 0;
                 var y = LiteGraph.NODE_TITLE_HEIGHT * -0.5; //center
-                if (horizontal) {
-                    x = node._collapsed_width * 0.5;
-                    y = -LiteGraph.NODE_TITLE_HEIGHT;
-                }
                 ctx.fillStyle = "#686";
                 ctx.beginPath();
                 if (
@@ -7593,10 +7527,6 @@
             if (output_slot) {
                 var x = node._collapsed_width;
                 var y = LiteGraph.NODE_TITLE_HEIGHT * -0.5; //center
-                if (horizontal) {
-                    x = node._collapsed_width * 0.5;
-                    y = 0;
-                }
                 ctx.fillStyle = "#686";
                 ctx.strokeStyle = "black";
                 ctx.beginPath();
@@ -8342,11 +8272,9 @@
                     continue;
                 }
                 var start_dir =
-                    start_slot.dir ||
-                    (start_node.horizontal ? LiteGraph.DOWN : LiteGraph.RIGHT);
+                    start_slot.dir || LiteGraph.RIGHT;
                 var end_dir =
-                    end_slot.dir ||
-                    (node.horizontal ? LiteGraph.UP : LiteGraph.LEFT);
+                    end_slot.dir || LiteGraph.LEFT;
 
                 this.renderLink(
                     ctx,
