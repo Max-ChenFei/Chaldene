@@ -4721,9 +4721,31 @@
      * @param {LGraph} graph [optional]
      * @param {Object} options [optional] { skip_rendering, autoresize, viewport }
      */
+
+    function Button(){
+        this.bbox = {
+            left: 0,
+            top: 0,
+            width: 1,
+            height: 1,
+        }
+    }
+
+    function GUI(){
+        this.zoom_widget_buttons = {
+            minus: new Button(),
+            reset: new Button(),
+            plus: new Button(),
+            fullscreen: new Button()
+        }
+    }
+
+
     function LGraphCanvas(canvas, graph, options) {
         this.options = options = options || {};
         this.hovered = null;
+        this.gui = new GUI();
+
         this.hoverables = [];
         //if(graph === undefined)
         //	throw ("No graph assigned");
@@ -5292,7 +5314,17 @@
         renderFrame.call(this);
 
         function renderFrame() {
+            /* TODO: move this function somewhere else */
+            if(this.hovered && this.hovered.isButton){
+                this.hovered.button.hover = false;
+            }
             this.computeHovered();
+
+            /* TODO: move this functioon somewhere else */
+            if(this.hovered && this.hovered.isButton){
+                this.hovered.button.hover = true;
+            }
+
             this.hoverables = [];
 
             if (!this.pause_rendering) {
@@ -5362,6 +5394,7 @@
             node = this.hovered.node;
         }
 
+
         var skip_dragging = false;
         var skip_action = false;
         var now = LiteGraph.getTime();
@@ -5394,6 +5427,13 @@
 		//left button mouse / single finger
         if (e.which == 1 && !this.pointer_is_double)
 		{
+
+            if(this.hovered && this.hovered.button){
+                this.hovered.button.onClick();
+                this.hovered.button.clicked = true;
+                this.clicked_object = this.hovered.button;
+                return;
+            }
             // clone node ALT dragging
             if (LiteGraph.alt_drag_do_clone_nodes && e.altKey && node && this.allow_interaction && !skip_action && !this.read_only)
             {
@@ -5462,7 +5502,7 @@
                             }
 
                             skip_action = true;
-                           
+
                         }
 
                         //search for inputs
@@ -5471,7 +5511,7 @@
                             var link_pos = this.hovered.link_pos;
                             var node = this.hovered.node;
                             var i = this.hovered.slot;
-                            
+
                             if (is_double_click) {
                                 if (node.onInputDblClick) {
                                     node.onInputDblClick(i, e);
@@ -6031,12 +6071,18 @@
         }
 
 		//console.log("pointerevents: processMouseUp which: "+e.which);
-        
+
         var node = null;
         if(this.hovered && this.hovered.node){
             node = this.hovered.node;
         }
         if (e.which == 1) {
+
+
+            if(this.clicked_object){
+                this.clicked_object.clicked = false;
+                this.clicked_object = null;
+            }
 
 			if( this.node_widget )
 			{
@@ -6168,7 +6214,7 @@
                     }
 
 
-                    
+
 
                 }else{
 
@@ -6219,7 +6265,7 @@
             } //no node being dragged
             else {
                 //get node over
-                
+
                 var node = null;
                 if(this.hovered && this.hovered.node){
                     node = this.hovered.node;
@@ -7439,36 +7485,25 @@
         }
     }
 	//Draws a button into the canvas overlay and computes if it was clicked using the immediate gui paradigm
-	LGraphCanvas.prototype.drawButton = function( x,y,w,h, text, bgcolor, hovercolor, textcolor )
+	LGraphCanvas.prototype.drawButton = function(button)
 	{
 		var ctx = this.ctx;
-		bgcolor = bgcolor || LiteGraph.NODE_DEFAULT_COLOR;
-		hovercolor = hovercolor || "#555";
-		textcolor = textcolor || LiteGraph.NODE_TEXT_COLOR;
 
-        //assume canvas has same scale as window
-        var pos = [this.mouse[0]- this.canvas.getBoundingClientRect().left,
-                    this.mouse[1] - this.canvas.getBoundingClientRect().top];
+        var x = button.bbox.left;
+        var y = button.bbox.top;
+        var w = button.bbox.width;
+        var h = button.bbox.height;
+        var text = button.text;
+        var bgcolor = button.bgcolor || LiteGraph.NODE_DEFAULT_COLOR;
+		var hovercolor = button.hovercolor || "#555";
+		var textcolor = button.textcolor || LiteGraph.NODE_TEXT_COLOR;
 
-
-        //use y instead of yFix
-		var hover = LiteGraph.isInsideRectangle( pos[0], pos[1], x,y,w,h );
-        if(hover){
-        console.log(pos);
-        }
-        if(this.last_click_position != null)
-		    pos = [this.last_click_position[0]- this.canvas.getBoundingClientRect().left,
-            this.last_click_position[1] - this.canvas.getBoundingClientRect().top];
-        else
-            pos = null;
-
-		var clicked = pos && LiteGraph.isInsideRectangle( pos[0], pos[1], x,y,w,h );
-        if(hover){
+        if(button.hover){
             console.log("Hovering!");
         }
 
-		ctx.fillStyle = hover ? hovercolor : bgcolor;
-		if(clicked){
+		ctx.fillStyle = button.hovered ? hovercolor : bgcolor;
+		if(button.clicked){
 			ctx.fillStyle = "#AAA";
         }
 		ctx.beginPath();
@@ -7486,11 +7521,6 @@
 				ctx.textAlign = "left";
 			}
 		}
-
-		var was_clicked = clicked && !this.block_click;
-		if(clicked)
-			this.blockClick();
-		return was_clicked;
 	}
 
     /**
@@ -8138,7 +8168,7 @@
         }
 
         ctx.globalAlpha = 1.0;
-        
+
         if(this.resizable !== false){
             this.addNodeCornerToHoverables(node);
         }
@@ -8160,6 +8190,14 @@
 
         }
         this.hoverables.push(slot);
+    }
+    LGraphCanvas.prototype.addButtonToHoverables = function(button){
+        let tmp = {}
+        tmp.isButton = true;
+        tmp.bbox = button.bbox;
+        tmp.button = button;
+        this.hoverables.push(tmp);
+        console.log("addingButton",tmp)
     }
     /*
         Adds node to hoverables
@@ -8201,24 +8239,24 @@
             tmp.node = node;
             tmp.isNodeCorner = true;
             tmp.bbox = {
-                left: 
+                left:
                 node.pos[0] + node.size[0] - 5,
-                top: 
+                top:
                 node.pos[1] + node.size[1] - 5,
                 width: 10,
                 height:10
             }
-                
+
             this.hoverables.push(tmp);
-        } 
+        }
 
     }
-    
+
     LGraphCanvas.prototype.addCommentToHoverables = function(comment){
         let tmp = {};
         tmp.isComment = true;
         tmp.comment = comment;
-        
+
         let margin = 5;
         let margin_top = LiteGraph.NODE_TITLE_HEIGHT; //
         tmp.bbox = {
@@ -8227,7 +8265,7 @@
             width: comment.size[0] + 2*(4 + margin),
             height: comment.size[1] + 2*(margin) + margin_top
         }
-        
+
         this.hoverables.push(tmp);
 
     }
@@ -8240,6 +8278,8 @@
         overlayColor: 'rgba(0.0,0.0,0.0,0.4)'
     }
 
+    //zoom widget static properties.
+    //should we have one zoom widget per canvas?
     LGraphCanvas.zoom_widget = {
         start: {x: 20, y: 20},
         button_width: 30,
@@ -8248,10 +8288,11 @@
         reset_width: 80,
     }
 
+
     LGraphCanvas.prototype.drawZoomWidget = function() {
 
         var ctx = this.ctx;
-
+        var that = this;
         var viewport =
             this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
 
@@ -8262,29 +8303,30 @@
         zwidget.start.y = ctx.canvas.height - zwidget.button_height - zwidget.spacing;
 
         var scale = this.ds.scale;
-        if(this.drawButton(
-            zwidget.start.x,
-            zwidget.start.y,
-            zwidget.button_width,
-            zwidget.button_height,
-            "-",
-            "#151515"))
-        {
-            scale *= 1.0/1.1;
-            this.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]); this.changeDeltaScale
-        }
-        if(this.drawButton(
-            zwidget.start.x + zwidget.button_width +zwidget.spacing,
-            zwidget.start.y,
-            zwidget.reset_width,
-            zwidget.button_height,
-             "reset (" + String(Math.round((scale*100))).padStart(3,' ') + " %)",
-             "#151515"))
-        {
 
-            this.ds.scale = 1.0;
+        let b0 = this.gui.zoom_widget_buttons.minus;
+        b0.bbox.left   = zwidget.start.x;
+        b0.bbox.top    = zwidget.start.y;
+        b0.bbox.width  = zwidget.button_width;
+        b0.bbox.height = zwidget.button_height;
+        b0.text        = "-";
+        b0.color       = "#151515";
+        b0.onClick     = function(){
+            scale *= 1.0/1.1;
+            that.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
+        }
+
+        let b1 = this.gui.zoom_widget_buttons.reset;
+        b1.bbox.left   = zwidget.start.x + zwidget.button_width +zwidget.spacing;
+        b1.bbox.top    = zwidget.start.y;
+        b1.bbox.width  = zwidget.reset_width;
+        b1.bbox.height = zwidget.button_height;
+        b1.text        =  "reset (" + String(Math.round((scale*100))).padStart(3,' ') + " %)";
+        b1.color       =  "#151515";
+        b1.onClick     = function(){
+            that.ds.scale = 1.0;
             let center = [0.0,0.0];
-            var visible_nodes = this.graph._nodes;
+            var visible_nodes = that.graph._nodes;
             for (var i = 0; i < visible_nodes.length; ++i) {
                 let node = visible_nodes[i];
                 //TODO: account for node height?
@@ -8292,46 +8334,58 @@
                 center[1] += (node.pos[1] + node.size[1]*0.5)/visible_nodes.length;
             }
 
-            this.ds.offset[0] =  ((this.canvas.width * 0.5) / this.ds.scale) - center[0];
-            this.ds.offset[1] =  ((this.canvas.height* 0.5) / this.ds.scale) - center[1];
+            that.ds.offset[0] =  ((that.canvas.width * 0.5) / that.ds.scale) - center[0];
+            that.ds.offset[1] =  ((that.canvas.height* 0.5) / that.ds.scale) - center[1];
         }
-        if(this.drawButton(
-            zwidget.start.x + zwidget.button_width + zwidget.reset_width +2.0*zwidget.spacing,
-            zwidget.start.y,
-            zwidget.button_width,
-            zwidget.button_height,
-             "+", "#151515"))
 
-        {
+        let b2 = this.gui.zoom_widget_buttons.plus;
+        b2.bbox.left   = zwidget.start.x + zwidget.button_width + zwidget.reset_width +2.0*zwidget.spacing;
+        b2.bbox.top    = zwidget.start.y;
+        b2.bbox.width  = zwidget.button_width;
+        b2.bbox.height = zwidget.button_height;
+        b2.text        = "+";
+        b2.color       = "#151515";
+        b2.onClick     = function(){
             scale *= 1.1;
-            this.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
+            that.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
         }
 
-        if(this.drawButton(
-            zwidget.start.x + 2.0*zwidget.button_width + zwidget.reset_width +3.0*zwidget.spacing,
-            zwidget.start.y,
-            zwidget.button_width,
-            zwidget.button_height,
-             "FS", "#151515"))
-
-        {
-            if(this.fullscreen){
-                this.canvas.style.left = "";
-                this.canvas.style.top = "";
-                this.canvas.style.position="";
-                this.canvas.style.zIndex = "";
-                this.fullscreen = false;
-                this.resize();
+        let b3 = this.gui.zoom_widget_buttons.fullscreen;
+        b3.bbox.left   = zwidget.start.x + 2.0*zwidget.button_width + zwidget.reset_width +3.0*zwidget.spacing,
+        b3.bbox.top    = zwidget.start.y,
+        b3.bbox.width  = zwidget.button_width,
+        b3.bbox.height = zwidget.button_height,
+        b3.text        =  "FS",
+        b3.color       =  "#151515",
+        b3.onClick     = function(){
+            if(that.fullscreen){
+                that.canvas.style.left = "";
+                that.canvas.style.top = "";
+                that.canvas.style.position="";
+                that.canvas.style.zIndex = "";
+                that.fullscreen = false;
+                that.resize();
 
             } else {
-                this.fullscreen = true;
-                this.canvas.style.left = 0;
-                this.canvas.style.top = 0;
-                this.canvas.style.position = "fixed";
-                this.canvas.style.zIndex = 100;
-                this.resize();
+                that.fullscreen = true;
+                that.canvas.style.left = 0;
+                that.canvas.style.top = 0;
+                that.canvas.style.position = "fixed";
+                that.canvas.style.zIndex = 100;
+                that.resize();
             }
         }
+
+        this.addButtonToHoverables(b0);
+        this.addButtonToHoverables(b1);
+        this.addButtonToHoverables(b2);
+        this.addButtonToHoverables(b3);
+
+        this.drawButton(b0);
+        this.drawButton(b1);
+        this.drawButton(b2);
+        this.drawButton(b3);
+
     }
 
     /**
@@ -9789,7 +9843,7 @@
      * @method drawComments
      **/
     LGraphCanvas.prototype.drawComments = function(canvas, ctx) {
-        
+
         if (!this.graph) {
             return;
         }
@@ -12715,7 +12769,7 @@
                 if(this.hovered && this.hovered.isComment){
                     comment= this.hovered.comment;
                 }
-                
+
                 if (comment) {
                     //on comment
                     menu_info.push(null, {
