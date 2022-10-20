@@ -5280,6 +5280,55 @@
         var doc = this.canvas.ownerDocument;
         return doc.defaultView || doc.parentWindow;
     };
+
+    
+    /**
+     * updates the scene bounding box
+     *
+     * @method updateSceneBBox
+     */
+     LGraphCanvas.prototype.updateSceneBBox = function() {
+    
+        // scale the minimap
+        // TODO: account for node header
+        let bbox = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+        var visible_nodes = this.graph._nodes;
+        for (var i = 0; i < visible_nodes.length; ++i) {
+            let node = visible_nodes[i];
+            bbox[0] = Math.min(bbox[0], node.pos[0]);
+            bbox[1] = Math.min(bbox[1], node.pos[1]);
+            bbox[2] = Math.max(bbox[2], node.pos[0] + node.size[0]);
+            bbox[3] = Math.max(bbox[3], node.pos[1] + node.size[1]);
+        }
+
+        //duplicated code
+        
+		var ctx = this.ctx;
+        var viewport =
+        this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
+        
+        let vwidth = viewport[2] - viewport[0];
+        let vheight = viewport[3] - viewport[1];
+
+        bbox[0] = Math.min(bbox[0], -this.ds.offset[0]);
+        bbox[1] = Math.min(bbox[1], -this.ds.offset[1]);
+        bbox[2] = Math.max(bbox[2], -this.ds.offset[0]+vwidth/this.ds.scale);
+        bbox[3] = Math.max(bbox[3], -this.ds.offset[1]+vheight/this.ds.scale);
+        // enlarge the box by 10%
+        bbox[0] = bbox[0] - (bbox[2] - bbox[0]) * 0.05;
+        bbox[1] = bbox[1] - (bbox[3] - bbox[1]) * 0.05;
+        bbox[2] = bbox[2] + (bbox[2] - bbox[0]) * 0.05;
+        bbox[3] = bbox[3] + (bbox[3] - bbox[1]) * 0.05;
+        if(this.frozen_view){
+            //make sure the minimap view does not change
+            bbox[0] = this.frozen_view[0];
+            bbox[1] = this.frozen_view[1];
+            bbox[2] = this.frozen_view[2];
+            bbox[3] = this.frozen_view[3];
+        }
+        this.sceneBBox = bbox;
+    }
+
     /**
      * computes the object the mouse pointer is hovering over
      *
@@ -5308,7 +5357,74 @@
         }
         this.hovered = null;
     }
+    /**
+     * updates teh render variables before the next render call
+     *
+     * @method update
+     */
+    LGraphCanvas.prototype.update = function(){
+        var ctx = this.ctx
+        var viewport =
+            this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
+            
+        let vwidth = viewport[2] - viewport[0];
+        let vheight = viewport[3] - viewport[1];
 
+        let minimap = LGraphCanvas.minimap;
+        let minimap_margins = minimap.margins;
+
+        this.minimap_vp = [
+            viewport[0] + vwidth * minimap_margins[0],
+            viewport[1] + vheight * minimap_margins[1],
+            vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
+            vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0)
+        ];
+
+        
+        if(this.frozen_view){
+            //set viewport
+            var mpos = [this.mouse[0]- this.canvas.getBoundingClientRect().left,
+                        this.mouse[1] - this.canvas.getBoundingClientRect().top];
+            
+            let scale = this.minimapTransform.scale;
+            let translation = this.minimapTransform.translation;
+
+            
+            
+            mpos[0] = mpos[0]*scale;
+            mpos[1] = mpos[1]*scale;
+            mpos[0] = mpos[0] - translation[0];
+            mpos[1] = mpos[1] - translation[1];
+
+
+
+            this.ds.offset[0] = -mpos[0] +0.5*vwidth/this.ds.scale;
+            this.ds.offset[1] = -mpos[1] +0.5*vheight/this.ds.scale;
+        }
+
+        let bbox = this.sceneBBox;
+        // we match the width or height depending on ratios
+        let bbox_ratio = (bbox[2] - bbox[0]) / (bbox[3] - bbox[1]);
+        let minimap_ratio = this.minimap_vp[2] / this.minimap_vp[3];
+        let scale = 1.0;
+        if (minimap_ratio < bbox_ratio) {
+            scale = (bbox[2] - bbox[0]) / this.minimap_vp[2];
+        } else {
+            scale = (bbox[3] - bbox[1]) / this.minimap_vp[3];
+        }
+        let translation = [this.minimap_vp[0] * scale + (this.minimap_vp[2] * scale * 0.5) -
+                            (bbox[0] + bbox[2]) * 0.5,
+                            this.minimap_vp[1] * scale + (this.minimap_vp[3] * scale * 0.5) -
+                            (bbox[1] + bbox[3]) * 0.5]
+        
+        
+        this.minimapTransform = {
+            scale: scale,
+            translation: translation
+        };
+
+
+    }
     /**
      * starts rendering the content of the canvas when needed
      *
@@ -5323,6 +5439,10 @@
         renderFrame.call(this);
 
         function renderFrame() {
+
+            this.updateSceneBBox();
+
+
             /* TODO: move this function somewhere else */
             if(this.hovered && this.hovered.isButton){
                 this.hovered.button.hover = false;
@@ -5334,7 +5454,9 @@
                 this.hovered.button.hover = true;
             }
 
-            this.hoverables = [];
+            this.hoverables = [];        
+            
+            this.update();
 
             if (!this.pause_rendering) {
                 this.draw();
@@ -5442,6 +5564,10 @@
                 this.hovered.button.clicked = true;
                 this.clicked_object = this.hovered.button;
                 return;
+            }
+
+            if(this.hovered && this.hovered.isMinimap){
+                this.frozen_view = [this.sceneBBox[0],this.sceneBBox[1],this.sceneBBox[2],this.sceneBBox[3]];
             }
             // clone node ALT dragging
             if (LiteGraph.alt_drag_do_clone_nodes && e.altKey && node && this.allow_interaction && !skip_action && !this.read_only)
@@ -7300,9 +7426,11 @@
 
             ctx.restore();
 
+            this.blockAddToHoverables = true;
             if (this.displayMinimap) {
                 this.drawMinimap();
             }
+            this.blockAddToHoverables = false;
         }
 
         this.drawZoomWidget();
@@ -8186,6 +8314,8 @@
     };
 
     LGraphCanvas.prototype.addSlotToHoverables = function(input,output,i,node,pos){
+        if(this.blockAddToHoverables)
+            return;
         let slot = {}
         slot.isSlot = true;
         slot.input = input;
@@ -8205,6 +8335,8 @@
         this.hoverables.push(slot);
     }
     LGraphCanvas.prototype.addButtonToHoverables = function(button){
+        if(this.blockAddToHoverables)
+            return;
         let tmp = {}
         tmp.isButton = true;
         //TODO: make a new object
@@ -8217,6 +8349,8 @@
     */
     LGraphCanvas.prototype.addNodeToHoverables = function(node)
     {
+        if(this.blockAddToHoverables)
+            return;
         let tmp = {};
         tmp.isNode = true;
         tmp.node = node;
@@ -8244,11 +8378,27 @@
         this.hoverables.push(tmp);
     }
 
+    LGraphCanvas.prototype.addMinimapToHoverables = function(minimapBounds)
+    {
+        let tmp = {};
+        tmp.isMinimap = true;
+        tmp.bbox = {
+            left: minimapBounds[0],
+            top: minimapBounds[1],
+            width: minimapBounds[2],
+            height: minimapBounds[3],
+        }
+
+        this.hoverables.push(tmp);
+    }
+
     /*
         Adds node to hoverables
     */
     LGraphCanvas.prototype.addNodeCornerToHoverables = function(node)
     {
+        if(this.blockAddToHoverables)
+            return;
         if(!node.flags || !node.flags.collapsed){
             let tmp = {};
             tmp.node = node;
@@ -8269,6 +8419,8 @@
     }
 
     LGraphCanvas.prototype.addCommentToHoverables = function(comment){
+        if(this.blockAddToHoverables)
+            return;
         let tmp = {};
         tmp.isComment = true;
         tmp.comment = comment;
@@ -8421,89 +8573,41 @@
         ctx.save();
 
         var viewport =
-            this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
-        // TODO: clip path and get correct transform
+        this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
+        
         let vwidth = viewport[2] - viewport[0];
         let vheight = viewport[3] - viewport[1];
 
         let minimap = LGraphCanvas.minimap;
-        let minimap_margins = minimap.margins;
-
-        let minimap_vp = [
-            viewport[0] + vwidth * minimap_margins[0],
-            viewport[1] + vheight * minimap_margins[1],
-            vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
-            vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0)
-        ];
-
+        
+        this.addMinimapToHoverables(this.minimap_vp);
 
         ctx.beginPath();
         ctx.rect(
-            viewport[0] + vwidth * minimap_margins[0],
-            viewport[1] + vheight * minimap_margins[1],
-            vwidth * (-minimap_margins[0] - minimap_margins[2] + 1.0),
-            vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0));
+            this.minimap_vp[0],
+            this.minimap_vp[1],
+            this.minimap_vp[2],
+            this.minimap_vp[3]
+        );
         //fill the background with a solid color
         ctx.fillStyle = minimap.bgColor0;
 
         ctx.clip();
 
         ctx.fill();
-        ctx.closePath();
+        ctx.closePath();                    
+        
+        ctx.scale(1.0 / this.minimapTransform.scale, 1.0 / this.minimapTransform.scale);
+        ctx.translate(this.minimapTransform.translation[0],this.minimapTransform.translation[1]);
 
-        // scale the minimap
-        // TODO: account for node header
-        let bbox = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
-        var visible_nodes = this.graph._nodes;
-        for (var i = 0; i < visible_nodes.length; ++i) {
-            let node = visible_nodes[i];
-            bbox[0] = Math.min(bbox[0], node.pos[0]);
-            bbox[1] = Math.min(bbox[1], node.pos[1]);
-            bbox[2] = Math.max(bbox[2], node.pos[0] + node.size[0]);
-            bbox[3] = Math.max(bbox[3], node.pos[1] + node.size[1]);
-        }
-
-
-        bbox[0] = Math.min(bbox[0], -this.ds.offset[0]);
-        bbox[1] = Math.min(bbox[1], -this.ds.offset[1]);
-        bbox[2] = Math.max(bbox[2], -this.ds.offset[0]+vwidth/this.ds.scale);
-        bbox[3] = Math.max(bbox[3], -this.ds.offset[1]+vheight/this.ds.scale);
-        // enlarge the box by 10%
-        bbox[0] = bbox[0] - (bbox[2] - bbox[0]) * 0.05;
-        bbox[1] = bbox[1] - (bbox[3] - bbox[1]) * 0.05;
-        bbox[2] = bbox[2] + (bbox[2] - bbox[0]) * 0.05;
-        bbox[3] = bbox[3] + (bbox[3] - bbox[1]) * 0.05;
-        if(this.frozen_view){
-            //make sure the minimap view does not change
-            bbox[0] = this.frozen_view[0];
-            bbox[1] = this.frozen_view[1];
-            bbox[2] = this.frozen_view[2];
-            bbox[3] = this.frozen_view[3];
-        }
-
-        // we match the width or height depending on ratios
-        let bbox_ratio = (bbox[2] - bbox[0]) / (bbox[3] - bbox[1]);
-        let minimap_ratio = minimap_vp[2] / minimap_vp[3];
-        let scale = 1.0;
-        if (minimap_ratio < bbox_ratio) {
-            scale = (bbox[2] - bbox[0]) / minimap_vp[2];
-        } else {
-            scale = (bbox[3] - bbox[1]) / minimap_vp[3];
-        }
-        let translation = [minimap_vp[0] * scale + (minimap_vp[2] * scale * 0.5) -
-                            (bbox[0] + bbox[2]) * 0.5,
-                            minimap_vp[1] * scale + (minimap_vp[3] * scale * 0.5) -
-                            (bbox[1] + bbox[3]) * 0.5]
-        ctx.scale(1.0 / scale, 1.0 / scale);
-        ctx.translate(translation[0],translation[1]);
-
+        
         // draw nodes
         var drawn_nodes = 0;
 
         //always draw conenctions
         this.drawConnections(ctx, true);
 
-
+        var visible_nodes = this.graph._nodes;
         for (var i = 0; i < visible_nodes.length; ++i) {
             var node = visible_nodes[i];
 
@@ -8519,22 +8623,6 @@
             ctx.restore();
         }
 
-        if(this.frozen_view){
-
-            //set viewport
-            var mpos = [this.mouse[0]- this.canvas.getBoundingClientRect().left,
-                        this.mouse[1] - this.canvas.getBoundingClientRect().top];
-            mpos[0] = mpos[0]*scale;
-            mpos[1] = mpos[1]*scale;
-            mpos[0] = mpos[0] - translation[0];
-            mpos[1] = mpos[1] - translation[1];
-
-
-
-            this.ds.offset[0] = -mpos[0] +0.5*vwidth/this.ds.scale;;
-            this.ds.offset[1] = -mpos[1] +0.5*vheight/this.ds.scale;;
-        }
-
         ctx.beginPath();
         ctx.rect(
             -this.ds.offset[0],
@@ -8546,26 +8634,6 @@
         ctx.fill()
         ctx.closePath();
         ctx.restore();
-
-        //handle input
-        var pos
-        if(this.last_click_position != null){
-		    pos = [this.last_click_position[0]- this.canvas.getBoundingClientRect().left,
-            this.last_click_position[1] - this.canvas.getBoundingClientRect().top];
-        } else {
-            pos = null;
-        }
-
-        var clicked = pos && LiteGraph.isInsideRectangle( pos[0], pos[1],
-                                                        minimap_vp[0],minimap_vp[1],
-                                                        minimap_vp[2],minimap_vp[3] );
-
-        var was_clicked = clicked && !this.block_click;
-        if(was_clicked){
-            this.blockClick();
-            this.frozen_view = [bbox[0],bbox[1],bbox[2],bbox[3]];
-
-        }
 
     }
 
