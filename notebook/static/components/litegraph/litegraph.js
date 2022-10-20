@@ -5286,10 +5286,19 @@
      * @method computeHovered
      */
     LGraphCanvas.prototype.computeHovered = function() {
+        
+        var b = this.canvas.getBoundingClientRect();
+        var mouseX = this.mouse[0] - b.left;
+        var mouseY = this.mouse[1] - b.top;
         for(let i = this.hoverables.length-1; i>-1; i--){
             bb = this.hoverables[i].bbox;
+            
+           /* if(this.hoverables[i].isButton){
+                console.log("button", this.hoverables[i]);
+                
+            }*/
             if(isInsideRectangle(
-                this.graph_mouse[0],this.graph_mouse[1],
+                mouseX,mouseY,
                 bb.left, bb.top, bb.width, bb.height
             )){
                 this.hovered = this.hoverables[i];
@@ -7488,6 +7497,7 @@
 	LGraphCanvas.prototype.drawButton = function(button)
 	{
 		var ctx = this.ctx;
+        this.addButtonToHoverables(button);
 
         var x = button.bbox.left;
         var y = button.bbox.top;
@@ -7502,7 +7512,7 @@
             console.log("Hovering!");
         }
 
-		ctx.fillStyle = button.hovered ? hovercolor : bgcolor;
+		ctx.fillStyle = button.hover ? hovercolor : bgcolor;
 		if(button.clicked){
 			ctx.fillStyle = "#AAA";
         }
@@ -8170,6 +8180,7 @@
         ctx.globalAlpha = 1.0;
 
         if(this.resizable !== false){
+            
             this.addNodeCornerToHoverables(node);
         }
     };
@@ -8189,15 +8200,17 @@
             height: 10
 
         }
+        
+        slot.bbox = this.transformGraph2CanvasBbox(slot.bbox);
         this.hoverables.push(slot);
     }
     LGraphCanvas.prototype.addButtonToHoverables = function(button){
         let tmp = {}
         tmp.isButton = true;
+        //TODO: make a new object
         tmp.bbox = button.bbox;
         tmp.button = button;
         this.hoverables.push(tmp);
-        console.log("addingButton",tmp)
     }
     /*
         Adds node to hoverables
@@ -8226,6 +8239,8 @@
             }
         }
 
+        tmp.bbox = this.transformGraph2CanvasBbox(tmp.bbox);
+
         this.hoverables.push(tmp);
     }
 
@@ -8246,7 +8261,8 @@
                 width: 10,
                 height:10
             }
-
+            
+            tmp.bbox = this.transformGraph2CanvasBbox(tmp.bbox);
             this.hoverables.push(tmp);
         }
 
@@ -8265,10 +8281,20 @@
             width: comment.size[0] + 2*(4 + margin),
             height: comment.size[1] + 2*(margin) + margin_top
         }
-
+        
+        tmp.bbox = this.transformGraph2CanvasBbox(tmp.bbox);
         this.hoverables.push(tmp);
 
     }
+
+    LGraphCanvas.prototype.transformGraph2CanvasBbox = function(bbox){
+        bbox.width *= this.ds.scale;
+        bbox.height *= this.ds.scale;
+        bbox.left = (bbox.left + this.ds.offset[0])*this.ds.scale;
+        bbox.top = (bbox.top + this.ds.offset[1])*this.ds.scale;
+        return bbox;
+    }
+
     //minimap static properties
     LGraphCanvas.minimap = {
 
@@ -8315,6 +8341,9 @@
             scale *= 1.0/1.1;
             that.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
         }
+        
+        
+        this.drawButton(b0);
 
         let b1 = this.gui.zoom_widget_buttons.reset;
         b1.bbox.left   = zwidget.start.x + zwidget.button_width +zwidget.spacing;
@@ -8337,6 +8366,8 @@
             that.ds.offset[0] =  ((that.canvas.width * 0.5) / that.ds.scale) - center[0];
             that.ds.offset[1] =  ((that.canvas.height* 0.5) / that.ds.scale) - center[1];
         }
+        
+        this.drawButton(b1);
 
         let b2 = this.gui.zoom_widget_buttons.plus;
         b2.bbox.left   = zwidget.start.x + zwidget.button_width + zwidget.reset_width +2.0*zwidget.spacing;
@@ -8349,6 +8380,8 @@
             scale *= 1.1;
             that.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
         }
+        
+        this.drawButton(b2);
 
         let b3 = this.gui.zoom_widget_buttons.fullscreen;
         b3.bbox.left   = zwidget.start.x + 2.0*zwidget.button_width + zwidget.reset_width +3.0*zwidget.spacing,
@@ -8375,15 +8408,6 @@
                 that.resize();
             }
         }
-
-        this.addButtonToHoverables(b0);
-        this.addButtonToHoverables(b1);
-        this.addButtonToHoverables(b2);
-        this.addButtonToHoverables(b3);
-
-        this.drawButton(b0);
-        this.drawButton(b1);
-        this.drawButton(b2);
         this.drawButton(b3);
 
     }
