@@ -574,8 +574,6 @@
 
 		// set these values if not using auto_load_slot_types
 
-		alt_drag_do_clone_nodes: false, // [true!] very handy, ALT click to clone and drag the new node
-
 		do_add_triggers_slots: false, // [true!] will create and connect event slots when using action/events connections, !WILL CHANGE node mode when using onTrigger (enable mode colors), onExecuted does not need this
 
 		allow_multi_output_for_events: true, // [false!] being events, it is strongly reccomended to use them sequentually, one by one
@@ -5486,7 +5484,6 @@
 		this.block_click = true;
 		this.last_mouseclick = 0;
 	}
-
     LGraphCanvas.prototype.processMouseDown = function(e) {
 
 		if( this.set_canvas_dirty_on_mouse_event )
@@ -5568,26 +5565,6 @@
 
             if(this.hovered && this.hovered.isMinimap){
                 this.frozen_view = [this.sceneBBox[0],this.sceneBBox[1],this.sceneBBox[2],this.sceneBBox[3]];
-            }
-            // clone node ALT dragging
-            if (LiteGraph.alt_drag_do_clone_nodes && e.altKey && node && this.allow_interaction && !skip_action && !this.read_only)
-            {
-                if (cloned = node.clone()){
-                    cloned.pos[0] += 5;
-                    cloned.pos[1] += 5;
-                    this.graph.add(cloned,false,{doCalcSize: false});
-                    node = cloned;
-                    skip_action = true;
-                    if (!block_drag_node) {
-                        if (this.allow_dragnodes) {
-							this.graph.beforeChange();
-                            this.node_dragged = node;
-                        }
-                        if (!this.selected_nodes[node.id]) {
-                            this.processNodeSelected(node, e);
-                        }
-                    }
-                }
             }
 
             var clicking_canvas_bg = false;
