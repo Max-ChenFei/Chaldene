@@ -722,22 +722,6 @@
         },
 
         /**
-         * Register a string in the search box so when the user types it it will recommend this node
-         * @method registerSearchboxExtra
-         * @param {String} node_type the node recommended
-         * @param {String} description text to show next to it
-         * @param {Object} data it could contain info of how the node should be configured
-         * @return {Boolean} true if they can be connected
-         */
-        registerSearchboxExtra: function(node_type, description, data) {
-            this.searchbox_extras[description.toLowerCase()] = {
-                type: node_type,
-                desc: description,
-                data: data
-            };
-        },
-
-        /**
          * Wrapper to load files (from url using fetch or from file using FileReader)
          * @method fetchFile
          * @param {String|File|Blob} url the url of the file (or the file itself)
