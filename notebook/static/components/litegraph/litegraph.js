@@ -3699,42 +3699,6 @@
         return o;
     };
 
-    // *********************** source code generation *******************************
-    /**
-     * source_code the content
-     * @method source_code
-     */
-    LGraphNode.prototype.sourceCode = function() {
-        //intput vs output vs code
-        return '';
-    };
-
-    LGraphNode.prototype.getOutputSlotName = function(slot) {
-        return `Node${this.id}_${slot}`
-    }
-
-    LGraphNode.prototype.getInputNodeSlotName = function(slot) {
-        if (!this.inputs) {
-            return;
-        } //undefined;
-
-        if (slot >= this.inputs.length || this.inputs[slot].link == null) {
-            return;
-        }
-
-        var link_id = this.inputs[slot].link;
-        var link = this.graph.links[link_id];
-        if (!link) {
-            //bug: weird case but it happens sometimes
-            return null;
-        }
-
-        var node = this.graph.getNodeById(link.origin_id);
-        if (node) {
-            return node.getOutputSlotName(link.origin_slot);
-        }
-        return null;
-    }
 
     function LGraphComment(title) {
         this._ctor(title);
