@@ -2498,19 +2498,6 @@
         this.setDirtyCanvas(true, true);
     };
 
-    /**
-     * Forces the node to do not move or realign on Z
-     * @method pin
-     **/
-    LGraphNode.prototype.pin = function(v) {
-        this.graph._version++;
-        if (v === undefined) {
-            this.flags.pinned = !this.flags.pinned;
-        } else {
-            this.flags.pinned = v;
-        }
-    };
-
     /* Force align to grid */
     LGraphNode.prototype.alignToGrid = function() {
         this.pos[0] =
