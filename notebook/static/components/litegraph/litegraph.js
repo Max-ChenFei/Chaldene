@@ -1122,10 +1122,6 @@
             node.onAdded(this);
         }
 
-        if (this.config.align_to_grid) {
-            node.alignToGrid();
-        }
-
         if (this.onNodeAdded) {
             this.onNodeAdded(node);
         }
@@ -2498,16 +2494,6 @@
         this.setDirtyCanvas(true, true);
     };
 
-    /* Force align to grid */
-    LGraphNode.prototype.alignToGrid = function() {
-        this.pos[0] =
-            LiteGraph.CANVAS_GRID_SIZE *
-            Math.round(this.pos[0] / LiteGraph.CANVAS_GRID_SIZE);
-        this.pos[1] =
-            LiteGraph.CANVAS_GRID_SIZE *
-            Math.round(this.pos[1] / LiteGraph.CANVAS_GRID_SIZE);
-    };
-
 
     /**
      * connect this node output to the input of another node
@@ -3711,7 +3697,6 @@
         this.allow_interaction = true; //allow to control widgets, buttons, collapse, etc
         this.allow_searchbox = true;
         this.allow_reconnect_links = true; //allows to change a connection with having to redo it again
-		this.align_to_grid = false; //snap to grid
 
         this.drag_mode = false;
         this.dragging_rectangle = null;
@@ -5201,9 +5186,6 @@
                 this.dirty_bgcanvas = true;
                 this.node_dragged.pos[0] = Math.round(this.node_dragged.pos[0]);
                 this.node_dragged.pos[1] = Math.round(this.node_dragged.pos[1]);
-                if (this.graph.config.align_to_grid || this.align_to_grid ) {
-                    this.node_dragged.alignToGrid();
-                }
 				if( this.onNodeMoved )
 					this.onNodeMoved( this.node_dragged );
 				this.graph.afterChange(this.node_dragged);
