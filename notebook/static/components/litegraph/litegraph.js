@@ -2069,6 +2069,61 @@
     LiteGraph.LLink = LLink;
 
     // *************************************************************
+    //   Slot CLASS                                          *******
+    // *************************************************************
+    const SlotType = Object.freeze({
+        exec_in: 0,
+        exec_out: 1,
+        data_in: 2,
+        data_out: 3
+    });
+
+    /**
+     * Node slot
+     * @method node slot class
+     * @param {String} name the name for this slot
+     * @param {SlotType} slot_type
+     * @param {String} data_type: if the slot type is data_in or data_out
+     * @param {String} default_value: if the slot type is data_in or data_out
+     */
+     function NodeSlot(name, slot_type, data_type, default_value) {
+        this.name = name;
+        this.slot_type = slot_type;
+        this.data_type = data_type;
+        this.default_value = default_value;
+        this.connectors = [];
+    };
+
+    NodeSlot.prototype.allowMultipleConnections = function () {
+        if (this.slot_type === SlotType.exec_in || this.slot_type === SlotType.data_out){
+             return true;
+         }
+         return false;
+    };
+
+    NodeSlot.prototype.appendNewConnection = function (connector) {
+        this.connectors.push(connector);
+    };
+
+    NodeSlot.prototype.clearAllConnections = function () {
+        this.connectors.lengh = 0;
+    };
+
+    NodeSlot.prototype.replaceConnection = function (connector) {
+        this.clearAllConnections();
+        this.appendNewConnection(connector);
+    }
+
+    NodeSlot.prototype.addNewConnection = function (connector) {
+        if(this.allowMultipleConnections){
+            this.appendNewConnection(connector);
+        } else {
+            this.replaceConnection(connector);
+        }
+    };
+
+
+    // *************************************************************
     //   Node CLASS                                          *******
     // *************************************************************
 
