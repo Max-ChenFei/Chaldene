@@ -3480,38 +3480,6 @@
         return false;
     };
 
-    // *********************** context menu for the node **************************************
-    /**
-     * tells you info about an input connection (which node, type, etc) and used in context menu
-     * @method getInputInfo
-     * @param {number} slot
-     * @return {Object} object or null { link: id, name: string, type: string or 0 }
-     */
-    LGraphNode.prototype.getInputInfo = function(slot) {
-        if (!this.inputs) {
-            return null;
-        }
-        if (slot < this.inputs.length) {
-            return this.inputs[slot];
-        }
-        return null;
-    };
-
-    /**
-     * tells you info about an output connection (which node, type, etc)
-     * @method getOutputInfo
-     * @param {number} slot
-     * @return {Object}  object or null { name: string, type: string, links: [ ids of links in number ] }
-     */
-    LGraphNode.prototype.getOutputInfo = function(slot) {
-        if (!this.outputs) {
-            return null;
-        }
-        if (slot < this.outputs.length) {
-            return this.outputs[slot];
-        }
-        return null;
-    };
 
     // *********************** serialization **************************************
     /**
