@@ -13119,11 +13119,6 @@ if (typeof exports != "undefined") {
     ImageIOImWrite.title = "Image Write";
     ImageIOImWrite.desc = "Write an image to the specified file.";
 
-    ImageIOImWrite.prototype.sourceCode = function() {
-        var image = this.getInputNodeSlotName(0);
-        return `imageio.imwrite(r'${this.properties["value"]}', ${image})`;
-    };
-
     LiteGraph.registerNodeType("image.imwrite", ImageIOImWrite);
 
 
@@ -13136,11 +13131,6 @@ if (typeof exports != "undefined") {
     ImageShow.title = "Image Show";
     ImageShow.desc = "Show an image.";
 
-    ImageShow.prototype.sourceCode = function() {
-        var image = this.getInputNodeSlotName(0);
-        return `plt.imshow(${image}, cmap=${this.properties["cmap"]})`;
-    };
-
     LiteGraph.registerNodeType("image.imshow", ImageShow);
 
 function ImageGaussianFilter() {
@@ -13152,9 +13142,6 @@ function ImageGaussianFilter() {
 }
 ImageGaussianFilter.title = "Gaussian Filter";
 ImageGaussianFilter.desc = "Gaussian filter";
-ImageGaussianFilter.prototype.sourceCode = function() {
-    var image = this.getInputNodeSlotName(0);
-    return `${this.getOutputSlotName(0)} = gaussian_filter(${image}, sigma=1)`;
-};
+
 LiteGraph.registerNodeType("image.Gaussian2DFilter", ImageGaussianFilter);
 })(this);
