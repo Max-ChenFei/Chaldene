@@ -2222,63 +2222,6 @@
     };
 
 	// ******************* slots (create, remove, query and get connected node) *****************
-    /**
-     * returns the node connected in the input slot
-     * @method getInputNode
-     * @param {number} slot
-     * @return {LGraphNode} node or null
-     */
-    LGraphNode.prototype.getInputNode = function(slot) {
-        if (!this.inputs) {
-            return null;
-        }
-        if (slot >= this.inputs.length) {
-            return null;
-        }
-        var input = this.inputs[slot];
-        if (!input || input.link === null) {
-            return null;
-        }
-        var link_info = this.graph.links[input.link];
-        if (!link_info) {
-            return null;
-        }
-        return this.graph.getNodeById(link_info.origin_id);
-    };
-
-    /**
-     * retrieves all the nodes connected to this output slot
-     * @method getOutputNodes
-     * @param {number} slot
-     * @return {array}
-     */
-    LGraphNode.prototype.getOutputNodes = function(slot) {
-        if (!this.outputs || this.outputs.length == 0) {
-            return null;
-        }
-
-        if (slot >= this.outputs.length) {
-            return null;
-        }
-
-        var output = this.outputs[slot];
-        if (!output.links || output.links.length == 0) {
-            return null;
-        }
-
-        var r = [];
-        for (var i = 0; i < output.links.length; i++) {
-            var link_id = output.links[i];
-            var link = this.graph.links[link_id];
-            if (link) {
-                var target_node = this.graph.getNodeById(link.target_id);
-                if (target_node) {
-                    r.push(target_node);
-                }
-            }
-        }
-        return r;
-    };
 
     /**
      * add a new output slot to use in this node
@@ -6257,17 +6200,6 @@
 
 			if(node.block_delete)
 				continue;
-
-			//autoconnect when possible (very basic, only takes into account first input-output)
-			if(node.inputs && node.inputs.length && node.outputs && node.outputs.length && LiteGraph.isValidConnection( node.inputs[0].type, node.outputs[0].type ) && node.inputs[0].link && node.outputs[0].links && node.outputs[0].links.length )
-			{
-				var input_link = node.graph.links[ node.inputs[0].link ];
-				var output_link = node.graph.links[ node.outputs[0].links[0] ];
-				var input_node = node.getInputNode(0);
-				var output_node = node.getOutputNodes(0)[0];
-				if(input_node && output_node)
-					input_node.connect( input_link.origin_slot, output_node, output_link.target_slot );
-			}
             this.graph.remove(node);
 			if (this.onNodeDeselected) {
 				this.onNodeDeselected(node);
