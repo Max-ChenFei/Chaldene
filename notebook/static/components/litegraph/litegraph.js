@@ -2180,7 +2180,6 @@
         this.title = "Unnamed";
         this.size = [LiteGraph.NODE_WIDTH, 60];
         this.graph = null;
-        this.fromlibrary = null;
         this._pos = new Float32Array(10, 10);
 
         Object.defineProperty(this, "pos", {
