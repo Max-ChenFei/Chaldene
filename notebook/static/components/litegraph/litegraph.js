@@ -2081,7 +2081,6 @@
 		+  { name:string, type:string, pos: [x,y]=Optional, direction: "input"|"output", links: Array });
 
 	general properties:
-		+ skip_repeated_outputs: when adding new outputs, it wont show if there is one already connected
 		+ resizable: if set to false it wont be resizable with the mouse
 
 	flags object:
@@ -9416,8 +9415,7 @@
                 }
 
                 if (
-                    node.flags &&
-                    node.flags.skip_repeated_outputs &&
+                    node.flags  &&
                     node.findOutputSlot(entry[0]) != -1
                 ) {
                     continue;
