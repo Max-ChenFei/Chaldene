@@ -3155,57 +3155,6 @@
     };
 
     /**
-     * checks if a point is inside a node slot, and returns info about which slot
-     * @method getSlotInPosition
-     * @param {number} x
-     * @param {number} y
-     * @return {Object} if found the object contains { input|output: slot object, slot: number, link_pos: [x,y] }
-     */
-    LGraphNode.prototype.getSlotInPosition = function(x, y) {
-        //search for inputs
-        var link_pos = new Float32Array(2);
-        if (this.inputs) {
-            for (var i = 0, l = this.inputs.length; i < l; ++i) {
-                var input = this.inputs[i];
-                this.getConnectionPos(true, i, link_pos);
-                if (
-                    isInsideRectangle(
-                        x,
-                        y,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        20,
-                        10
-                    )
-                ) {
-                    return { input: input, slot: i, link_pos: link_pos };
-                }
-            }
-        }
-
-        if (this.outputs) {
-            for (var i = 0, l = this.outputs.length; i < l; ++i) {
-                var output = this.outputs[i];
-                this.getConnectionPos(false, i, link_pos);
-                if (
-                    isInsideRectangle(
-                        x,
-                        y,
-                        link_pos[0] - 10,
-                        link_pos[1] - 5,
-                        20,
-                        10
-                    )
-                ) {
-                    return { output: output, slot: i, link_pos: link_pos };
-                }
-            }
-        }
-
-        return null;
-    };
-
-    /**
      * returns the bounding of the object, used for rendering purposes
      * bounding is: [topleft_cornerx, topleft_cornery, width, height]
      * @method getBounding
