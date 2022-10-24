@@ -2314,6 +2314,26 @@
     };
 
     /**
+     * returns the output slot with a given name (used for dynamic slots), -1 if not found
+     * @method findOutputSlot
+     * @param {string} name the name of the slot
+     * @param {boolean} returnObj if the obj itself wanted
+     * @return {number_or_object} the slot (-1 if not found)
+     */
+    LGraphNode.prototype.findOutputSlot = function(name, returnObj) {
+        returnObj = returnObj || false;
+        if (!this.outputs) {
+            return -1;
+        }
+        for (var i = 0, l = this.outputs.length; i < l; ++i) {
+            if (name == this.outputs[i].name) {
+                return !returnObj ? i : this.outputs[i];
+            }
+        }
+        return -1;
+    };
+
+    /**
      * add a new input slot to use in this node
      * @method addInput
      * @param {string} name
@@ -2427,18 +2447,6 @@
      * @param {boolean} returnObj if the obj itself wanted
      * @return {number_or_object} the slot (-1 if not found)
      */
-    LGraphNode.prototype.findOutputSlot = function(name, returnObj) {
-        returnObj = returnObj || false;
-        if (!this.outputs) {
-            return -1;
-        }
-        for (var i = 0, l = this.outputs.length; i < l; ++i) {
-            if (name == this.outputs[i].name) {
-                return !returnObj ? i : this.outputs[i];
-            }
-        }
-        return -1;
-    };
 
     // *********************** node manipulation **************************************
     /* Creates a clone of this node */
