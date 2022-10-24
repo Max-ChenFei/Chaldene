@@ -2100,7 +2100,6 @@
 		+ onPropertyChanged: when a property is changed in the panel (return true to skip default behaviour)
 		+ onGetInputs: returns an array of possible inputs
 		+ onGetOutputs: returns an array of possible outputs
-		+ onBounding: in case this node has a bigger bounding than the node itself (the callback receives the bounding as [x,y,w,h])
 		+ onDblClick: double clicked in the node
 		+ onInputDblClick: input slot double clicked (can be used to automatically create a node connected)
 		+ onOutputDblClick: output slot double clicked (can be used to automatically create a node connected)
@@ -3442,9 +3441,6 @@
         out[2] = this.size[0] + 4;
         out[3] = this.flags.collapsed ? LiteGraph.NODE_TITLE_HEIGHT : this.size[1] + LiteGraph.NODE_TITLE_HEIGHT;
 
-        if (this.onBounding) {
-            this.onBounding(out);
-        }
         return out;
     };
 
@@ -8107,10 +8103,6 @@
 
         //render selection marker
         if (selected) {
-            if (node.onBounding) {
-                node.onBounding(area);
-            }
-
             if (title_mode == LiteGraph.TRANSPARENT_TITLE) {
                 area[1] -= title_height;
                 area[3] += title_height;
