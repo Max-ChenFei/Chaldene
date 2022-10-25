@@ -2455,37 +2455,6 @@
      */
 
     // *********************** node manipulation **************************************
-    /* Creates a clone of this node */
-    LGraphNode.prototype.clone = function() {
-        var node = LiteGraph.createNode(this.type);
-        if (!node) {
-            return null;
-        }
-
-        //we clone it because serialize returns shared containers
-        var data = LiteGraph.cloneObject(this.serialize());
-
-        //remove links
-        if (data.inputs) {
-            for (var i = 0; i < data.inputs.length; ++i) {
-                data.inputs[i].link = null;
-            }
-        }
-
-        if (data.outputs) {
-            for (var i = 0; i < data.outputs.length; ++i) {
-                if (data.outputs[i].links) {
-                    data.outputs[i].links.length = 0;
-                }
-            }
-        }
-
-        delete data["id"];
-        //remove links
-        node.configure(data);
-
-        return node;
-    };
 
     /**
      * Collapse the node to make it smaller on the canvas
@@ -5750,6 +5719,38 @@
         } else {
             this.selectNodes([node], add_to_current_selection);
         }
+    };
+
+    /* Creates a clone of this node */
+    LGraphCanvas.prototype.clone = function(node) {
+        var node = LiteGraph.createNode(node.type);
+        if (!node) {
+            return null;
+        }
+
+        //we clone it because serialize returns shared containers
+        var data = LiteGraph.cloneObject(node.serialize());
+
+        //remove links
+        if (data.inputs) {
+            for (var i = 0; i < data.inputs.length; ++i) {
+                data.inputs[i].link = null;
+            }
+        }
+
+        if (data.outputs) {
+            for (var i = 0; i < data.outputs.length; ++i) {
+                if (data.outputs[i].links) {
+                    data.outputs[i].links.length = 0;
+                }
+            }
+        }
+
+        delete data["id"];
+        //remove links
+        node.configure(data);
+
+        return node;
     };
 
     /**
