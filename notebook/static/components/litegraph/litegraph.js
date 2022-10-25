@@ -5482,6 +5482,134 @@
 		this.block_click = true;
 		this.last_mouseclick = 0;
 	}
+
+    function EventHandler(){
+        
+        var Key = function(down,just_pressed, just_released){
+            this.down = down;
+            this.just_pressed = just_pressed;
+            this.just_released = just_released;
+            return this;
+        }
+        
+        Key.LMB = "LMB"
+        Key.RMB = "RMB"
+        Key.MMB = "MMB"
+
+        this.state = {
+            keys: {},
+            mouse: {x: 0, y: 0},
+            last_mouse: {x: 0, y: 0},
+        }       
+
+        this.just_pressed_keys= [];
+        this.just_released_keys = [];
+
+        this.setKeyDown = function(key){
+            let just_pressed = false;
+            let just_released = false;
+            let down = true;
+            let k = this.state.keys[key];
+            if(!k){
+                just_pressed = true;
+                this.state.keys[key] = new Key(down, just_pressed, just_released);
+                k = this.state.keys[key];
+            } else if(!k.down){
+                k.down = down;
+                just_pressed = true;
+                k.just_pressed = just_pressed;
+            }
+            if(just_pressed){
+                this.just_pressed_keys.push(k);
+            }
+        }
+
+        
+        this.setKeyUp = function(key){
+            let just_pressed = false;
+            let just_released = false;
+            let down = false;
+            let k = this.state.keys[key];
+            if(!k){
+                just_released = true;
+                this.state.keys[key] = new Key(down,just_pressed, just_released);
+                k = this.state.keys[key];
+            } else if(k.down){
+                k.down = down;
+                just_released = true;
+                k.just_released = just_released;
+            }
+            if(just_released){
+                this.just_released_keys.push(k);
+            }
+        }
+
+
+        this.onMouseDown = function(e){
+            if(e.button == 0){
+                this.setKeyDown(Key.LMB);
+            } else if(e.button == 1){
+                this.setKeyDown(Key.MMB);
+            } else if(e.button == 2){
+                this.setKeyDown(Key.RMB);
+            }
+        }
+        this.onMouseUp = function(e){
+            if(e.button == 0){
+                this.setKeyUp(Key.LMB);
+            } else if(e.button == 1){
+                this.setKeyUp(Key.MMB);
+            } else if(e.button == 2){
+                this.setKeyUp(Key.RMB);
+            }
+        }
+        this.onMouseMove = function(e){
+            this.mouse.x = e.clientX;
+            this.mouse.y = e.clientY;
+        }
+        this.onKeyDown = function(e){
+            this.setKeyDown(e.key);
+        }
+        this.onKeyUp = function(e){
+            this.setKeyUp(e.key);
+        }
+        
+        this.update = function(){
+            
+        }
+        
+        this.postUpdate = function(){
+            this.old_mouse.x = this.mouse.x;
+            this.old_mouse.y = this.mouse.y;
+            for(let i = 0; i<this.just_pressed_keys.length; i++){
+                this.just_pressed_keys[i].just_pressed = false;
+            }
+            
+            for(let i = 0; i<this.just_released_keys.length; i++){
+                this.just_released_keys[i].just_released = false;
+            }
+
+            this.just_pressed_keys= [];
+            this.just_released_keys = [];
+        }
+
+        this.isButtonDown = function(key){
+            return this.getKey(key).down;
+
+        }
+        this.isButtonJustPressed = function(key){
+            return this.getKey(key).just_pressed;
+
+        }
+        this.isButtonJustReleased = function(key){
+            return this.getKey(key).just_released;
+
+        }
+
+        return this;
+
+    }
+
     LGraphCanvas.prototype.processMouseDown = function(e) {
 
 		if( this.set_canvas_dirty_on_mouse_event )
