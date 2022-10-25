@@ -5492,10 +5492,6 @@
             return this;
         }
         
-        Key.LMB = "LMB"
-        Key.RMB = "RMB"
-        Key.MMB = "MMB"
-
         this.state = {
             keys: {},
             mouse: {x: 0, y: 0},
@@ -5568,14 +5564,10 @@
             this.mouse.y = e.clientY;
         }
         this.onKeyDown = function(e){
-            this.setKeyDown(e.key);
+            this.setKeyDown(e.code);
         }
         this.onKeyUp = function(e){
-            this.setKeyUp(e.key);
-        }
-        
-        this.update = function(){
-            
+            this.setKeyUp(e.code);
         }
         
         this.postUpdate = function(){
@@ -5608,6 +5600,14 @@
 
         return this;
 
+    }
+
+    EventHandler.Keys ={
+        SHIFT_LEFT: "ShiftLeft",
+        CTRL_LEFT: "CtrlLeft",
+        LMB: "LMB",
+        RMB: "RMB",
+        MMB: "MMB"
     }
 
     LGraphCanvas.prototype.processMouseDown = function(e) {
