@@ -1759,9 +1759,9 @@
         if (!link) {
             return;
         }
-        var node = this.getNodeById(link.target_id);
+        var node = this.getNodeById(link.in_node_id);
         if (node) {
-            node.disconnectInput(link.target_slot);
+            node.disconnectInput(link.in_slot_name);
         }
     };
 
@@ -1778,8 +1778,8 @@
             if (!link_info) {
                 continue;
             }
-            var original =link_info.origin_id;
-            var target = link_info.target_id;
+            var original =link_info.out_node_id;
+            var target = link_info.in_node_id;
             adjacencyList[original].push(target);
             indegree[target]++;
         }
@@ -1853,7 +1853,7 @@
                 console.warn(
                     "weird LLink bug, link info is not a LLink but a regular object"
                 );
-                var link2 = new LLink();
+                var link2 = new Connector();
                 for (var j in link) {
                     link2[j] = link[j];
                 }
@@ -1913,7 +1913,7 @@
 					console.warn("serialized graph link data contains errors, skipping.");
 					continue;
 				}
-                var link = new LLink();
+                var link = new Connector();
                 link.configure(link_data);
                 links[link.id] = link;
             }
@@ -2020,49 +2020,55 @@
         };
     };
 
-    //this is the class in charge of storing link information
-    function LLink(id, type, origin_id, origin_slot, target_id, target_slot) {
+    // *************************************************************
+    //   Connector CLASS                                     *******
+    // *************************************************************
+    /**
+     * Connector links the the output node and input node
+     * @method node slot class
+     * @param {Number} id the unique id of this connector
+     * @param {Number} out_node_id
+     * @param {String} out_slot_name
+     * @param {Number} in_node_id
+     * @param {String} in_slot_name
+     */
+    function Connector(id, out_node_id, out_slot_name, in_node_id, in_slot_name) {
         this.id = id;
-        this.type = type;
-        this.origin_id = origin_id;
-        this.origin_slot = origin_slot;
-        this.target_id = target_id;
-        this.target_slot = target_slot;
+        this.out_node_id = out_node_id;
+        this.out_slot_name = out_slot_name;
+        this.in_node_id = in_node_id;
+        this.in_slot_name = in_slot_name;
 
-        this._data = null;
         this._pos = new Float32Array(2); //center
     }
 
-    LLink.prototype.configure = function(o) {
+    Connector.prototype.configure = function(o) {
         if (o.constructor === Array) {
             this.id = o[0];
-            this.origin_id = o[1];
-            this.origin_slot = o[2];
-            this.target_id = o[3];
-            this.target_slot = o[4];
-            this.type = o[5];
+            this.out_node_id = o[1];
+            this.out_slot_name = o[2];
+            this.in_node_id = o[3];
+            this.in_slot_name = o[4];
         } else {
             this.id = o.id;
-            this.type = o.type;
-            this.origin_id = o.origin_id;
-            this.origin_slot = o.origin_slot;
-            this.target_id = o.target_id;
-            this.target_slot = o.target_slot;
+            this.out_node_id = o.out_node_id;
+            this.out_slot_name = o.out_slot_name;
+            this.in_node_id = o.in_node_id;
+            this.in_slot_name = o.in_slot_name;
         }
     };
 
-    LLink.prototype.serialize = function() {
+    Connector.prototype.serialize = function() {
         return [
             this.id,
-            this.origin_id,
-            this.origin_slot,
-            this.target_id,
-            this.target_slot,
-            this.type
+            this.out_node_id,
+            this.out_slot_name,
+            this.in_node_id,
+            this.in_slot_name
         ];
     };
 
-    LiteGraph.LLink = LLink;
+    LiteGraph.Connector = Connector;
 
     // *************************************************************
     //   Slot CLASS                                          *******
@@ -2635,7 +2641,7 @@
         }
 
 		//create link class
-		link_info = new LLink(
+		link_info = new Connector(
 			++this.graph.last_link_id,
 			input.type || output.type,
 			this.id,
@@ -2742,9 +2748,9 @@
                 var link_info = this.graph.links[link_id];
 
                 //is the link we are searching for...
-                if (link_info.target_id == target_node.id) {
+                if (link_info.in_node_id == target_node.id) {
                     output.links.splice(i, 1); //remove here
-                    var input = target_node.inputs[link_info.target_slot];
+                    var input = target_node.inputs[link_info.in_slot_name];
                     input.link = null; //remove there
                     delete this.graph.links[link_id]; //remove the link from the links pool
                     if (this.graph) {
@@ -2753,7 +2759,7 @@
                     if (target_node.onConnectionsChange) {
                         target_node.onConnectionsChange(
                             LiteGraph.INPUT,
-                            link_info.target_slot,
+                            link_info.in_slot_name,
                             false,
                             link_info,
                             input
@@ -2784,7 +2790,7 @@
                         this.graph.onNodeConnectionChange(
                             LiteGraph.INPUT,
                             target_node,
-                            link_info.target_slot
+                            link_info.in_slot_name
                         );
                     }
                     break;
@@ -2800,7 +2806,7 @@
                     continue;
                 }
 
-                var target_node = this.graph.getNodeById(link_info.target_id);
+                var target_node = this.graph.getNodeById(link_info.in_node_id);
                 var input = null;
                 if (this.graph) {
                     this.graph._version++;
@@ -2892,12 +2898,12 @@
 			//remove other side
 			var link_info = this.graph.links[link_id];
 			if (link_info) {
-				var target_node = this.graph.getNodeById(link_info.origin_id);
+				var target_node = this.graph.getNodeById(link_info.out_node_id);
 				if (!target_node) {
 					return false;
 				}
 
-				var output = target_node.outputs[link_info.origin_slot];
+				var output = target_node.outputs[link_info.out_slot_name];
 				if (!output || !output.links || output.links.length == 0) {
 					return false;
 				}
@@ -4424,10 +4430,10 @@
                                                 node.disconnectInput(i);
                                             }
                                             this.connecting_node = this.graph._nodes_by_id[
-                                                link_info.origin_id
+                                                link_info.out_node_id
                                             ];
                                             this.connecting_slot =
-                                                link_info.origin_slot;
+                                                link_info.out_slot_name;
                                             this.connecting_output = this.connecting_node.outputs[
                                                 this.connecting_slot
                                             ];
@@ -5521,7 +5527,7 @@
                         continue;
                     }
                     var target_node = this.graph.getNodeById(
-                        link_info.origin_id
+                        link_info.out_node_id
                     );
                     if (!target_node || !this.selected_nodes[target_node.id]) {
                         //improve this by allowing connections to non-selected nodes
@@ -5529,9 +5535,9 @@
                     } //not selected
                     clipboard_info.links.push([
                         target_node._relative_id,
-                        link_info.origin_slot, //j,
+                        link_info.out_slot_name, //j,
                         node._relative_id,
-                        link_info.target_slot
+                        link_info.in_slot_name
                     ]);
                 }
             }
@@ -7816,11 +7822,11 @@
                 }
 
                 //find link info
-                var start_node = this.graph.getNodeById(link.origin_id);
+                var start_node = this.graph.getNodeById(link.out_node_id);
                 if (start_node == null) {
                     continue;
                 }
-                var start_node_slot = link.origin_slot;
+                var start_node_slot = link.out_slot_name;
                 var start_node_slotpos = null;
                 if (start_node_slot == -1) {
                     start_node_slotpos = [
@@ -9225,12 +9231,12 @@
     LGraphCanvas.prototype.showLinkMenu = function(link, e) {
         var that = this;
 		// console.log(link);
-		var node_left = that.graph.getNodeById( link.origin_id );
-		var node_right = that.graph.getNodeById( link.target_id );
+		var node_left = that.graph.getNodeById( link.out_node_id );
+		var node_right = that.graph.getNodeById( link.in_node_id );
 		var fromType = false;
-		if (node_left && node_left.outputs && node_left.outputs[link.origin_slot]) fromType = node_left.outputs[link.origin_slot].type;
+		if (node_left && node_left.outputs && node_left.outputs[link.out_slot_name]) fromType = node_left.outputs[link.out_slot_name].type;
         var destType = false;
-		if (node_right && node_right.outputs && node_right.outputs[link.target_slot]) destType = node_right.inputs[link.target_slot].type;
+		if (node_right && node_right.outputs && node_right.outputs[link.in_slot_name]) destType = node_right.inputs[link.in_slot_name].type;
 
 		var options = ["Add Node",null,"Delete",null];
 
@@ -9250,8 +9256,8 @@
 							return;
 						}
 						// leave the connection type checking inside connectByType
-						if (node_left.connectByType( link.origin_slot, node, fromType )){
-                        	node.connectByType( link.target_slot, node_right, destType );
+						if (node_left.connectByType( link.out_slot_name, node, fromType )){
+                        	node.connectByType( link.in_slot_name, node_right, destType );
                             node.pos[0] -= node.size[0] * 0.5;
                         }
 					});
