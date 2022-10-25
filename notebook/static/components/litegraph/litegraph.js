@@ -5869,25 +5869,13 @@
             } //clicked outside of nodes
             else {
 				if (!skip_action){
-					//search for link connector
 					if(!this.read_only) {
-						for (var i = 0; i < this.visible_links.length; ++i) {
-							var link = this.visible_links[i];
-							var center = link._pos;
-							if (
-								!center ||
-								e.canvasX < center[0] - 4 ||
-								e.canvasX > center[0] + 4 ||
-								e.canvasY < center[1] - 4 ||
-								e.canvasY > center[1] + 4
-							) {
-								continue;
-							}
-							//link clicked
+                        if(this.hovered && this.hovered.isLink){
+							var link = this.hovered.link;
 							this.showLinkMenu(link, e);
 							this.over_link_center = null; //clear tooltip
-							break;
 						}
+                        
 					}
 
 					this.selected_comment = null;
@@ -6193,20 +6181,8 @@
 
                 //search for link connector
 				var over_link = null;
-				for (var i = 0; i < this.visible_links.length; ++i) {
-					var link = this.visible_links[i];
-					var center = link._pos;
-					if (
-						!center ||
-						e.canvasX < center[0] - 4 ||
-						e.canvasX > center[0] + 4 ||
-						e.canvasY < center[1] - 4 ||
-						e.canvasY > center[1] + 4
-					) {
-						continue;
-					}
-					over_link = link;
-					break;
+				if(this.hovered && this.hovered.isLink){
+					over_link = this.hovered.link;
 				}
 				if( over_link != this.over_link_center )
 				{
@@ -8437,6 +8413,24 @@
         slot.bbox = this.transformGraph2CanvasBbox(slot.bbox);
         this.hoverables.push(slot);
     }
+    LGraphCanvas.prototype.addLinkToHoverables = function(link){
+        if(this.blockAddToHoverables)
+            return;
+        let tmp = {}
+        tmp.isLink = true;
+        tmp.link = link;
+        
+        let center = link._pos;
+        tmp.bbox = {
+            left: center[0]- 4,
+            top: center[1]-4,
+            width: 8,
+            height: 8
+
+        }
+        tmp.bbox = this.transformGraph2CanvasBbox(tmp.bbox);
+        this.hoverables.push(tmp);
+    }
     LGraphCanvas.prototype.addButtonToHoverables = function(button){
         if(this.blockAddToHoverables)
             return;
@@ -9206,6 +9200,7 @@
                     end_slot.dir ||
                     (node.horizontal ? LiteGraph.UP : LiteGraph.LEFT);
 
+                this.addLinkToHoverables(link);
                 this.renderLink(
                     ctx,
                     start_node_slotpos,
