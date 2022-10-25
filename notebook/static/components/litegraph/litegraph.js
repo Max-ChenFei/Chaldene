@@ -2094,7 +2094,12 @@
         this.data_type = data_type;
         this.default_value = default_value;
         this.connectors = [];
+        this.extra_info = {};
     };
+
+     NodeSlot.prototype.addExtraInfo = function (extra_info) {
+        this.extra_info = {...this.extra_info, ...extra_info};
+     };
 
     NodeSlot.prototype.allowMultipleConnections = function () {
         if (this.slot_type === SlotType.exec_in || this.slot_type === SlotType.data_out){
