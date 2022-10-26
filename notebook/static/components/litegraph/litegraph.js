@@ -4736,11 +4736,300 @@
         }
     }
 
+    function InteractionHandler(graphcanvas){
+        function DraggingNodesState(handler){
+            this.handler = handler;
+            this.update = function(){
+                var eh = this.handler.graphcanvas.event_handler;
 
+                for (var i in this.handler.graphcanvas.selected_nodes) {
+                    var n = this.handler.graphcanvas.selected_nodes[i];
+                    n.pos[0] += eh.state.delta_mouse.x / this.handler.graphcanvas.ds.scale;
+                    n.pos[1] += eh.state.delta_mouse.y / this.handler.graphcanvas.ds.scale;
+                }
+
+                if(eh.isButtonJustReleased(EventHandler.Keys.LMB)){
+                    this.handler.set_state(new DefaultState(this.handler));
+                }
+                
+            }
+        }
+
+        function DraggingLinkState(handler){
+            this.handler = handler;
+
+            var lg = handler.graphcanvas;
+            
+            var i = lg.hovered.slot;
+            lg.connecting_node = lg.hovered.node;
+            lg.connecting_pos = link_pos;
+            lg.connecting_slot = i;
+            if(lg.hovered.output){
+                let i = lg.hovered.output
+                lg.connecting_output = lg.hovered.output;
+                lg.connecting_output.slot_index = lg.hovered.slot;
+            }
+            
+            if(lg.hovered.input){                
+                var input = lg.hovered.input;
+                var link_pos = lg.hovered.link_pos;
+                var node = lg.hovered.node;
+                var i = lg.hovered.slot;
+                if (input.link !== null) {
+                    var link_info = lg.graph.links[
+                        input.link
+                    ];
+                    if (!LiteGraph.click_do_break_link_to){
+                        node.disconnectInput(i);
+                    }                    
+                    lg.connecting_node = lg.graph._nodes_by_id[
+                        link_info.origin_id
+                    ];
+                    lg.connecting_slot =
+                        link_info.origin_slot;
+                    lg.connecting_output = lg.connecting_node.outputs[
+                        lg.connecting_slot
+                    ];
+                    lg.connecting_pos = lg.connecting_node.getConnectionPos( false, lg.connecting_slot );
+
+
+                } else {
+                    lg.connecting_input = lg.hovered.input;
+                    lg.connecting_input.slot_index = lg.hovered.slot;
+                }
+                
+            }
+            
+            lg.dirty_bgcanvas = true;
+
+            this.update = function(){
+                
+                var eh = handler.graphcanvas.event_handler;
+                var lg = handler.graphcanvas;
+                var node = null;
+                if(lg.hovered && lg.hovered.node){
+                    node = lg.hovered.node;
+                }
+                var lg = this.handler.graphcanvas;
+                var eh = this.handler.graphcanvas.event_handler;
+
+                if (lg.connecting_output){
+
+                    var pos = lg._highlight_input || [0, 0]; //to store the output of isOverNodeInput
+
+                    {
+                        //check if I have a slot below de mouse
+                        var slot = -1;
+                        if(lg.hovered && lg.hovered.isSlot && lg.hovered.input) {
+                            slot = lg.hovered.slot;
+                            node = lg.hovered.node;
+                        }
+
+                        if (slot != -1 && node.inputs[slot]) {
+                            var slot_type = node.inputs[slot].type;
+                            if ( LiteGraph.isValidConnection( lg.connecting_output.type, slot_type ) ) {
+                                lg._highlight_input = pos;
+                                lg._highlight_input_slot = node.inputs[slot]; // XXX CHECK lg
+                            }
+                        } else {
+                            lg._highlight_input = null;
+                            lg._highlight_input_slot = null;  // XXX CHECK lg
+                        }
+                    }
+
+                }else if(lg.connecting_input){
+
+                    var pos = lg._highlight_output || [0, 0]; //to store the output of isOverNodeOutput
+
+                    //on top of output
+                    {
+                        //check if I have a slot below de mouse
+                        var slot = -1;
+                        if(lg.hovered && lg.hovered.isSlot && lg.hovered.output) {
+                            slot = lg.hovered.slot;
+                            node = lg.hovered.node;
+                        }
+
+                        //var slot = lg.isOverNodeOutput( node, e.canvasX, e.canvasY, pos );
+                        if (slot != -1 && node.outputs[slot]) {
+                            var slot_type = node.outputs[slot].type;
+                            if ( LiteGraph.isValidConnection( lg.connecting_input.type, slot_type ) ) {
+                                lg._highlight_output = pos;
+                            }
+                        } else {
+                            lg._highlight_output = null;
+                        }
+                    }
+                }
+                console.log("Drag link state");
+                if(eh.isButtonJustReleased(EventHandler.Keys.LMB)){
+                    
+                    lg.dirty_canvas = true;
+                    lg.dirty_bgcanvas = true;
+
+                    var connInOrOut = lg.connecting_output || lg.connecting_input;
+                    var connType = connInOrOut.type;
+
+                    //node below mouse
+                    if (node) {
+
+                        if (lg.connecting_output){
+                            var slot = -1;
+                            if(lg.hovered && lg.hovered.isSlot && lg.hovered.input) {
+                                slot = lg.hovered.slot;
+                                node = lg.hovered.node;
+                            }
+
+                            if (slot != -1) {
+                                lg.connecting_node.connect(lg.connecting_slot, node, slot);
+                            } else {
+                                //not on top of an input
+                                // look for a good slot
+                                lg.connecting_node.connectByType(lg.connecting_slot,node,connType);
+                            }
+
+                        }else if (lg.connecting_input){
+
+                            var slot = -1;
+                            if(lg.hovered && lg.hovered.isSlot && lg.hovered.output) {
+                                slot = lg.hovered.slot;
+                                node = lg.hovered.node;
+                            }
+                            /* var slot = lg.isOverNodeOutput(
+                                node,
+                                e.canvasX,
+                                e.canvasY
+                            );*/
+
+                            if (slot != -1) {
+                                node.connect(slot, lg.connecting_node, lg.connecting_slot); // lg is inverted has output-input nature like
+                            } else {
+                                //not on top of an input
+                                // look for a good slot
+                                lg.connecting_node.connectByTypeOutput(lg.connecting_slot,node,connType);
+                            }
+
+                        }
+
+
+
+
+                    }else{
+
+                        //TODO: this is very poor design, but unfortunately
+                        //the mouse event is being passed everywhere, just to get coordinates or something else
+                        //to avoid changing code all over the place, we are just storing the last mouse event and passing that one
+                        var e = eh.last_mouse_event;
+
+                        // add menu when releasing link in empty space
+                        if (LiteGraph.release_link_on_empty_shows_menu){
+                            if (eh.isButtonDown(EventHandler.Keys.LEFT_SHIFT) && lg.allow_searchbox){
+                                if(lg.connecting_output){
+                                    //TODO
+                                    lg.showSearchBox(e,{node_from: lg.connecting_node, slot_from: lg.connecting_output, type_filter_in: lg.connecting_output.type});
+                                }else if(lg.connecting_input){
+                                    lg.showSearchBox(e,{node_to: lg.connecting_node, slot_from: lg.connecting_input, type_filter_out: lg.connecting_input.type});
+                                }
+                            }else{
+                                if(lg.connecting_output){
+                                    lg.showConnectionMenu({nodeFrom: lg.connecting_node, slotFrom: lg.connecting_output, e: e});
+                                }else if(lg.connecting_input){
+                                    lg.showConnectionMenu({nodeTo: lg.connecting_node, slotTo: lg.connecting_input, e: e});
+                                }
+                            }
+                        }
+                    }
+
+                    lg.connecting_output = null;
+                    lg.connecting_input = null;
+                    lg.connecting_pos = null;
+                    lg.connecting_node = null;
+                    lg.connecting_slot = -1; 
+                    
+                    this.handler.set_state(new DefaultState(this.handler));
+                }
+                
+            }
+        }
+
+
+        function DefaultState(handler){
+            this.handler = handler;
+            this.update = function(){
+                var eh = handler.graphcanvas.event_handler;
+                var lg = handler.graphcanvas;
+                //TODO: make sure pressed buttons aaren't necessarily down
+                var LMBClick = eh.isButtonJustPressed(EventHandler.Keys.LMB);
+                var RMBClick = eh.isButtonJustPressed(EventHandler.Keys.RMB);
+                var MMBClick = eh.isButtonJustPressed(EventHandler.Keys.MMB);
+
+                if(LMBClick || RMBClick || MMBClick){
+                    LiteGraph.closeAllContextMenus();
+                }
+
+                if(LMBClick){
+                    if(!lg.hovered){
+                        
+                    } else {
+                        if(lg.hovered.button){
+                            lg.hovered.button.onClick();
+                            lg.hovered.button.clicked = true;
+                            lg.clicked_object = lg.hovered.button;
+                        } else if(lg.hovered.isMinimap){
+                            lg.frozen_view = [lg.sceneBBox[0],lg.sceneBBox[1],lg.sceneBBox[2],lg.sceneBBox[3]];
+                        } else if(lg.hovered.node){
+                            let node = lg.hovered.node;
+                            lg.bringToFront(node)
+                            if(lg.hovered.isNodeCorner){
+                                lg.graph.beforeChange();
+                                lg.resizing_node = node;
+                                lg.canvas.style.cursor = "se-resize";
+                            } else if (lg.hovered.isSlot){
+                                handler.set_state(new DraggingLinkState(handler));
+                                return;
+
+                            } //TODO: process widgets
+                            handler.set_state(new DraggingNodesState(handler));
+                            
+                            if (!lg.selected_nodes[node.id]) {
+                                lg.processNodeSelected(node, 
+                                    lg.event_handler.isButtonDown(EventHandler.Keys.SHIFT_LEFT) ||
+                                    lg.event_handler.isButtonDown(EventHandler.Keys.CTRL_LEFT) 
+                                );
+                            }
+                        } else if(lg.hovered.isLink) {
+                            let link = lg.hovered.link;
+                            this.showLinkMenu(link);
+                            this.over_link_center = null;
+                        } else if(lg.hovered.isComment){
+                            /* TODO: begin drag or resize comment */
+                        }
+                    } 
+                }
+                if(eh.isButtonJustReleased(EventHandler.Keys.RMB)){
+                    lg.processContextMenu();
+                }
+                //TODO: when to not allow interaction?
+                //TODO: double click
+            }
+        }
+        
+        this.graphcanvas = graphcanvas;
+        this.state = new DefaultState(this);
+        this.update = function(){
+            state.update();
+        }
+        
+        this.set_state = function(state){
+            this.state = state;
+        }
+    }
     function LGraphCanvas(canvas, graph, options) {
         this.options = options = options || {};
         this.hovered = null;
         this.gui = new GUI();
+        this.event_handler = new EventHandler(this);
+        this.interaction_handler = new InteractionHandler(this);
 
         this.hoverables = [];
         //if(graph === undefined)
@@ -5122,11 +5411,11 @@
         var ref_window = this.getCanvasWindow();
         var document = ref_window.document; //hack used when moving canvas between windows
 
-        this._mousedown_callback = this.processMouseDown.bind(this);
-        this._mousewheel_callback = this.processMouseWheel.bind(this);
+        this._mousedown_callback = this.event_handler.onMouseDown.bind(this.event_handler);
+        this._mousewheel_callback = this.event_handler.onMouseWheel.bind(this.event_handler);
         // why mousemove and mouseup were not binded here?
-        this._mousemove_callback = this.processMouseMove.bind(this);
-        this._mouseup_callback = this.processMouseUp.bind(this);
+        this._mousemove_callback = this.event_handler.onMouseMove.bind(this.event_handler);
+        this._mouseup_callback = this.event_handler.onMouseUp.bind(this.event_handler);
 
         //touch events -- TODO IMPLEMENT
         //this._touch_callback = this.touchHandler.bind(this);
@@ -5154,10 +5443,11 @@
         }*/
 
         //Keyboard ******************
-        this._key_callback = this.processKey.bind(this);
+        this._key_callback_down = this.event_handler.onKeyDown.bind(this.event_handler);
+        this._key_callback_up = this.event_handler.onKeyUp.bind(this.event_handler);
 
-        canvas.addEventListener("keydown", this._key_callback, true);
-        document.addEventListener("keyup", this._key_callback, true); //in document, otherwise it doesn't fire keyup
+        canvas.addEventListener("keydown", this._key_callback_down, true);
+        document.addEventListener("keyup", this._key_callback_up, true); //in document, otherwise it doesn't fire keyup
 
         //Dropping Stuff over nodes ************************************
         this._ondrop_callback = this.processDrop.bind(this);
@@ -5194,8 +5484,8 @@
             "DOMMouseScroll",
             this._mousewheel_callback
         );
-        this.canvas.removeEventListener("keydown", this._key_callback);
-        document.removeEventListener("keyup", this._key_callback);
+        this.canvas.removeEventListener("keydown", this._key_callback_down);
+        document.removeEventListener("keyup", this._key_callback_up);
         this.canvas.removeEventListener("contextmenu", this._doNothing);
         this.canvas.removeEventListener("drop", this._ondrop_callback);
         this.canvas.removeEventListener("dragenter", this._doReturnTrue);
@@ -5333,8 +5623,8 @@
     LGraphCanvas.prototype.computeHovered = function() {
         
         var b = this.canvas.getBoundingClientRect();
-        var mouseX = this.mouse[0] - b.left;
-        var mouseY = this.mouse[1] - b.top;
+        var mouseX = this.event_handler.state.mouse.x - b.left;
+        var mouseY = this.event_handler.state.mouse.y - b.top;
         for(let i = this.hoverables.length-1; i>-1; i--){
             bb = this.hoverables[i].bbox;
             
@@ -5419,6 +5709,8 @@
             translation: translation
         };
 
+        this.interaction_handler.state.update();
+
 
     }
     /**
@@ -5452,12 +5744,12 @@
 
             this.hoverables = [];        
             
+            this.event_handler.preUpdate()
             this.update();
-
+            this.event_handler.update();
             if (!this.pause_rendering) {
                 this.draw();
             }
-
             var window = this.getCanvasWindow();
             if (this.is_rendering) {
                 window.requestAnimationFrame(renderFrame.bind(this));
@@ -5483,8 +5775,8 @@
 		this.last_mouseclick = 0;
 	}
 
-    function EventHandler(){
-        
+    function EventHandler(graphcanvas){
+        this.graphcanvas = graphcanvas;
         var Key = function(down,just_pressed, just_released){
             this.down = down;
             this.just_pressed = just_pressed;
@@ -5495,8 +5787,11 @@
         this.state = {
             keys: {},
             mouse: {x: 0, y: 0},
-            last_mouse: {x: 0, y: 0},
-        }       
+            old_mouse: {x: 0, y: 0},
+            delta_mouse: {x: 0, y: 0},
+            graph_mouse: {x:0, y:0}
+        }
+        
 
         this.just_pressed_keys= [];
         this.just_released_keys = [];
@@ -5504,6 +5799,7 @@
         this.setKeyDown = function(key){
             let just_pressed = false;
             let just_released = false;
+            console.log(key);
             let down = true;
             let k = this.state.keys[key];
             if(!k){
@@ -5542,26 +5838,34 @@
 
 
         this.onMouseDown = function(e){
+            LGraphCanvas.active_canvas = this.graphcanvas;
             if(e.button == 0){
-                this.setKeyDown(Key.LMB);
+                this.setKeyDown(EventHandler.Keys.LMB);
             } else if(e.button == 1){
-                this.setKeyDown(Key.MMB);
+                this.setKeyDown(EventHandler.Keys.MMB);
             } else if(e.button == 2){
-                this.setKeyDown(Key.RMB);
+                this.setKeyDown(EventHandler.Keys.RMB);
             }
         }
         this.onMouseUp = function(e){
+            LGraphCanvas.active_canvas = this.graphcanvas;
             if(e.button == 0){
-                this.setKeyUp(Key.LMB);
+                this.setKeyUp(EventHandler.Keys.LMB);
             } else if(e.button == 1){
-                this.setKeyUp(Key.MMB);
+                this.setKeyUp(EventHandler.Keys.MMB);
             } else if(e.button == 2){
-                this.setKeyUp(Key.RMB);
+                this.setKeyUp(EventHandler.Keys.RMB);
             }
         }
+        this.onMouseWheel = function(e){
+            //TODO
+        }
+
         this.onMouseMove = function(e){
-            this.mouse.x = e.clientX;
-            this.mouse.y = e.clientY;
+            LGraphCanvas.active_canvas = this.graphcanvas;
+            this.state.mouse.x = e.clientX;
+            this.state.mouse.y = e.clientY;
+            this.last_mouse_event = e;
         }
         this.onKeyDown = function(e){
             this.setKeyDown(e.code);
@@ -5569,10 +5873,29 @@
         this.onKeyUp = function(e){
             this.setKeyUp(e.code);
         }
+        this.preUpdate = function(){
+            this.state.delta_mouse.x = this.state.mouse.x - this.state.old_mouse.x;
+            this.state.delta_mouse.y = this.state.mouse.y - this.state.old_mouse.y;
         
-        this.postUpdate = function(){
-            this.old_mouse.x = this.mouse.x;
-            this.old_mouse.y = this.mouse.y;
+            var clientX_rel = 0;
+            var clientY_rel = 0;
+
+            if (this.graphcanvas.canvas) {
+                var b = this.graphcanvas.canvas.getBoundingClientRect();
+                clientX_rel = this.state.mouse.x - b.left;
+                clientY_rel = this.state.mouse.y - b.top;
+            } else {
+                clientX_rel = this.state.mouse.x;
+                clientY_rel = this.state.mouse.y;
+            }
+
+            this.state.graph_mouse.x = clientX_rel / this.graphcanvas.ds.scale - this.graphcanvas.ds.offset[0];
+            this.state.graph_mouse.y = clientY_rel / this.graphcanvas.ds.scale - this.graphcanvas.ds.offset[1];
+
+        }
+        this.update = function(){
+            this.state.old_mouse.x = this.state.mouse.x;
+            this.state.old_mouse.y = this.state.mouse.y;
             for(let i = 0; i<this.just_pressed_keys.length; i++){
                 this.just_pressed_keys[i].just_pressed = false;
             }
@@ -5598,6 +5921,14 @@
 
         }
 
+        this.getKey = function(key){
+            if(this.state.keys[key]){
+                return this.state.keys[key];
+            }
+            this.state.keys[key] = new Key(false,false,false);
+            return this.state.keys[key];
+        }
+
         return this;
 
     }
@@ -5610,1072 +5941,7 @@
         MMB: "MMB"
     }
 
-    LGraphCanvas.prototype.processMouseDown = function(e) {
-
-		if( this.set_canvas_dirty_on_mouse_event )
-			this.dirty_canvas = true;
-
-		if (!this.graph) {
-            return;
-        }
-
-        this.adjustMouseEvent(e);
-
-        var ref_window = this.getCanvasWindow();
-        var document = ref_window.document;
-        LGraphCanvas.active_canvas = this;
-        var that = this;
-
-		var x = e.clientX;
-		var y = e.clientY;
-		this.ds.viewport = this.viewport;
-		var is_inside = !this.viewport || ( this.viewport && x >= this.viewport[0] && x < (this.viewport[0] + this.viewport[2]) && y >= this.viewport[1] && y < (this.viewport[1] + this.viewport[3]) );
-
-        //move mouse move event to the window in case it drags outside of the canvas
-		if(!this.options.skip_events)
-		{
-			LiteGraph.pointerListenerRemove(this.canvas,"move", this._mousemove_callback);
-			LiteGraph.pointerListenerAdd(ref_window.document,"move", this._mousemove_callback,true); //catch for the entire window
-			LiteGraph.pointerListenerAdd(ref_window.document,"up", this._mouseup_callback,true);
-		}
-
-		if(!is_inside){
-			return;
-		}
-
-        var node = null;
-        if(this.hovered && this.hovered.node){
-            node = this.hovered.node;
-        }
-
-
-        var skip_dragging = false;
-        var skip_action = false;
-        var now = LiteGraph.getTime();
-		var is_primary = (e.isPrimary === undefined || !e.isPrimary);
-        var is_double_click = (now - this.last_mouseclick < 300) && is_primary;
-		this.mouse[0] = e.clientX;
-		this.mouse[1] = e.clientY;
-        this.graph_mouse[0] = e.canvasX;
-        this.graph_mouse[1] = e.canvasY;
-		this.last_click_position = [this.mouse[0],this.mouse[1]];
-
-	  	if (this.pointer_is_down && is_primary ){
-		  this.pointer_is_double = true;
-		}else{
-		  this.pointer_is_double = false;
-		}
-	  	this.pointer_is_down = true;
-
-
-        this.canvas.focus();
-
-        LiteGraph.closeAllContextMenus(ref_window);
-
-        if (this.onMouse)
-		{
-            if (this.onMouse(e) == true)
-                return;
-        }
-
-		//left button mouse / single finger
-        if (e.which == 1 && !this.pointer_is_double)
-		{
-
-            if(this.hovered && this.hovered.button){
-                this.hovered.button.onClick();
-                this.hovered.button.clicked = true;
-                this.clicked_object = this.hovered.button;
-                return;
-            }
-
-            if(this.hovered && this.hovered.isMinimap){
-                this.frozen_view = [this.sceneBBox[0],this.sceneBBox[1],this.sceneBBox[2],this.sceneBBox[3]];
-            }
-
-            var clicking_canvas_bg = false;
-
-            //when clicked on top of a node
-            //and it is not interactive
-            if (node && this.allow_interaction && !skip_action && !this.read_only) {
-                if (!this.live_mode && !node.flags.pinned) {
-                    this.bringToFront(node);
-                } //if it wasn't selected?
-
-                //not dragging mouse to connect two slots
-                if ( !this.connecting_node && !node.flags.collapsed && !this.live_mode ) {
-                    //Search for corner for resize
-                    if ( this.hovered && this.hovered.isNodeCorner) {
-                        console.log("isNodeCorner")
-						this.graph.beforeChange();
-                        this.resizing_node = node;
-                        this.canvas.style.cursor = "se-resize";
-                        skip_action = true;
-                    } else if(this.hovered && this.hovered.isSlot ){
-                        if(this.hovered.output){
-                            var output = this.hovered.output;
-                            var link_pos = this.hovered.link_pos;
-                            var i = this.hovered.slot;
-
-                            this.connecting_node = this.hovered.node;
-                            this.connecting_output = output;
-                            this.connecting_output.slot_index = i;
-                            this.connecting_pos = link_pos;
-                            this.connecting_slot = i;
-
-                            if (LiteGraph.shift_click_do_break_link_from){
-                                if (e.shiftKey) {
-                                    node.disconnectOutput(i);
-                                }
-                            }
-
-                            if (is_double_click) {
-                                if (node.onOutputDblClick) {
-                                    node.onOutputDblClick(i, e);
-                                }
-                            } else {
-                                if (node.onOutputClick) {
-                                    node.onOutputClick(i, e);
-                                }
-                            }
-
-                            skip_action = true;
-
-                        }
-
-                        //search for inputs
-                        if (this.hovered.input) {
-                            var input = this.hovered.input;
-                            var link_pos = this.hovered.link_pos;
-                            var node = this.hovered.node;
-                            var i = this.hovered.slot;
-
-                            if (is_double_click) {
-                                if (node.onInputDblClick) {
-                                    node.onInputDblClick(i, e);
-                                }
-                            } else {
-                                if (node.onInputClick) {
-                                    node.onInputClick(i, e);
-                                }
-                            }
-
-                            if (input.link !== null) {
-                                var link_info = this.graph.links[
-                                    input.link
-                                ]; //before disconnecting
-                                if (LiteGraph.click_do_break_link_to){
-                                    node.disconnectInput(i);
-                                    this.dirty_bgcanvas = true;
-                                    skip_action = true;
-                                }else{
-                                    // do same action as has not node ?
-                                }
-
-                                if (
-                                    this.allow_reconnect_links ||
-                                    //this.move_destination_link_without_shift ||
-                                    e.shiftKey
-                                ) {
-                                    if (!LiteGraph.click_do_break_link_to){
-                                        node.disconnectInput(i);
-                                    }
-                                    this.connecting_node = this.graph._nodes_by_id[
-                                        link_info.origin_id
-                                    ];
-                                    this.connecting_slot =
-                                        link_info.origin_slot;
-                                    this.connecting_output = this.connecting_node.outputs[
-                                        this.connecting_slot
-                                    ];
-                                    this.connecting_pos = this.connecting_node.getConnectionPos( false, this.connecting_slot );
-
-                                    this.dirty_bgcanvas = true;
-                                    skip_action = true;
-                                }
-
-
-                                if (!skip_action){
-                                    // connect from in to out, from to to from
-                                    this.connecting_node = node;
-                                    this.connecting_input = input;
-                                    this.connecting_input.slot_index = i;
-                                    this.connecting_pos = link_pos;
-                                    this.connecting_slot = i;
-
-                                    this.dirty_bgcanvas = true;
-                                    skip_action = true;
-                                }
-                            }
-                        }
-                    } //not resizing
-                }
-
-                //it wasn't clicked on the links boxes
-                if (!skip_action) {
-                    var block_drag_node = false;
-					var pos = [e.canvasX - node.pos[0], e.canvasY - node.pos[1]];
-
-                    //widgets
-                    var widget = this.processNodeWidgets( node, this.graph_mouse, e );
-                    if (widget) {
-                        block_drag_node = true;
-                        this.node_widget = [node, widget];
-                    }
-
-                    //double clicking
-                    if (is_double_click && this.selected_nodes[node.id]) {
-                        //double click node
-                        if (node.onDblClick) {
-                            node.onDblClick( e, pos, this );
-                        }
-                        this.processNodeDblClicked(node);
-                        block_drag_node = true;
-                    }
-
-                    //if do not capture mouse
-                    if ( node.onMouseDown && node.onMouseDown( e, pos, this ) ) {
-                        block_drag_node = true;
-                    } else {
-						//open function definition button
-						if(node.subgraph && !node.skip_subgraph_button)
-						{
-							if ( !node.flags.collapsed && pos[0] > node.size[0] - LiteGraph.NODE_TITLE_HEIGHT && pos[1] < 0 ) {
-								var that = this;
-								setTimeout(function() {
-									that.openFunctionDefinition(node.subgraph);
-								}, 10);
-							}
-						}
-
-						if (this.live_mode) {
-							clicking_canvas_bg = true;
-	                        block_drag_node = true;
-						}
-                    }
-
-                    if (!block_drag_node) {
-                        if (this.allow_dragnodes) {
-							this.graph.beforeChange();
-                            this.node_dragged = node;
-                        }
-                        if (!this.selected_nodes[node.id]) {
-                            this.processNodeSelected(node, e);
-                        }
-                    }
-
-                    this.dirty_canvas = true;
-                }
-            } //clicked outside of nodes
-            else {
-				if (!skip_action){
-					if(!this.read_only) {
-                        if(this.hovered && this.hovered.isLink){
-							var link = this.hovered.link;
-							this.showLinkMenu(link, e);
-							this.over_link_center = null; //clear tooltip
-						}
-                        
-					}
-
-					this.selected_comment = null;
-                    if(this.hovered && this.hovered.isComment){
-                        this.selected_comment = this.hovered.comment;
-                    }
-
-					this.selected_comment_resizing_x = 0;
-                    this.selected_comment_resizing_y = 0;
-					if (this.selected_comment && !this.read_only ) {
-                        skip_action = true;
-                        var dist_left  = Math.abs(e.canvasX - this.selected_comment.pos[0]);
-                        var dist_right = Math.abs(e.canvasX - this.selected_comment.pos[0] - this.selected_comment.size[0]);
-
-                        var dist_top    = Math.abs(e.canvasY - this.selected_comment.pos[1]);
-                        var dist_bottom = Math.abs(e.canvasY - this.selected_comment.pos[1] - this.selected_comment.size[1]);
-						let no_resize = true;
-
-                        if (dist_left * this.ds.scale < 10) {
-							this.selected_comment_resizing_x = -1;
-                            no_resize = false;
-						} else if (dist_right * this.ds.scale < 10) {
-							this.selected_comment_resizing_x = 1;
-                            no_resize = false;
-                        }
-                        if (dist_top * this.ds.scale < 10) {
-							this.selected_comment_resizing_y = -1;
-                            no_resize = false;
-                        } else if (dist_bottom * this.ds.scale < 10) {
-							this.selected_comment_resizing_y = 1;
-                            no_resize = false;
-                        }
-
-                        if(no_resize) {
-							this.selected_comment.recomputeInsideNodes();
-						}
-					}
-
-					if (is_double_click && !this.read_only && this.allow_searchbox) {
-						this.showSearchBox(e);
-						e.preventDefault();
-						e.stopPropagation();
-					}
-
-					clicking_canvas_bg = true;
-				}
-            }
-
-            if(!skip_action && clicking_canvas_bg){
-                this.dragging_rectangle = new Float32Array(4);
-                this.dragging_rectangle[0] = e.canvasX;
-                this.dragging_rectangle[1] = e.canvasY;
-                this.dragging_rectangle[2] = 1;
-                this.dragging_rectangle[3] = 1;
-            }
-
-        } else if (e.which == 3 || this.pointer_is_double) {
-            this.just_pressed_rmb = true;
-
-            //wait for 100ms to start dragging the canvas
-            var that = this;
-            setTimeout(
-                function(){
-                    if(!that.just_pressed_rmb)
-                        return;
-
-                    that.dragging_canvas = true;
-                    that.just_pressed_rmb = false;
-                }
-
-            ,100);
-
-        }
-
-        //TODO
-        //if(this.node_selected != prev_selected)
-        //	this.onNodeSelectionChange(this.node_selected);
-
-        this.last_mouse[0] = e.clientX;
-        this.last_mouse[1] = e.clientY;
-        this.last_mouseclick = LiteGraph.getTime();
-        this.last_mouse_dragging = true;
-
-        this.graph.change();
-
-        //this is to ensure to defocus(blur) if a text input element is on focus
-        if (
-            !ref_window.document.activeElement ||
-            (ref_window.document.activeElement.nodeName.toLowerCase() !=
-                "input" &&
-                ref_window.document.activeElement.nodeName.toLowerCase() !=
-                    "textarea")
-        ) {
-            e.preventDefault();
-        }
-        e.stopPropagation();
-
-        if (this.onMouseDown) {
-            this.onMouseDown(e);
-        }
-
-        return false;
-    };
-
-    /**
-     * Called when a mouse move event has to be processed
-     * @method processMouseMove
-     **/
-    LGraphCanvas.prototype.processMouseMove = function(e) {
-        if (this.autoresize) {
-            this.resize();
-        }
-
-		if( this.set_canvas_dirty_on_mouse_event )
-			this.dirty_canvas = true;
-
-        if (!this.graph) {
-            return;
-        }
-
-        LGraphCanvas.active_canvas = this;
-        this.adjustMouseEvent(e);
-        var mouse = [e.clientX, e.clientY];
-		this.mouse[0] = mouse[0];
-		this.mouse[1] = mouse[1];
-        var delta = [
-            mouse[0] - this.last_mouse[0],
-            mouse[1] - this.last_mouse[1]
-        ];
-        this.last_mouse = mouse;
-        this.graph_mouse[0] = e.canvasX;
-        this.graph_mouse[1] = e.canvasY;
-
-        //console.log("pointerevents: processMouseMove "+e.pointerId+" "+e.isPrimary);
-
-		if(this.block_click)
-		{
-			//console.log("pointerevents: processMouseMove block_click");
-			e.preventDefault();
-			return false;
-		}
-
-        e.dragging = this.last_mouse_dragging;
-
-        if (this.node_widget) {
-            this.processNodeWidgets(
-                this.node_widget[0],
-                this.graph_mouse,
-                e,
-                this.node_widget[1]
-            );
-            this.dirty_canvas = true;
-        }
-
-        if (this.dragging_rectangle)
-		{
-            this.dragging_rectangle[2] = e.canvasX - this.dragging_rectangle[0];
-            this.dragging_rectangle[3] = e.canvasY - this.dragging_rectangle[1];
-            this.dirty_canvas = true;
-        }
-		else if (this.selected_comment && !this.read_only)
-		{
-            //moving/resizing a comment
-            if (this.selected_comment_resizing_x != 0 || this.selected_comment_resizing_y != 0) {
-                if(this.selected_comment_resizing_x>0){
-                    this.selected_comment.size[0] = e.canvasX - this.selected_comment.pos[0];
-                } else if (this.selected_comment_resizing_x<0){
-                    this.selected_comment.size[0] = -e.canvasX + this.selected_comment.pos[0] + this.selected_comment.size[0];
-                    this.selected_comment.pos[0] = e.canvasX;
-                }
-
-                if(this.selected_comment_resizing_y>0){
-                    this.selected_comment.size[1] = e.canvasY - this.selected_comment.pos[1];
-                } else if (this.selected_comment_resizing_y<0){
-                    this.selected_comment.size[1] = -e.canvasY + this.selected_comment.pos[1] + this.selected_comment.size[1];
-                    this.selected_comment.pos[1] = e.canvasY;
-                }
-            } else {
-                var deltax = delta[0] / this.ds.scale;
-                var deltay = delta[1] / this.ds.scale;
-                this.selected_comment.move(deltax, deltay, e.ctrlKey);
-                if (this.selected_comment._nodes.length) {
-                    this.dirty_canvas = true;
-                }
-            }
-            this.dirty_bgcanvas = true;
-        } else if (this.dragging_canvas) {
-        	////console.log("pointerevents: processMouseMove is dragging_canvas");
-            this.ds.offset[0] += delta[0] / this.ds.scale;
-            this.ds.offset[1] += delta[1] / this.ds.scale;
-            this.dirty_canvas = true;
-            this.dirty_bgcanvas = true;
-        } else if (this.allow_interaction && !this.read_only) {
-            if (this.connecting_node) {
-                this.dirty_canvas = true;
-            }
-
-            //get node over
-            var node = null;
-            if(this.hovered && this.hovered.node){
-                node = this.hovered.node;
-            }
-            //remove mouseover flag
-            for (var i = 0, l = this.graph._nodes.length; i < l; ++i) {
-                if (this.graph._nodes[i].mouseOver && node != this.graph._nodes[i] ) {
-                    //mouse leave
-                    this.graph._nodes[i].mouseOver = false;
-                    if (this.node_over && this.node_over.onMouseLeave) {
-                        this.node_over.onMouseLeave(e);
-                    }
-                    this.node_over = null;
-                    this.dirty_canvas = true;
-                }
-            }
-
-            //mouse over a node
-            if (node) {
-
-				if(node.redraw_on_mouse)
-                    this.dirty_canvas = true;
-
-                //this.canvas.style.cursor = "move";
-                if (!node.mouseOver) {
-                    //mouse enter
-                    node.mouseOver = true;
-                    this.node_over = node;
-                    this.dirty_canvas = true;
-
-                    if (node.onMouseEnter) {
-                        node.onMouseEnter(e);
-                    }
-                }
-
-                //in case the node wants to do something
-                if (node.onMouseMove) {
-                    node.onMouseMove( e, [e.canvasX - node.pos[0], e.canvasY - node.pos[1]], this );
-                }
-
-                //if dragging a link
-                if (this.connecting_node) {
-
-                    if (this.connecting_output){
-
-                        var pos = this._highlight_input || [0, 0]; //to store the output of isOverNodeInput
-
-                        {
-                            //check if I have a slot below de mouse
-                            var slot = -1;
-                            if(this.hovered && this.hovered.isSlot && this.hovered.input) {
-                                slot = this.hovered.slot;
-                                node = this.hovered.node;
-                            }
-
-                            if (slot != -1 && node.inputs[slot]) {
-                                var slot_type = node.inputs[slot].type;
-                                if ( LiteGraph.isValidConnection( this.connecting_output.type, slot_type ) ) {
-                                    this._highlight_input = pos;
-									this._highlight_input_slot = node.inputs[slot]; // XXX CHECK THIS
-                                }
-                            } else {
-                                this._highlight_input = null;
-								this._highlight_input_slot = null;  // XXX CHECK THIS
-                            }
-                        }
-
-                    }else if(this.connecting_input){
-
-                        var pos = this._highlight_output || [0, 0]; //to store the output of isOverNodeOutput
-
-                        //on top of output
-                        {
-                            //check if I have a slot below de mouse
-                            var slot = -1;
-                            if(this.hovered && this.hovered.isSlot && this.hovered.output) {
-                                slot = this.hovered.slot;
-                                node = this.hovered.node;
-                            }
-
-                            //var slot = this.isOverNodeOutput( node, e.canvasX, e.canvasY, pos );
-                            if (slot != -1 && node.outputs[slot]) {
-                                var slot_type = node.outputs[slot].type;
-                                if ( LiteGraph.isValidConnection( this.connecting_input.type, slot_type ) ) {
-                                    this._highlight_output = pos;
-                                }
-                            } else {
-                                this._highlight_output = null;
-                            }
-                        }
-                    }
-                }
-
-                //Search for corner
-                if (this.canvas) {
-                    if (
-                        this.hovered && this.hovered.isNodeCorner
-                    ) {
-                        this.canvas.style.cursor = "se-resize";
-                    } else {
-                        this.canvas.style.cursor = "crosshair";
-                    }
-                }
-            } else { //not over a node
-
-                //search for link connector
-				var over_link = null;
-				if(this.hovered && this.hovered.isLink){
-					over_link = this.hovered.link;
-				}
-				if( over_link != this.over_link_center )
-				{
-					this.over_link_center = over_link;
-	                this.dirty_canvas = true;
-				}
-
-				if (this.canvas) {
-	                this.canvas.style.cursor = "";
-				}
-			} //end
-
-			//send event to node if capturing input (used with widgets that allow drag outside of the area of the node)
-            if ( this.node_capturing_input && this.node_capturing_input != node && this.node_capturing_input.onMouseMove ) {
-                this.node_capturing_input.onMouseMove(e,[e.canvasX - this.node_capturing_input.pos[0],e.canvasY - this.node_capturing_input.pos[1]], this);
-            }
-
-			//node being dragged
-            if (this.node_dragged && !this.live_mode) {
-				//console.log("draggin!",this.selected_nodes);
-                for (var i in this.selected_nodes) {
-                    var n = this.selected_nodes[i];
-                    n.pos[0] += delta[0] / this.ds.scale;
-                    n.pos[1] += delta[1] / this.ds.scale;
-                }
-
-                this.dirty_canvas = true;
-                this.dirty_bgcanvas = true;
-            }
-
-            if (this.resizing_node && !this.live_mode) {
-                //convert mouse to node space
-				var desired_size = [ e.canvasX - this.resizing_node.pos[0], e.canvasY - this.resizing_node.pos[1] ];
-				var min_size = this.resizing_node.computeSize();
-				desired_size[0] = Math.max( min_size[0], desired_size[0] );
-				desired_size[1] = Math.max( min_size[1], desired_size[1] );
-				this.resizing_node.setSize( desired_size );
-
-                this.canvas.style.cursor = "se-resize";
-                this.dirty_canvas = true;
-                this.dirty_bgcanvas = true;
-            }
-        }
-
-        e.preventDefault();
-        return false;
-    };
-
-    /**
-     * Called when a mouse up event has to be processed
-     * @method processMouseUp
-     **/
-    LGraphCanvas.prototype.processMouseUp = function(e) {
-
-		var is_primary = ( e.isPrimary === undefined || e.isPrimary );
-
-    	//early exit for extra pointer
-    	if(!is_primary){
-    		/*e.stopPropagation();
-        	e.preventDefault();*/
-    		//console.log("pointerevents: processMouseUp pointerN_stop "+e.pointerId+" "+e.isPrimary);
-    		return false;
-    	}
-
-    	//console.log("pointerevents: processMouseUp "+e.pointerId+" "+e.isPrimary+" :: "+e.clientX+" "+e.clientY);
-
-		if( this.set_canvas_dirty_on_mouse_event )
-			this.dirty_canvas = true;
-
-        if (!this.graph)
-            return;
-
-        var window = this.getCanvasWindow();
-        var document = window.document;
-        LGraphCanvas.active_canvas = this;
-
-        //restore the mousemove event back to the canvas
-		if(!this.options.skip_events)
-		{
-			//console.log("pointerevents: processMouseUp adjustEventListener");
-			LiteGraph.pointerListenerRemove(document,"move", this._mousemove_callback,true);
-			LiteGraph.pointerListenerAdd(this.canvas,"move", this._mousemove_callback,true);
-			LiteGraph.pointerListenerRemove(document,"up", this._mouseup_callback,true);
-		}
-
-        this.adjustMouseEvent(e);
-        var now = LiteGraph.getTime();
-        e.click_time = now - this.last_mouseclick;
-        this.last_mouse_dragging = false;
-		this.last_click_position = null;
-
-		if(this.block_click)
-		{
-			//console.log("pointerevents: processMouseUp block_clicks");
-			this.block_click = false; //used to avoid sending twice a click in a immediate button
-		}
-
-        if(this.frozen_view){
-            this.frozen_view = null;
-        }
-
-		//console.log("pointerevents: processMouseUp which: "+e.which);
-
-        var node = null;
-        if(this.hovered && this.hovered.node){
-            node = this.hovered.node;
-        }
-        if (e.which == 1) {
-
-
-            if(this.clicked_object){
-                this.clicked_object.clicked = false;
-                this.clicked_object = null;
-            }
-
-			if( this.node_widget )
-			{
-				this.processNodeWidgets( this.node_widget[0], this.graph_mouse, e );
-			}
-
-            //left button
-            this.node_widget = null;
-
-            if (this.selected_comment) {
-                var diffx =
-                    this.selected_comment.pos[0] -
-                    Math.round(this.selected_comment.pos[0]);
-                var diffy =
-                    this.selected_comment.pos[1] -
-                    Math.round(this.selected_comment.pos[1]);
-                this.selected_comment.move(diffx, diffy, e.ctrlKey);
-                this.selected_comment.pos[0] = Math.round(
-                    this.selected_comment.pos[0]
-                );
-                this.selected_comment.pos[1] = Math.round(
-                    this.selected_comment.pos[1]
-                );
-                if (this.selected_comment._nodes.length) {
-                    this.dirty_canvas = true;
-                }
-                this.selected_comment = null;
-            }
-            this.selected_comment_resizing_x = 0;
-            this.selected_comment_resizing_y = 0;
-
-
-
-            if (this.dragging_rectangle) {
-                if (this.graph) {
-                    var nodes = this.graph._nodes;
-                    var node_bounding = new Float32Array(4);
-
-                    //compute bounding and flip if left to right
-                    var w = Math.abs(this.dragging_rectangle[2]);
-                    var h = Math.abs(this.dragging_rectangle[3]);
-                    var startx =
-                        this.dragging_rectangle[2] < 0
-                            ? this.dragging_rectangle[0] - w
-                            : this.dragging_rectangle[0];
-                    var starty =
-                        this.dragging_rectangle[3] < 0
-                            ? this.dragging_rectangle[1] - h
-                            : this.dragging_rectangle[1];
-                    this.dragging_rectangle[0] = startx;
-                    this.dragging_rectangle[1] = starty;
-                    this.dragging_rectangle[2] = w;
-                    this.dragging_rectangle[3] = h;
-
-					// test dragging rect size, if minimun simulate a click
-					if (!node || (w > 10 && h > 10 )){
-						//test against all nodes (not visible because the rectangle maybe start outside
-						var to_select = [];
-						for (var i = 0; i < nodes.length; ++i) {
-							var nodeX = nodes[i];
-							nodeX.getBounding(node_bounding);
-							if (
-								!overlapBounding(
-									this.dragging_rectangle,
-									node_bounding
-								)
-							) {
-								continue;
-							} //out of the visible area
-							to_select.push(nodeX);
-						}
-						if (to_select.length) {
-							this.selectNodes(to_select,e.shiftKey); // add to selection with shift
-						}
-					}else{
-						// will select of update selection
-						this.selectNodes([node],e.shiftKey||e.ctrlKey); // add to selection add to selection with ctrlKey or shiftKey
-					}
-
-                }
-                this.dragging_rectangle = null;
-            } else if (this.connecting_node) {
-                //dragging a connection
-                this.dirty_canvas = true;
-                this.dirty_bgcanvas = true;
-
-                var connInOrOut = this.connecting_output || this.connecting_input;
-                var connType = connInOrOut.type;
-
-                //node below mouse
-                if (node) {
-
-                    if (this.connecting_output){
-                        var slot = -1;
-                        if(this.hovered && this.hovered.isSlot && this.hovered.input) {
-                            slot = this.hovered.slot;
-                            node = this.hovered.node;
-                        }
-
-                        if (slot != -1) {
-                            this.connecting_node.connect(this.connecting_slot, node, slot);
-                        } else {
-                            //not on top of an input
-                            // look for a good slot
-                            this.connecting_node.connectByType(this.connecting_slot,node,connType);
-                        }
-
-                    }else if (this.connecting_input){
-
-                        var slot = -1;
-                        if(this.hovered && this.hovered.isSlot && this.hovered.output) {
-                            slot = this.hovered.slot;
-                            node = this.hovered.node;
-                        }
-                        /* var slot = this.isOverNodeOutput(
-                            node,
-                            e.canvasX,
-                            e.canvasY
-                        );*/
-
-                        if (slot != -1) {
-                            node.connect(slot, this.connecting_node, this.connecting_slot); // this is inverted has output-input nature like
-                        } else {
-                            //not on top of an input
-                            // look for a good slot
-                            this.connecting_node.connectByTypeOutput(this.connecting_slot,node,connType);
-                        }
-
-                    }
-
-
-
-
-                }else{
-
-                    // add menu when releasing link in empty space
-                	if (LiteGraph.release_link_on_empty_shows_menu){
-	                    if (e.shiftKey && this.allow_searchbox){
-	                        if(this.connecting_output){
-	                            this.showSearchBox(e,{node_from: this.connecting_node, slot_from: this.connecting_output, type_filter_in: this.connecting_output.type});
-	                        }else if(this.connecting_input){
-	                            this.showSearchBox(e,{node_to: this.connecting_node, slot_from: this.connecting_input, type_filter_out: this.connecting_input.type});
-	                        }
-	                    }else{
-	                        if(this.connecting_output){
-	                            this.showConnectionMenu({nodeFrom: this.connecting_node, slotFrom: this.connecting_output, e: e});
-	                        }else if(this.connecting_input){
-	                            this.showConnectionMenu({nodeTo: this.connecting_node, slotTo: this.connecting_input, e: e});
-	                        }
-	                    }
-                	}
-                }
-
-                this.connecting_output = null;
-                this.connecting_input = null;
-                this.connecting_pos = null;
-                this.connecting_node = null;
-                this.connecting_slot = -1;
-            } //not dragging connection
-            else if (this.resizing_node) {
-                this.dirty_canvas = true;
-                this.dirty_bgcanvas = true;
-				this.graph.afterChange(this.resizing_node);
-                this.resizing_node = null;
-            } else if (this.node_dragged) {
-                //node being dragged?
-                var node = this.node_dragged;
-
-                this.dirty_canvas = true;
-                this.dirty_bgcanvas = true;
-                this.node_dragged.pos[0] = Math.round(this.node_dragged.pos[0]);
-                this.node_dragged.pos[1] = Math.round(this.node_dragged.pos[1]);
-                if (this.graph.config.align_to_grid || this.align_to_grid ) {
-                    this.node_dragged.alignToGrid();
-                }
-				if( this.onNodeMoved )
-					this.onNodeMoved( this.node_dragged );
-				this.graph.afterChange(this.node_dragged);
-                this.node_dragged = null;
-            } //no node being dragged
-            else {
-                //get node over
-
-                var node = null;
-                if(this.hovered && this.hovered.node){
-                    node = this.hovered.node;
-                }
-                if (!node && e.click_time < 300) {
-                    this.deselectAllNodes();
-                }
-
-                this.dirty_canvas = true;
-                this.dragging_canvas = false;
-
-                if (this.node_over && this.node_over.onMouseUp) {
-                    this.node_over.onMouseUp( e, [ e.canvasX - this.node_over.pos[0], e.canvasY - this.node_over.pos[1] ], this );
-                }
-                if (
-                    this.node_capturing_input &&
-                    this.node_capturing_input.onMouseUp
-                ) {
-                    this.node_capturing_input.onMouseUp(e, [
-                        e.canvasX - this.node_capturing_input.pos[0],
-                        e.canvasY - this.node_capturing_input.pos[1]
-                    ]);
-                }
-            }
-        } else if (e.which == 3) {
-            //right button
-            //trace("right");
-            this.dirty_canvas = true;
-            this.dragging_canvas = false;
-
-            if(this.just_pressed_rmb){
-                this.just_pressed_rmb = false;
-			if (this.allow_interaction && !this.read_only){
-
-				// is it hover a node ?
-				if (node){
-					if(Object.keys(this.selected_nodes).length
-					   && (this.selected_nodes[node.id] || e.shiftKey || e.ctrlKey || e.metaKey)
-					){
-						// is multiselected or using shift to include the now node
-						if (!this.selected_nodes[node.id]) this.selectNodes([node],true); // add this if not present
-					}else{
-						// update selection
-						this.selectNodes([node]);
-					}
-				}
-
-				// show menu on this node
-				this.processContextMenu(node, e);
-			}
-            }
-
-        }
-
-	  	if (is_primary)
-		{
-			this.pointer_is_down = false;
-			this.pointer_is_double = false;
-		}
-
-        this.graph.change();
-
-        //console.log("pointerevents: processMouseUp stopPropagation");
-        e.stopPropagation();
-        e.preventDefault();
-        return false;
-    };
-
-    /**
-     * Called when a mouse wheel event has to be processed
-     * @method processMouseWheel
-     **/
-    LGraphCanvas.prototype.processMouseWheel = function(e) {
-        if (!this.graph || !this.allow_dragcanvas) {
-            return;
-        }
-
-        var delta = e.wheelDeltaY != null ? e.wheelDeltaY : e.detail * -60;
-
-        this.adjustMouseEvent(e);
-
-		var x = e.clientX;
-		var y = e.clientY;
-		var is_inside = !this.viewport || ( this.viewport && x >= this.viewport[0] && x < (this.viewport[0] + this.viewport[2]) && y >= this.viewport[1] && y < (this.viewport[1] + this.viewport[3]) );
-		if(!is_inside)
-			return;
-
-        var scale = this.ds.scale;
-
-        if (delta > 0) {
-            scale *= 1.1;
-        } else if (delta < 0) {
-            scale *= 1 / 1.1;
-        }
-        this.ds.changeScale(scale, [e.clientX, e.clientY]);
-
-        this.graph.change();
-
-        e.preventDefault();
-        return false; // prevent default
-    };
-
-    /**
-     * process a key event
-     * @method processKey
-     **/
-    LGraphCanvas.prototype.processKey = function(e) {
-        if (!this.graph) {
-            return;
-        }
-
-        var block_default = false;
-        //console.log(e); //debug
-
-        if (e.target.localName == "input") {
-            return;
-        }
-
-        if (e.type == "keydown") {
-            if (e.keyCode == 32) {
-                //space
-                this.dragging_canvas = true;
-                block_default = true;
-            }
-
-            if (e.keyCode == 27) {
-                //esc
-                if(this.node_panel) this.node_panel.close();
-                if(this.options_panel) this.options_panel.close();
-                block_default = true;
-            }
-
-            //select all Control A
-            if (e.keyCode == 65 && e.ctrlKey) {
-                this.selectNodes();
-                block_default = true;
-            }
-
-            if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-                //copy
-                if (this.selected_nodes) {
-                    this.copyToClipboard();
-                    block_default = true;
-                }
-            }
-
-            if (e.code == "KeyV" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-                //paste
-                this.pasteFromClipboard();
-            }
-
-            //delete or backspace
-            if (e.keyCode == 46 || e.keyCode == 8) {
-                if (
-                    e.target.localName != "input" &&
-                    e.target.localName != "textarea"
-                ) {
-                    this.deleteSelectedNodes();
-                    block_default = true;
-                }
-            }
-
-            //collapse
-            //...
-
-            //TODO
-            if (this.selected_nodes) {
-                for (var i in this.selected_nodes) {
-                    if (this.selected_nodes[i].onKeyDown) {
-                        this.selected_nodes[i].onKeyDown(e);
-                    }
-                }
-            }
-        } else if (e.type == "keyup") {
-            if (e.keyCode == 32) {
-                // space
-                this.dragging_canvas = false;
-            }
-
-            if (this.selected_nodes) {
-                for (var i in this.selected_nodes) {
-                    if (this.selected_nodes[i].onKeyUp) {
-                        this.selected_nodes[i].onKeyUp(e);
-                    }
-                }
-            }
-        }
-
-        this.graph.change();
-
-        if (block_default) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            return false;
-        }
-    };
+   
 
     LGraphCanvas.prototype.copyToClipboard = function() {
         var clipboard_info = {
@@ -6912,8 +6178,8 @@
         this.setDirty(true);
     };
 
-    LGraphCanvas.prototype.processNodeSelected = function(node, e) {
-        this.selectNode(node, e && (e.shiftKey||e.ctrlKey));
+    LGraphCanvas.prototype.processNodeSelected = function(node, add_to_current_selection) {
+        this.selectNode(node, add_to_current_selection);
         if (this.onNodeSelected) {
             this.onNodeSelected(node);
         }
@@ -7386,7 +6652,7 @@
                 this.renderLink(
                     ctx,
                     this.connecting_pos,
-                    [this.graph_mouse[0], this.graph_mouse[1]],
+                    [this.event_handler.state.graph_mouse[0], this.event_handler.state.graph_mouse[1]],
                     null,
                     false,
                     null,
@@ -12889,7 +12155,7 @@
         return o;
     };
 
-    LGraphCanvas.prototype.processContextMenu = function(node, event) {
+    LGraphCanvas.prototype.processContextMenu = function() {
         var that = this;
         var canvas = LGraphCanvas.active_canvas;
         var z_index = window.getComputedStyle(canvas.canvas.parentElement).zIndex;
@@ -12897,12 +12163,21 @@
             z_index = 10;
         var ref_window = canvas.getCanvasWindow();
 
+        var node = null;
+        if(this.hovered && this.hovered.node){
+            node = this.hovered.node;
+        }
+
         var menu_info = null;
         var options = {
-            event: event,
+            event: {
+                clientX: this.event_handler.state.mouse.x,
+                clientY: this.event_handler.state.mouse.y,
+            },
             callback: inner_option_clicked,
             extra: node
         };
+
 
 		if(node)
 			options.title = node.type;
@@ -13294,17 +12569,6 @@
         }
 
 		var eventClass = null;
-		if(options.event) //use strings because comparing classes between windows doesnt work
-			eventClass = options.event.constructor.name;
-        if ( eventClass !== "MouseEvent" &&
-            eventClass !== "CustomEvent" &&
-			eventClass !== "PointerEvent"
-        ) {
-            console.error(
-                "Event passed to ContextMenu is not of type MouseEvent or CustomEvent. Ignoring it. ("+eventClass+")"
-            );
-            options.event = null;
-        }
 
         var root = document.createElement("div");
         root.className = "litegraph litecontextmenu litemenubar-panel";
@@ -13400,9 +12664,6 @@
 
         //insert before checking position
         var root_document = document;
-        if (options.event) {
-            root_document = options.event.target.ownerDocument;
-        }
 
         if (!root_document) {
             root_document = document;
