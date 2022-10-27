@@ -678,47 +678,13 @@
 
         /**
          * Returns if the types of two slots are compatible (taking into account wildcards, etc)
-         * @method isValidConnection
+         * @method isDataTypeMatch
          * @param {String} type_a
          * @param {String} type_b
          * @return {Boolean} true if they can be connected
          */
-        isValidConnection: function(type_a, type_b) {
-			if (type_a=="" || type_a==="*") type_a = 0;
-			if (type_b=="" || type_b==="*") type_b = 0;
-            if (
-                !type_a //generic output
-                || !type_b // generic input
-                || type_a == type_b //same type (is valid for triggers)
-                || (type_a == LiteGraph.EVENT && type_b == LiteGraph.ACTION)
-            ) {
-                return true;
-            }
-
-            // Enforce string type to handle toLowerCase call (-1 number not ok)
-            type_a = String(type_a);
-            type_b = String(type_b);
-            type_a = type_a.toLowerCase();
-            type_b = type_b.toLowerCase();
-
-            // For nodes supporting multiple connection types
-            if (type_a.indexOf(",") == -1 && type_b.indexOf(",") == -1) {
-                return type_a == type_b;
-            }
-
-            // Check all permutations to see if one is valid
-            var supported_types_a = type_a.split(",");
-            var supported_types_b = type_b.split(",");
-            for (var i = 0; i < supported_types_a.length; ++i) {
-                for (var j = 0; j < supported_types_b.length; ++j) {
-                    if(this.isValidConnection(supported_types_a[i],supported_types_b[j])){
-					//if (supported_types_a[i] == supported_types_b[j]) {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+        isDataTypeMatch: function(type_a, type_b) {
+            return type_a == type_b || [type_a, type_b].includes("*");
         },
 
         /**
@@ -4828,7 +4794,7 @@
                             var slot = this.isOverNodeInput( node, e.canvasX, e.canvasY, pos );
                             if (slot != -1 && node.inputs[slot]) {
                                 var slot_type = node.inputs[slot].type;
-                                if ( LiteGraph.isValidConnection( this.connecting_output.type, slot_type ) ) {
+                                if ( LiteGraph.isDataTypeMatch( this.connecting_output.type, slot_type ) ) {
                                     this._highlight_input = pos;
 									this._highlight_input_slot = node.inputs[slot]; // XXX CHECK THIS
                                 }
@@ -4850,7 +4816,7 @@
                             var slot = this.isOverNodeOutput( node, e.canvasX, e.canvasY, pos );
                             if (slot != -1 && node.outputs[slot]) {
                                 var slot_type = node.outputs[slot].type;
-                                if ( LiteGraph.isValidConnection( this.connecting_input.type, slot_type ) ) {
+                                if ( LiteGraph.isDataTypeMatch( this.connecting_input.type, slot_type ) ) {
                                     this._highlight_output = pos;
                                 }
                             } else {
@@ -6888,7 +6854,7 @@
 
                     ctx.globalAlpha = editor_alpha;
                     //change opacity of incompatible slots when dragging a connection
-                    if ( this.connecting_output && !LiteGraph.isValidConnection( slot.type , out_slot.type) ) {
+                    if ( this.connecting_output && !LiteGraph.isDataTypeMatch( slot.type , out_slot.type) ) {
                         ctx.globalAlpha = 0.4 * editor_alpha;
                     }
 
@@ -6978,7 +6944,7 @@
                     var slot_shape = slot.shape;
 
                     //change opacity of incompatible slots when dragging a connection
-                    if (this.connecting_input && !LiteGraph.isValidConnection( slot_type , in_slot.type) ) {
+                    if (this.connecting_input && !LiteGraph.isDataTypeMatch( slot_type , in_slot.type) ) {
                         ctx.globalAlpha = 0.4 * editor_alpha;
                     }
 
