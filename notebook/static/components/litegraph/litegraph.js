@@ -2106,13 +2106,20 @@
      * @param {String} default_value: if the slot type is data_in or data_out
      */
      function NodeSlot(name, slot_type, data_type, default_value) {
-        this.name = name;
-        this.slot_type = slot_type;
-        this.data_type = data_type;
-        this.default_value = default_value;
-        this.connectors = [];
-        this.extra_info = {};
+         this.name = name;
+         this.slot_type = slot_type;
+         this.setDataType(data_type);
+         this.default_value = default_value;
+         this.connections = 0;
+         this.extra_info = {};
     };
+
+     NodeSlot.prototype.setDataType = function (slot_type, data_type) {
+         if([SlotType.exec_in, SlotType.exec_out].includes(slot_type))
+             this.data_type = 'Exec';
+         else
+             this.data_type = data_type;
+     };
 
      NodeSlot.prototype.addExtraInfo = function (extra_info) {
         this.extra_info = {...this.extra_info, ...extra_info};
