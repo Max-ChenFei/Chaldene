@@ -2223,7 +2223,6 @@
     LGraphNode.prototype._ctor = function() {
         this.title = "Unnamed";
         this.size = [LiteGraph.NODE_WIDTH, 60];
-        this.graph = null;
         this._pos = new Float32Array(10, 10);
 
         Object.defineProperty(this, "pos", {
@@ -2562,21 +2561,6 @@
             (slot_number + 0.7) * LiteGraph.NODE_SLOT_HEIGHT +
             (this.constructor.slot_start_y || 0);
         return out;
-    };
-
-    // *********************** rendering **************************************
-    /* Forces to redraw or the main canvas (LGraphNode) or the bg canvas (links) */
-    LGraphNode.prototype.setDirtyCanvas = function(
-        dirty_foreground,
-        dirty_background
-    ) {
-        if (!this.graph) {
-            return;
-        }
-        this.graph.sendActionToCanvas("setDirty", [
-            dirty_foreground,
-            dirty_background
-        ]);
     };
 
     // *********************** overlap detection **************************************
