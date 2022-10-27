@@ -2045,7 +2045,30 @@
         data_in: 2,
         data_out: 3
     });
- 
+
+    /**
+     * Node slot
+     * @method node slot class
+     * @param {SlotType} t_a
+     * @param {SlotType} t_b
+     * @return {Boolean} do these two slot type match
+     */
+    function isSlotTypeMatch(t_a, t_b){
+        if (t_a === t_b)
+            return false;
+
+        const slots = [t_a, t_b];
+        const exec_slots = [SlotType.exec_in, SlotType.exec_out];
+        if (areMultipleValuesInArray(slots, exec_slots))
+            return true;
+
+        const data_slots = [SlotType.data_in, SlotType.data_out];
+        if (areMultipleValuesInArray(slots, data_slots))
+            return true;
+
+        return false;
+    };
+
     const SlotConnectionMethod = Object.freeze({
         add: 0,
         replace: 1,
