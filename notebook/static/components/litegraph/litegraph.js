@@ -2122,7 +2122,7 @@
      };
 
      NodeSlot.prototype.addExtraInfo = function (extra_info) {
-        this.extra_info = {...this.extra_info, ...extra_info};
+         Object.assign(this.extra_info, extra_info);
      };
 
     NodeSlot.prototype.allowMultipleConnections = function () {
