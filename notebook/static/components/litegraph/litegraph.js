@@ -2046,6 +2046,16 @@
         data_out: 3
     });
 
+     /**
+     * areMultipleValuesInArray
+     * @method areMultipleValuesInArray
+     * @param {Array} values
+     * @param {Array} Array
+     */
+    function areMultipleValuesInArray(values, Array){
+        return values.every(s => {return array.includes(s)});
+    }
+
     /**
      * Node slot
      * @method node slot class
