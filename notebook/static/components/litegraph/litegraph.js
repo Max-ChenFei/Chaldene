@@ -2244,11 +2244,8 @@
         this.type = null;
 
         //inputs available: array of inputs
-        this.inputs = [];
-        this.outputs = [];
-        this.connections = [];
-
-        this.flags = {};
+        this.inputs = {};
+        this.outputs = {};
     };
 
     // *********************** Node information **************************************
@@ -2261,705 +2258,232 @@
     };
 
 	// ******************* slots (create, remove, query and get connected node) *****************
-
-    /**
-     * add a new output slot to use in this node
-     * @method addOutput
-     * @param {string} name
-     * @param {string} type string defining the output type ("vec3","number",...)
-     * @param {Object} extra_info this can be used to have special properties of an output (label, special color, position, etc)
-     */
-    LGraphNode.prototype.addOutput = function(name, type, extra_info) {
-        var output = { name: name, type: type, links: null };
-        if (extra_info) {
-            for (var i in extra_info) {
-                output[i] = extra_info[i];
-            }
+    LGraphNode.prototype.makeSureNameUniqueIn = function(name, obj){
+        if (! name in obj){
+            throw "Slot Name {name} already existed in {obj.constructor.name}";
         }
-
-        if (!this.outputs) {
-            this.outputs = [];
-        }
-        this.outputs.push(output);
-        if (this.onOutputAdded) {
-            this.onOutputAdded(output);
-        }
-
-        if (LiteGraph.auto_load_slot_types) LiteGraph.registerNodeAndSlotType(this,type,true);
-
-        this.setSize( this.computeSize() );
-        this.setDirtyCanvas(true, true);
-        return output;
     };
 
     /**
-     * add a new output slot to use in this node
-     * @method addOutputs
-     * @param {Array} array of triplets like [[name,type,extra_info],[...]]
+     * add a new slot to slots
+     * @method addInput
+     * @param {string} slot_name
+     * @param {SlotType} slot_type
+     * @param {string} data_type string defining the input type ("vec3","number",...), it its a generic one use *
+     * @param {string} default_value
+     * @param {Object} extra_info this can be used to have special properties
+     * @param {Array} slots
      */
-    LGraphNode.prototype.addOutputs = function(array) {
-        for (var i = 0; i < array.length; ++i) {
-            var info = array[i];
-            var o = { name: info[0], type: info[1], link: null };
-            if (array[2]) {
-                for (var j in info[2]) {
-                    o[j] = info[2][j];
-                }
-            }
+    LGraphNode.prototype.addSlotTo = function(slot_name, slot_type, data_type, default_value, extra_info, slots, call_back) {
+        this.makeSureNameUniqueIn(slot_name, slots);
+        let slot = NodeSlot(slot_name, slot_type, data_type, default_value);
+        slot.addExtraInfo(extra_info);
+        slots[slot_name] = slot;
 
-            if (!this.outputs) {
-                this.outputs = [];
-            }
-            this.outputs.push(o);
-            if (this.onOutputAdded) {
-                this.onOutputAdded(o);
-            }
-
-            if (LiteGraph.auto_load_slot_types) LiteGraph.registerNodeAndSlotType(this,info[1],true);
-
-        }
-
-        this.setSize( this.computeSize() );
-        this.setDirtyCanvas(true, true);
-    };
-
-    /**
-     * remove an existing output slot
-     * @method removeOutput
-     * @param {number} slot
-     */
-    LGraphNode.prototype.removeOutput = function(slot) {
-        this.disconnectOutput(slot);
-        this.outputs.splice(slot, 1);
-        for (var i = slot; i < this.outputs.length; ++i) {
-            if (!this.outputs[i] || !this.outputs[i].links) {
-                continue;
-            }
-            var links = this.outputs[i].links;
-            for (var j = 0; j < links.length; ++j) {
-                var link = this.graph.links[links[j]];
-                if (!link) {
-                    continue;
-                }
-                link.origin_slot -= 1;
-            }
-        }
-
-        this.setSize( this.computeSize() );
-        if (this.onOutputRemoved) {
-            this.onOutputRemoved(slot);
-        }
-        this.setDirtyCanvas(true, true);
-    };
-
-    /**
-     * returns the output slot with a given name (used for dynamic slots), -1 if not found
-     * @method findOutputSlot
-     * @param {string} name the name of the slot
-     * @param {boolean} returnObj if the obj itself wanted
-     * @return {number_or_object} the slot (-1 if not found)
-     */
-    LGraphNode.prototype.findOutputSlot = function(name, returnObj) {
-        returnObj = returnObj || false;
-        if (!this.outputs) {
-            return -1;
-        }
-        for (var i = 0, l = this.outputs.length; i < l; ++i) {
-            if (name == this.outputs[i].name) {
-                return !returnObj ? i : this.outputs[i];
-            }
-        }
-        return -1;
+        if (call_back) {
+            call_back(slot);
+		}
     };
 
     /**
      * add a new input slot to use in this node
      * @method addInput
-     * @param {string} name
-     * @param {string} type string defining the input type ("vec3","number",...), it its a generic one use 0
+     * @param {string} slot_name
+     * @param {string} data_type string defining the input type ("vec3","number",...), it its a generic one use *
+     * @param {string} default_value
      * @param {Object} extra_info this can be used to have special properties of an input (label, color, position, etc)
      */
-    LGraphNode.prototype.addInput = function(name, type, extra_info) {
-        type = type || 0;
-        var input = { name: name, type: type, link: null };
-        if (extra_info) {
-            for (var i in extra_info) {
-                input[i] = extra_info[i];
-            }
-        }
-
-        if (!this.inputs) {
-            this.inputs = [];
-        }
-
-        this.inputs.push(input);
-        this.setSize( this.computeSize() );
-
-        if (this.onInputAdded) {
-            this.onInputAdded(input);
-		}
-
-        LiteGraph.registerNodeAndSlotType(this,type);
-
-        this.setDirtyCanvas(true, true);
-        return input;
+    LGraphNode.prototype.addInput = function(slot_name, data_type, default_value, extra_info) {
+        this.addSlotTo(slot_name, SlotType.data_in, data_type, default_value, extra_info, this.inputs, this.onInputAdded);
     };
+
+    /**
+     * add a new output slot to use in this node
+     * @method addOutput
+     * @param {string} slot_name
+     * @param {string} data_type string defining the output type ("vec3","number",...)
+     * @param {Object} extra_info this can be used to have special properties of an output (label, special color, position, etc)
+     */
+     LGraphNode.prototype.addOutput = function(slot_name, data_type, extra_info) {
+        this.addSlotTo(slot_name, SlotType.data_out, data_type, null, extra_info, this.outputs, this.onOutputAdded);
+     };
 
     /**
      * add several new input slots in this node
      * @method addInputs
-     * @param {Array} array of triplets like [[name,type,extra_info],[...]]
+     * @param {Array} inputs array of triplets like [[name, type, default_value, extra_info],[...]]
      */
-    LGraphNode.prototype.addInputs = function(array) {
-        for (var i = 0; i < array.length; ++i) {
-            var info = array[i];
-            var o = { name: info[0], type: info[1], link: null };
-            if (array[2]) {
-                for (var j in info[2]) {
-                    o[j] = info[2][j];
-                }
-            }
-
-            if (!this.inputs) {
-                this.inputs = [];
-            }
-            this.inputs.push(o);
-            if (this.onInputAdded) {
-                this.onInputAdded(o);
-            }
-
-            LiteGraph.registerNodeAndSlotType(this,info[1]);
+     LGraphNode.prototype.addInputs = function(inputs) {
+        for (const input of inputs){
+            this.addInput(input.name, input.type, default_value, input.extra_info)
         }
+     };
 
-        this.setSize( this.computeSize() );
-        this.setDirtyCanvas(true, true);
+     /**
+      * add many output slots to use in this node
+      * @method addOutputs
+      * @param {Array} outputs array of triplets like [[name, type, extra_info],[...]]
+      */
+     LGraphNode.prototype.addOutputs = function(outputs) {
+        for (const output of outputs){
+            this.addOutput(output.name, output.type, output.extra_info)
+        }
+     };
+
+     /**
+      * remove one slot from the inputs or outputs, here we don't deal with connections, the graph will handle it.
+      * @method addOutputs
+      * @param {String} slot_name the name of the slot to be removed
+      * @param {Arrary}  slots intput or outputs slots
+      */
+     LGraphNode.prototype.removeSlotFrom = function(slot_name, slots, call_back) {
+        delete slots[slot_name];
+
+        if (call_back) {
+            call_back(slot_name);
+        }
     };
 
-    /**
-     * remove an existing input slot
-     * @method removeInput
-     * @param {number} slot
-     */
-    LGraphNode.prototype.removeInput = function(slot) {
-        this.disconnectInput(slot);
-        var slot_info = this.inputs.splice(slot, 1);
-        for (var i = slot; i < this.inputs.length; ++i) {
-            if (!this.inputs[i]) {
-                continue;
-            }
-            var link = this.graph.links[this.inputs[i].link];
-            if (!link) {
-                continue;
-            }
-            link.target_slot -= 1;
-        }
-        this.setSize( this.computeSize() );
-        if (this.onInputRemoved) {
-            this.onInputRemoved(slot, slot_info[0] );
-        }
-        this.setDirtyCanvas(true, true);
-    };
+     /**
+      * remove an existing input slot
+      * @method removeInput
+      * @param {String} slot_name
+      */
+     LGraphNode.prototype.removeInput = function(slot_name) {
+        this.removeSlotFrom(slot_name, this.inputs, this.onInputRemoved);
+     };
+
+     /**
+      * remove an existing output slot
+      * @method removeOutput
+      * @param {String} slot_name
+      */
+     LGraphNode.prototype.removeOutput = function(slot_name) {
+         this.removeSlotFrom(slot_name, this.outputs, this.onOutputRemoved);
+     };
 
     /**
      * returns the input slot with a given name (used for dynamic slots), -1 if not found
-     * @method findInputSlot
-     * @param {string} name the name of the slot
+     * @method findInput
+     * @param {string} slot_name the name of the slot
      * @param {boolean} returnObj if the obj itself wanted
-     * @return {number_or_object} the slot (-1 if not found)
+     * @return {undefined_or_object} the slot (undefined if not found)
      */
-    LGraphNode.prototype.findInputSlot = function(name,  returnObj) {
-        if (!this.inputs) {
-            return -1;
-        }
-        for (var i = 0, l = this.inputs.length; i < l; ++i) {
-            if (name == this.inputs[i].name) {
-                return !returnObj ? i : this.inputs[i];
-            }
-        }
-        return -1;
+    LGraphNode.prototype.findInput = function(slot_name) {
+       return this.inputs[slot_name]
     };
 
     /**
-     * returns the output slot with a given name (used for dynamic slots), -1 if not found
-     * @method findOutputSlot
-     * @param {string} name the name of the slot
-     * @param {boolean} returnObj if the obj itself wanted
-     * @return {number_or_object} the slot (-1 if not found)
+     * returns the output slot with a given name (used for dynamic slots)
+     * @method findOutput
+     * @param {string} slot_name the name of the slot
+     * @return {undefined_or_object} the slot (undefined if not found)
      */
+    LGraphNode.prototype.findOutput = function(slot_name) {
+        return this.outputs[slot_name]
+    };
 
     // *********************** node manipulation **************************************
+    LGraphNode.prototype.allowConnectTo = function(slot, to_node, to_slot) {
+        if (!slot || !to_node || !to_slot) {
+            return new SlotConnection(false, SlotConnectionMethod.null, 'Some input parameters are undefined.');
+        }
 
-    /**
-     * Collapse the node to make it smaller on the canvas
-     * @method collapse
-     **/
-    LGraphNode.prototype.collapse = function(force) {
-        this.graph._version++;
-        if (this.constructor.collapsable === false && !force) {
-            return;
+        if(this == to_node){
+            return new SlotConnection(false, SlotConnectionMethod.null, 'Both are on the same node.');
         }
-        if (!this.flags.collapsed) {
-            this.flags.collapsed = true;
-        } else {
-            this.flags.collapsed = false;
-        }
-        this.setDirtyCanvas(true, true);
+
+        return slot.allowConnectTo(to_slot)
     };
 
+    /**
+     * Check if the input slot of this node can be connected to the output slot of other node
+     * @method connect
+     * @param {String} input_slot_name
+     * @param {LGraphNode} to_node
+     * @param {SlotType} to_slot
+     */
+    LGraphNode.prototype.allowInputConnectTo = function(input_slot_name, to_node, to_slot) {
+        this.allowConnectTo(this.inputs[input_slot_name], to_node, to_slot);
+    };
 
     /**
-     * connect this node output to the input of another node
+     * Check if the output slot of this node can be connected to the input slot of other node
      * @method connect
-     * @param {number_or_string} slot (could be the number of the slot or the string with the name of the slot)
-     * @param {LGraphNode} node the target node
-     * @param {number_or_string} target_slot the input slot of the target node (could be the number of the slot or the string with the name of the slot, or -1 to connect a trigger)
-     * @return {Object} the link_info is created, otherwise null
+     * @param {String} output_slot_name
+     * @param {LGraphNode} to_node
+     * @param {SlotType} to_slot
      */
-    LGraphNode.prototype.connect = function(slot, target_node, target_slot) {
-        target_slot = target_slot || 0;
-
-        if (!this.graph) {
-            //could be connected before adding it to a graph
-            console.log(
-                "Connect: Error, node doesn't belong to any graph. Nodes must be added first to a graph before connecting them."
-            ); //due to link ids being associated with graphs
-            return null;
+    LGraphNode.prototype.allowOutputConnectTo = function(output_slot_name, to_node, to_slot) {
+        this.allowConnectTo(this.outputs[output_slot_name], to_node, to_slot);
+    };
+    /**
+     * add a connection to the slot. The connector is not recored because the slot can be connected only when the node is added to the graph that will
+     * manage how to connect, access to the connectors and nodes.
+     * @method connect
+     * @param {String} slot_name
+     */
+    LGraphNode.prototype.addConnectionOf = function(slot) {
+        if (!slot) {
+            return ;
         }
+        slot.addConnection()
 
-        //seek for the output slot
-        if (slot.constructor === String) {
-            slot = this.findOutputSlot(slot);
-            if (slot == -1) {
-                if (LiteGraph.debug) {
-                    console.log("Connect: Error, no slot of name " + slot);
-                }
-                return null;
-            }
-        } else if (!this.outputs || slot >= this.outputs.length) {
-            if (LiteGraph.debug) {
-                console.log("Connect: Error, slot number not found");
-            }
-            return null;
+        if (this.onAddConnection) {
+            this.onAddConnection(slot);
         }
+    };
 
-        if (target_node && target_node.constructor === Number) {
-            target_node = this.graph.getNodeById(target_node);
+    LGraphNode.prototype.addConnectionOfInput = function(slot_name) {
+        this.addConnectionOf(this.inputs[slot_name])
+    };
+
+    LGraphNode.prototype.addConnectionOfOutput = function(slot_name) {
+        this.addConnectionOf(this.outputs[slot_name])
+    };
+
+    LGraphNode.prototype.breakConnectionOf= function(slot) {
+        if (!slot) {
+            return ;
         }
-        if (!target_node) {
-            throw "target node is null";
+        slot.breakConnection()
+
+        if (this.onBreakConnection) {
+            this.onBreakConnection(slot);
         }
+    };
 
-        //avoid loopback
-        if (target_node == this) {
-            return null;
-        }
+    LGraphNode.prototype.breakConnectionOfOutput = function(slot_name) {
+        this.breakConnectionOf(this.outputs[slot_name])
+    };
 
-        //you can specify the slot by name
-        if (target_slot.constructor === String) {
-            target_slot = target_node.findInputSlot(target_slot);
-            if (target_slot == -1) {
-                if (LiteGraph.debug) {
-                    console.log(
-                        "Connect: Error, no slot of name " + target_slot
-                    );
-                }
-                return null;
-            }
-        } else if (target_slot === LiteGraph.EVENT) {
-
-            if (LiteGraph.do_add_triggers_slots){
-	            //search for first slot with event? :: NO this is done outside
-				//console.log("Connect: Creating triggerEvent");
-	            // force mode
-	            target_node.changeMode(LiteGraph.ON_TRIGGER);
-	            target_slot = target_node.findInputSlot("onTrigger");
-        	}else{
-            	return null; // -- break --
-			}
-        } else if (
-            !target_node.inputs ||
-            target_slot >= target_node.inputs.length
-        ) {
-            if (LiteGraph.debug) {
-                console.log("Connect: Error, slot number not found");
-            }
-            return null;
-        }
-
-		var changed = false;
-
-        var input = target_node.inputs[target_slot];
-        var link_info = null;
-        var output = this.outputs[slot];
-
-        if (!this.outputs[slot]){
-            /*console.debug("Invalid slot passed: "+slot);
-            console.debug(this.outputs);*/
-            return null;
-        }
-
-        // allow target node to change slot
-        if (target_node.onBeforeConnectInput) {
-            // This way node can choose another slot (or make a new one?)
-            target_slot = target_node.onBeforeConnectInput(target_slot); //callback
-        }
-
-		//check target_slot and check connection types
-        if (target_slot===false || target_slot===null || !LiteGraph.isValidConnection(output.type, input.type))
-		{
-	        this.setDirtyCanvas(false, true);
-			if(changed)
-		        this.graph.connectionChange(this, link_info);
-			return null;
-		}else{
-			//console.debug("valid connection",output.type, input.type);
-		}
-
-        //allows nodes to block connection, callback
-        if (target_node.onConnectInput) {
-            if ( target_node.onConnectInput(target_slot, output.type, output, this, slot) === false ) {
-                return null;
-            }
-        }
-        if (this.onConnectOutput) { // callback
-            if ( this.onConnectOutput(slot, input.type, input, target_node, target_slot) === false ) {
-                return null;
-            }
-        }
-
-        //if there is something already plugged there, disconnect
-        if (target_node.inputs[target_slot] && target_node.inputs[target_slot].link != null) {
-			this.graph.beforeChange();
-            target_node.disconnectInput(target_slot, {doProcessChange: false});
-			changed = true;
-        }
-        if (output.links !== null && output.links.length){
-            switch(output.type){
-                case LiteGraph.EVENT:
-                    if (!LiteGraph.allow_multi_output_for_events){
-                        this.graph.beforeChange();
-                        this.disconnectOutput(slot, false, {doProcessChange: false}); // Input(target_slot, {doProcessChange: false});
-                        changed = true;
-                    }
-                break;
-                default:
-                break;
-            }
-        }
-
-		//create link class
-		link_info = new Connector(
-			++this.graph.last_link_id,
-			input.type || output.type,
-			this.id,
-			slot,
-			target_node.id,
-			target_slot
-		);
-
-		//add to graph links list
-		this.graph.links[link_info.id] = link_info;
-
-		//connect in output
-		if (output.links == null) {
-			output.links = [];
-		}
-		output.links.push(link_info.id);
-		//connect in input
-		target_node.inputs[target_slot].link = link_info.id;
-		if (this.graph) {
-			this.graph._version++;
-		}
-		if (this.onConnectionsChange) {
-			this.onConnectionsChange(
-				LiteGraph.OUTPUT,
-				slot,
-				true,
-				link_info,
-				output
-			);
-		} //link_info has been created now, so its updated
-		if (target_node.onConnectionsChange) {
-			target_node.onConnectionsChange(
-				LiteGraph.INPUT,
-				target_slot,
-				true,
-				link_info,
-				input
-			);
-		}
-		if (this.graph && this.graph.onNodeConnectionChange) {
-			this.graph.onNodeConnectionChange(
-				LiteGraph.INPUT,
-				target_node,
-				target_slot,
-				this,
-				slot
-			);
-			this.graph.onNodeConnectionChange(
-				LiteGraph.OUTPUT,
-				this,
-				slot,
-				target_node,
-				target_slot
-			);
-		}
-
-        this.setDirtyCanvas(false, true);
-		this.graph.afterChange();
-		this.graph.connectionChange(this, link_info);
-
-        return link_info;
+    LGraphNode.prototype.breakConnectionOfInput = function(slot_name) {
+        this.breakConnectionOf(this.inputs[slot_name])
     };
 
     /**
      * disconnect one output to an specific node
      * @method disconnectOutput
-     * @param {number_or_string} slot (could be the number of the slot or the string with the name of the slot)
-     * @param {LGraphNode} target_node the target node to which this slot is connected [Optional, if not target_node is specified all nodes will be disconnected]
-     * @return {boolean} if it was disconnected successfully
+     * @param {String} slot_name
      */
-    LGraphNode.prototype.disconnectOutput = function(slot, target_node) {
-        if (slot.constructor === String) {
-            slot = this.findOutputSlot(slot);
-            if (slot == -1) {
-                if (LiteGraph.debug) {
-                    console.log("Connect: Error, no slot of name " + slot);
-                }
-                return false;
-            }
-        } else if (!this.outputs || slot >= this.outputs.length) {
-            if (LiteGraph.debug) {
-                console.log("Connect: Error, slot number not found");
-            }
-            return false;
+    LGraphNode.prototype.clearConnectionsOf = function(slot) {
+        if (!slot) {
+            return ;
         }
+        slot.clearConnections()
 
-        //get output slot
-        var output = this.outputs[slot];
-        if (!output || !output.links || output.links.length == 0) {
-            return false;
+        if (this.onClearConnection) {
+            this.onClearConnection(slot_name);
         }
-
-        //one of the output links in this slot
-        if (target_node) {
-            if (target_node.constructor === Number) {
-                target_node = this.graph.getNodeById(target_node);
-            }
-            if (!target_node) {
-                throw "Target Node not found";
-            }
-
-            for (var i = 0, l = output.links.length; i < l; i++) {
-                var link_id = output.links[i];
-                var link_info = this.graph.links[link_id];
-
-                //is the link we are searching for...
-                if (link_info.in_node_id == target_node.id) {
-                    output.links.splice(i, 1); //remove here
-                    var input = target_node.inputs[link_info.in_slot_name];
-                    input.link = null; //remove there
-                    delete this.graph.links[link_id]; //remove the link from the links pool
-                    if (this.graph) {
-                        this.graph._version++;
-                    }
-                    if (target_node.onConnectionsChange) {
-                        target_node.onConnectionsChange(
-                            LiteGraph.INPUT,
-                            link_info.in_slot_name,
-                            false,
-                            link_info,
-                            input
-                        );
-                    } //link_info hasn't been modified so its ok
-                    if (this.onConnectionsChange) {
-                        this.onConnectionsChange(
-                            LiteGraph.OUTPUT,
-                            slot,
-                            false,
-                            link_info,
-                            output
-                        );
-                    }
-                    if (this.graph && this.graph.onNodeConnectionChange) {
-                        this.graph.onNodeConnectionChange(
-                            LiteGraph.OUTPUT,
-                            this,
-                            slot
-                        );
-                    }
-                    if (this.graph && this.graph.onNodeConnectionChange) {
-                        this.graph.onNodeConnectionChange(
-                            LiteGraph.OUTPUT,
-                            this,
-                            slot
-                        );
-                        this.graph.onNodeConnectionChange(
-                            LiteGraph.INPUT,
-                            target_node,
-                            link_info.in_slot_name
-                        );
-                    }
-                    break;
-                }
-            }
-        } //all the links in this output slot
-        else {
-            for (var i = 0, l = output.links.length; i < l; i++) {
-                var link_id = output.links[i];
-                var link_info = this.graph.links[link_id];
-                if (!link_info) {
-                    //bug: it happens sometimes
-                    continue;
-                }
-
-                var target_node = this.graph.getNodeById(link_info.in_node_id);
-                var input = null;
-                if (this.graph) {
-                    this.graph._version++;
-                }
-                if (target_node) {
-                    input = target_node.inputs[link_info.target_slot];
-                    input.link = null; //remove other side link
-                    if (target_node.onConnectionsChange) {
-                        target_node.onConnectionsChange(
-                            LiteGraph.INPUT,
-                            link_info.target_slot,
-                            false,
-                            link_info,
-                            input
-                        );
-                    } //link_info hasn't been modified so its ok
-                    if (this.graph && this.graph.onNodeConnectionChange) {
-                        this.graph.onNodeConnectionChange(
-                            LiteGraph.INPUT,
-                            target_node,
-                            link_info.target_slot
-                        );
-                    }
-                }
-                delete this.graph.links[link_id]; //remove the link from the links pool
-                if (this.onConnectionsChange) {
-                    this.onConnectionsChange(
-                        LiteGraph.OUTPUT,
-                        slot,
-                        false,
-                        link_info,
-                        output
-                    );
-                }
-                if (this.graph && this.graph.onNodeConnectionChange) {
-                    this.graph.onNodeConnectionChange(
-                        LiteGraph.OUTPUT,
-                        this,
-                        slot
-                    );
-                    this.graph.onNodeConnectionChange(
-                        LiteGraph.INPUT,
-                        target_node,
-                        link_info.target_slot
-                    );
-                }
-            }
-            output.links = null;
-        }
-
-        this.setDirtyCanvas(false, true);
-        this.graph.connectionChange(this);
-        return true;
     };
 
-    /**
-     * disconnect one input
-     * @method disconnectInput
-     * @param {number_or_string} slot (could be the number of the slot or the string with the name of the slot)
-     * @return {boolean} if it was disconnected successfully
-     */
-    LGraphNode.prototype.disconnectInput = function(slot) {
-        //seek for the output slot
-        if (slot.constructor === String) {
-            slot = this.findInputSlot(slot);
-            if (slot == -1) {
-                if (LiteGraph.debug) {
-                    console.log("Connect: Error, no slot of name " + slot);
-                }
-                return false;
-            }
-        } else if (!this.inputs || slot >= this.inputs.length) {
-            if (LiteGraph.debug) {
-                console.log("Connect: Error, slot number not found");
-            }
-            return false;
+    LGraphNode.prototype.ClearNodeConnections= function() {
+        for (let slot of this.inputs){
+            this.clearConnectionsOf(slot)
         }
-
-        var input = this.inputs[slot];
-        if (!input) {
-            return false;
+         for (let slot of this.outputs){
+            this.clearConnectionsOf(slot)
         }
-
-        var link_id = this.inputs[slot].link;
-		if(link_id != null)
-		{
-			this.inputs[slot].link = null;
-
-			//remove other side
-			var link_info = this.graph.links[link_id];
-			if (link_info) {
-				var target_node = this.graph.getNodeById(link_info.out_node_id);
-				if (!target_node) {
-					return false;
-				}
-
-				var output = target_node.outputs[link_info.out_slot_name];
-				if (!output || !output.links || output.links.length == 0) {
-					return false;
-				}
-
-				//search in the inputs list for this link
-				for (var i = 0, l = output.links.length; i < l; i++) {
-					if (output.links[i] == link_id) {
-						output.links.splice(i, 1);
-						break;
-					}
-				}
-
-				delete this.graph.links[link_id]; //remove from the pool
-				if (this.graph) {
-					this.graph._version++;
-				}
-				if (this.onConnectionsChange) {
-					this.onConnectionsChange(
-						LiteGraph.INPUT,
-						slot,
-						false,
-						link_info,
-						input
-					);
-				}
-				if (target_node.onConnectionsChange) {
-					target_node.onConnectionsChange(
-						LiteGraph.OUTPUT,
-						i,
-						false,
-						link_info,
-						output
-					);
-				}
-				if (this.graph && this.graph.onNodeConnectionChange) {
-					this.graph.onNodeConnectionChange(
-						LiteGraph.OUTPUT,
-						target_node,
-						i
-					);
-					this.graph.onNodeConnectionChange(LiteGraph.INPUT, this, slot);
-				}
-			}
-		} //link != null
-
-        this.setDirtyCanvas(false, true);
-		if(this.graph)
-	        this.graph.connectionChange(this);
-        return true;
     };
 
     /**
