@@ -2045,6 +2045,24 @@
         data_in: 2,
         data_out: 3
     });
+ 
+    const SlotConnectionMethod = Object.freeze({
+        add: 0,
+        replace: 1,
+        null: 2
+    });
+
+
+     /**
+     * SlotConnection
+     * @method SlotConnection
+     * @param {SlotConnectionMethod} method
+     * @param {String} desc
+     */
+    function SlotConnection(method, desc) {
+        this.method = method;
+        this.desc = desc;
+    };
 
     /**
      * Node slot
