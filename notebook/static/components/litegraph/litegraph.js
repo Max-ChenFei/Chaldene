@@ -2174,42 +2174,38 @@
     /*
 	title: string
 	pos: [x,y]
-	size: [x,y]
+	size: [width, height]
 
-	input|output: every connection
-		+  { name:string, type:string, pos: [x,y]=Optional, direction: "input"|"output", links: Array });
-
-	general properties:
-		+ resizable: if set to false it wont be resizable with the mouse
-
-	flags object:
-		+ collapsed: if it is collapsed
-
-	supported callbacks:
+	node operations callbacks:
 		+ onAdded: when added to graph (warning: this is called BEFORE the node is configured when loading)
 		+ onRemoved: when removed from graph
-		+ onDrawForeground: render the inside widgets inside the node
-		+ onDrawBackground: render the background area inside the node (only in edit mode)
+		+ onInputAdded
+		+ onInputRemoved
+		+ onOutputAdded
+		+ onOutputRemoved
+     	+ onAddConnection
+     	+ onBreakConnection
+     	+ onClearConnection
+		+ onDropItem : DOM item dropped over the node
+		+ onDropFile : file dropped over the node
+	interaction callbacks:
+		+ onSelected
+		+ onDeselected
 		+ onMouseDown
-		+ onMouseMove
 		+ onMouseUp
 		+ onMouseEnter
 		+ onMouseLeave
-		+ onPropertyChanged: when a property is changed in the panel (return true to skip default behaviour)
-		+ onGetInputs: returns an array of possible inputs
-		+ onGetOutputs: returns an array of possible outputs
+		+ onMouseMove
 		+ onDblClick: double clicked in the node
-		+ onInputDblClick: input slot double clicked (can be used to automatically create a node connected)
-		+ onOutputDblClick: output slot double clicked (can be used to automatically create a node connected)
+		+ onInputDblClick: input slot double clicked
+		+ onOutputDblClick: output slot double clicked
+	Serialization callback
 		+ onConfigure: called after the node has been configured
 		+ onSerialize: to add extra info when serializing (the callback receives the object that should be filled with the data)
-		+ onSelected
-		+ onDeselected
-		+ onDropItem : DOM item dropped over the node
-		+ onDropFile : file dropped over the node
-		+ onConnectInput : if returns false the incoming connection will be canceled
-		+ onConnectionsChange : a connection changed (new one or removed) (LiteGraph.INPUT or LiteGraph.OUTPUT, slot, true if connected, link_info, input_info )
+    Context menu
 		+ getExtraMenuOptions: to add option to context menu
+		+ onGetInputs: returns an array of possible inputs
+		+ onGetOutputs: returns an array of possible outputs
 */
 
     /**
