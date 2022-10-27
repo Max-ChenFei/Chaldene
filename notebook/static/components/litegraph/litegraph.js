@@ -2125,34 +2125,47 @@
          Object.assign(this.extra_info, extra_info);
      };
 
+     NodeSlot.prototype.isConnected = function () {
+         return this.connections > 0;
+     };
+
+     NodeSlot.prototype.allowConnectTo = function (other_slot) {
+         if(!isSlotTypeMatch(this.slot_type, other_slot.slot_type))
+            return new SlotConnection(false, SlotConnectionMethod.null, '{this.data_type} is not compatible with {other_slot.data_type}');
+
+         if(!LiteGraph.isDataTypeMatch(this.data_type, other_slot.data_type))
+             return new SlotConnection(false, SlotConnectionMethod.null, '{this.data_type} is not compatible with {other_slot.data_type}');
+
+         if(this.isConnected() && !this.allowMultipleConnections){
+             return new SlotConnection(true, SlotConnectionMethod.replace, 'Replace the existing connections');
+         }
+
+         return new SlotConnection(true, SlotConnectionMethod.add, 'Add a connection');
+     };
+
+     NodeSlot.prototype.addConnection = function () {
+         if (this.allowMultipleConnections()){
+             this.connections += 1;
+         } else {
+             this.connections = 1;
+         }
+     };
+
+     NodeSlot.prototype.breakConnection = function () {
+         if (this.connections > 0)
+             this.connections = this.connections - 1;
+     };
+
+     NodeSlot.prototype.clearConnections = function () {
+        this.connections = 0;
+    };
+
     NodeSlot.prototype.allowMultipleConnections = function () {
         if (this.slot_type === SlotType.exec_in || this.slot_type === SlotType.data_out){
-             return true;
-         }
-         return false;
-    };
-
-    NodeSlot.prototype.appendNewConnection = function (connector) {
-        this.connectors.push(connector);
-    };
-
-    NodeSlot.prototype.clearAllConnections = function () {
-        this.connectors.lengh = 0;
-    };
-
-    NodeSlot.prototype.replaceConnection = function (connector) {
-        this.clearAllConnections();
-        this.appendNewConnection(connector);
-    }
-
-    NodeSlot.prototype.addNewConnection = function (connector) {
-        if(this.allowMultipleConnections){
-            this.appendNewConnection(connector);
-        } else {
-            this.replaceConnection(connector);
+            return true;
         }
+        return false;
     };
-
 
     // *************************************************************
     //   Node CLASS                                          *******
