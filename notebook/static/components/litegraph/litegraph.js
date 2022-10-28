@@ -2100,6 +2100,38 @@
         this.desc = desc;
     };
 
+    function Pos(x, y){
+        this.x = x;
+        this.y = y;
+    }
+
+    function ArrayToPose(array) {
+        if (!array) {
+            throw "Input is undefined."
+        }
+        if (array.length == 1) {
+
+            return new Pose(array[0], array[0]);
+        }
+        return new Pose(array[0], array[1]);
+    }
+
+    function Size(size_x, size_y){
+        this.size_x = size_x;
+        this.size_y = size_y;
+    }
+
+    function ArrayToSize(array) {
+        if (!array) {
+            throw "Input is undefined."
+        }
+        if (array.length == 1) {
+
+            return new Size(array[0], array[0]);
+        }
+        return new Size(array[0], array[1]);
+    }
+
     /**
      * Node slot
      * @method node slot class
@@ -2169,8 +2201,8 @@
 
     /*
 	title: string
-	pos: [x,y]
-	size: [width, height]
+	pos: Pos
+	size: Size
 
 	node operations callbacks:
 		+ onAdded: when added to graph (warning: this is called BEFORE the node is configured when loading)
@@ -2211,37 +2243,14 @@
      */
 
     function LGraphNode() {
-        this._ctor();
     }
 
     global.LGraphNode = LiteGraph.LGraphNode = LGraphNode;
 
-    LGraphNode.prototype._ctor = function() {
-        this.title = "Unnamed";
-        this.size = [LiteGraph.NODE_WIDTH, 60];
-        this._pos = new Float32Array(10, 10);
-
-        Object.defineProperty(this, "pos", {
-            set: function(v) {
-                if (!v || v.length < 2) {
-                    return;
-                }
-                this._pos[0] = v[0];
-                this._pos[1] = v[1];
-            },
-            get: function() {
-                return this._pos;
-            },
-            enumerable: true
-        });
-
-        this.id = -1; //not know till not added
-        this.type = null;
-
-        //inputs available: array of inputs
-        this.inputs = {};
-        this.outputs = {};
-    };
+    LGraphNode.prototype.title = undefined;
+    LGraphNode.prototype.type = "*";
+    LGraphNode.prototype.inputs = {};
+    LGraphNode.prototype.outputs = {};
 
     // *********************** Node information **************************************
     /**
