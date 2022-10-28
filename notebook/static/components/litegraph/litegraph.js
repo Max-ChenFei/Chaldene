@@ -2101,25 +2101,18 @@
      * Node slot
      * @method node slot class
      * @param {String} name the name for this slot
-     * @param {SlotType} slot_type
+     * @param {SlotPos} slot_pos
      * @param {String} data_type: if the slot type is data_in or data_out
      * @param {String} default_value: if the slot type is data_in or data_out
      */
-     function NodeSlot(name, slot_type, data_type, default_value) {
+     function NodeSlot(name, slot_pos, data_type, default_value) {
          this.name = name;
-         this.slot_type = slot_type;
-         this.setDataType(data_type);
+         this.slot_pos = slot_pos;
+         this.data_type = data_type;
          this.default_value = default_value;
          this.connections = 0;
          this.extra_info = {};
     };
-
-     NodeSlot.prototype.setDataType = function (slot_type, data_type) {
-         if([SlotType.exec_in, SlotType.exec_out].includes(slot_type))
-             this.data_type = 'Exec';
-         else
-             this.data_type = data_type;
-     };
 
      NodeSlot.prototype.addExtraInfo = function (extra_info) {
          Object.assign(this.extra_info, extra_info);
@@ -2130,7 +2123,7 @@
      };
 
      NodeSlot.prototype.allowConnectTo = function (other_slot) {
-         if(!isSlotTypeMatch(this.slot_type, other_slot.slot_type))
+         if(!isSlotPosMatch(this.slot_pos, other_slot.slot_pos))
             return new SlotConnection(false, SlotConnectionMethod.null, '{this.data_type} is not compatible with {other_slot.data_type}');
 
          if(!LiteGraph.isDataTypeMatch(this.data_type, other_slot.data_type))
@@ -2161,7 +2154,7 @@
     };
 
     NodeSlot.prototype.allowMultipleConnections = function () {
-        if (this.slot_type === SlotType.exec_in || this.slot_type === SlotType.data_out){
+        if (this.slot_pos === SlotPos.exec_in || this.slot_type === SlotPos.data_out){
             return true;
         }
         return false;
@@ -2267,15 +2260,15 @@
      * add a new slot to slots
      * @method addInput
      * @param {string} slot_name
-     * @param {SlotType} slot_type
+     * @param {SlotPos} slot_pos
      * @param {string} data_type string defining the input type ("vec3","number",...), it its a generic one use *
      * @param {string} default_value
      * @param {Object} extra_info this can be used to have special properties
      * @param {Array} slots
      */
-    LGraphNode.prototype.addSlotTo = function(slot_name, slot_type, data_type, default_value, extra_info, slots, call_back) {
+    LGraphNode.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots, call_back) {
         this.makeSureNameUniqueIn(slot_name, slots);
-        let slot = NodeSlot(slot_name, slot_type, data_type, default_value);
+        let slot = NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
 
@@ -2288,23 +2281,25 @@
      * add a new input slot to use in this node
      * @method addInput
      * @param {string} slot_name
-     * @param {string} data_type string defining the input type ("vec3","number",...), it its a generic one use *
+     * @param {string} type string defining the input type ("vec3","number",...), it its a generic one use *
      * @param {string} default_value
      * @param {Object} extra_info this can be used to have special properties of an input (label, color, position, etc)
      */
-    LGraphNode.prototype.addInput = function(slot_name, data_type, default_value, extra_info) {
-        this.addSlotTo(slot_name, SlotType.data_in, data_type, default_value, extra_info, this.inputs, this.onInputAdded);
+    LGraphNode.prototype.addInput = function(slot_name, type, default_value, extra_info) {
+        const slot_type = type === "exec"? SlotPos.exec_in : SlotPos.data_in;
+        this.addSlotTo(slot_name, slot_type, type, default_value, extra_info, this.inputs, this.onInputAdded);
     };
 
     /**
      * add a new output slot to use in this node
      * @method addOutput
      * @param {string} slot_name
-     * @param {string} data_type string defining the output type ("vec3","number",...)
+     * @param {string} type string defining the output type ("vec3","number",...)
      * @param {Object} extra_info this can be used to have special properties of an output (label, special color, position, etc)
      */
-     LGraphNode.prototype.addOutput = function(slot_name, data_type, extra_info) {
-        this.addSlotTo(slot_name, SlotType.data_out, data_type, null, extra_info, this.outputs, this.onOutputAdded);
+     LGraphNode.prototype.addOutput = function(slot_name, type, extra_info) {
+         const slot_type = type === "exec"? SlotPos.exec_out : SlotPos.data_out;
+         this.addSlotTo(slot_name, slot_type, type, undefined, extra_info, this.outputs, this.onOutputAdded);
      };
 
     /**
@@ -2400,7 +2395,7 @@
      * @method connect
      * @param {String} input_slot_name
      * @param {LGraphNode} to_node
-     * @param {SlotType} to_slot
+     * @param {NodeSlot} to_slot
      */
     LGraphNode.prototype.allowInputConnectTo = function(input_slot_name, to_node, to_slot) {
         this.allowConnectTo(this.inputs[input_slot_name], to_node, to_slot);
@@ -2411,7 +2406,7 @@
      * @method connect
      * @param {String} output_slot_name
      * @param {LGraphNode} to_node
-     * @param {SlotType} to_slot
+     * @param {NodeSlot} to_slot
      */
     LGraphNode.prototype.allowOutputConnectTo = function(output_slot_name, to_node, to_slot) {
         this.allowConnectTo(this.outputs[output_slot_name], to_node, to_slot);
