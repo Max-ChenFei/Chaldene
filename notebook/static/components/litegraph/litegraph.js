@@ -2036,10 +2036,13 @@
 
     LiteGraph.Connector = Connector;
 
+    const SlotType = {
+        Exec: "Exec"
+    }
     // *************************************************************
     //   Slot CLASS                                          *******
     // *************************************************************
-    const SlotType = Object.freeze({
+    const SlotPos = Object.freeze({
         exec_in: 0,
         exec_out: 1,
         data_in: 2,
@@ -2059,20 +2062,20 @@
     /**
      * Node slot
      * @method node slot class
-     * @param {SlotType} t_a
-     * @param {SlotType} t_b
+     * @param {SlotPos} t_a
+     * @param {SlotPos} t_b
      * @return {Boolean} do these two slot type match
      */
-    function isSlotTypeMatch(t_a, t_b){
+    function isSlotPosMatch(t_a, t_b){
         if (t_a === t_b)
             return false;
 
         const slots = [t_a, t_b];
-        const exec_slots = [SlotType.exec_in, SlotType.exec_out];
+        const exec_slots = [SlotPos.exec_in, SlotPos.exec_out];
         if (areMultipleValuesInArray(slots, exec_slots))
             return true;
 
-        const data_slots = [SlotType.data_in, SlotType.data_out];
+        const data_slots = [SlotPos.data_in, SlotPos.data_out];
         if (areMultipleValuesInArray(slots, data_slots))
             return true;
 
@@ -2286,7 +2289,7 @@
      * @param {Object} extra_info this can be used to have special properties of an input (label, color, position, etc)
      */
     LGraphNode.prototype.addInput = function(slot_name, type, default_value, extra_info) {
-        const slot_type = type === "exec"? SlotPos.exec_in : SlotPos.data_in;
+        const slot_type = type === SlotType.Exec? SlotPos.exec_in : SlotPos.data_in;
         this.addSlotTo(slot_name, slot_type, type, default_value, extra_info, this.inputs, this.onInputAdded);
     };
 
@@ -2298,7 +2301,7 @@
      * @param {Object} extra_info this can be used to have special properties of an output (label, special color, position, etc)
      */
      LGraphNode.prototype.addOutput = function(slot_name, type, extra_info) {
-         const slot_type = type === "exec"? SlotPos.exec_out : SlotPos.data_out;
+         const slot_type = type === SlotType.Exec? SlotPos.exec_out : SlotPos.data_out;
          this.addSlotTo(slot_name, slot_type, type, undefined, extra_info, this.outputs, this.onOutputAdded);
      };
 
