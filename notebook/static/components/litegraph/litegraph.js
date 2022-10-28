@@ -2249,8 +2249,10 @@
 
     LGraphNode.prototype.title = undefined;
     LGraphNode.prototype.type = "*";
+    LGraphNode.prototype.desc = "";
     LGraphNode.prototype.inputs = {};
     LGraphNode.prototype.outputs = {};
+    LGraphNode.prototype.flags = {};
 
     // *********************** Node information **************************************
     /**
@@ -12253,53 +12255,36 @@ if (typeof exports != "undefined") {
 
     function ImageIOImRead() {
 		this.addOutput("image", "numpy.ndarray");
-        this.size = [140, 50];
-        this.fromlibrary ='import imageio';
     }
-
     ImageIOImRead.title = "Image Read";
+    ImageIOImRead.type = "Image.Read";
     ImageIOImRead.desc = "Reads an image from the specified file. Returns a numpy array," +
         "which comes with a dict of meta data at its ‘meta’ attribute.";
-    // ImageIOImRead.fromlibrary = 'imageio';
-
-    ImageIOImRead.prototype.sourceCode = function() {
-        return `${this.getOutputSlotName(0)} = imageio.imread(r'${this.properties["value"]}')`;
-    };
-
-    LiteGraph.registerNodeType("image.imread", ImageIOImRead);
+    LiteGraph.registerNodeType(ImageIOImRead.type, ImageIOImRead);
 
     function ImageIOImWrite() {
         this.addInput("image", "numpy.ndarray")
-        this.size = [140, 50];
-        this.fromlibrary ='import imageio';
     }
-
     ImageIOImWrite.title = "Image Write";
+    ImageIOImWrite.type = "Image.Write";
     ImageIOImWrite.desc = "Write an image to the specified file.";
-
-    LiteGraph.registerNodeType("image.imwrite", ImageIOImWrite);
-
+    LiteGraph.registerNodeType(ImageIOImWrite.type, ImageIOImWrite);
 
     function ImageShow() {
         this.addInput("image", "numpy.ndarray")
-        this.size = [140, 50];
-        this.fromlibrary ='import matplotlib.pyplot as plt';
     }
-
     ImageShow.title = "Image Show";
+    ImageShow.type = "Image.Show";
     ImageShow.desc = "Show an image.";
+    LiteGraph.registerNodeType(ImageShow.type, ImageShow);
 
-    LiteGraph.registerNodeType("image.imshow", ImageShow);
-
-function ImageGaussianFilter() {
-    this.addInput("input", "numpy.ndarray");
-    this.addInput("sigma", "number");
-    this.addOutput("output", "numpy.ndarray");
-    this.size = [180, 50];
-    this.fromlibrary ='from scipy.ndimage import gaussian_filter';
-}
-ImageGaussianFilter.title = "Gaussian Filter";
-ImageGaussianFilter.desc = "Gaussian filter";
-
-LiteGraph.registerNodeType("image.Gaussian2DFilter", ImageGaussianFilter);
+    function ImageGaussianFilter() {
+        this.addInput("input", "numpy.ndarray");
+        this.addInput("sigma", "number");
+        this.addOutput("output", "numpy.ndarray");
+    }
+    ImageGaussianFilter.title = "Gaussian Filter";
+    ImageGaussianFilter.type = "Image.GaussianFilter";
+    ImageGaussianFilter.desc = "Gaussian filter";
+    LiteGraph.registerNodeType(ImageGaussianFilter.type, ImageGaussianFilter);
 })(this);
