@@ -2159,16 +2159,20 @@
 
      NodeSlot.prototype.allowConnectTo = function (other_slot) {
          if(!isSlotPosMatch(this.slot_pos, other_slot.slot_pos))
-            return new SlotConnection(false, SlotConnectionMethod.null, '{this.data_type} is not compatible with {other_slot.data_type}');
+            return new SlotConnection(SlotConnectionMethod.null,
+                '{this.data_type} is not compatible with {other_slot.data_type}');
 
          if(!LiteGraph.isDataTypeMatch(this.data_type, other_slot.data_type))
-             return new SlotConnection(false, SlotConnectionMethod.null, '{this.data_type} is not compatible with {other_slot.data_type}');
+             return new SlotConnection(SlotConnectionMethod.null,
+                 '{this.data_type} is not compatible with {other_slot.data_type}');
 
          if(this.isConnected() && !this.allowMultipleConnections){
-             return new SlotConnection(true, SlotConnectionMethod.replace, 'Replace the existing connections');
+             return new SlotConnection(SlotConnectionMethod.replace,
+                 'Replace the existing connections');
          }
 
-         return new SlotConnection(true, SlotConnectionMethod.add, 'Add a connection');
+         return new SlotConnection(SlotConnectionMethod.add,
+             'Add a connection');
      };
 
      NodeSlot.prototype.addConnection = function () {
@@ -2392,11 +2396,11 @@
     // *********************** node manipulation **************************************
     LGraphNode.prototype.allowConnectTo = function(slot, to_node, to_slot) {
         if (!slot || !to_node || !to_slot) {
-            return new SlotConnection(false, SlotConnectionMethod.null, 'Some input parameters are undefined.');
+            return new SlotConnection(SlotConnectionMethod.null, 'Some input parameters are undefined.');
         }
 
         if(this == to_node){
-            return new SlotConnection(false, SlotConnectionMethod.null, 'Both are on the same node.');
+            return new SlotConnection(SlotConnectionMethod.null, 'Both are on the same node.');
         }
 
         return slot.allowConnectTo(to_slot)
