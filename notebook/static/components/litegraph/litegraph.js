@@ -2101,35 +2101,31 @@
     };
 
     function Pos(x, y){
-        this.x = x;
-        this.y = y;
-    }
-
-    function ArrayToPose(array) {
-        if (!array) {
-            throw "Input is undefined."
+        if (Array.isArray(x)){
+            if(x.length === 0)
+                this.x = this.y = 0;
+            else {
+                this.x = x[0];
+                this.y = x[1 % x.length];
+            }
+        } else {
+            this.x = x || 0;
+            this.y = y || 0;
         }
-        if (array.length == 1) {
-
-            return new Pose(array[0], array[0]);
-        }
-        return new Pose(array[0], array[1]);
-    }
+    };
 
     function Size(size_x, size_y){
-        this.size_x = size_x;
-        this.size_y = size_y;
-    }
-
-    function ArrayToSize(array) {
-        if (!array) {
-            throw "Input is undefined."
+        if (Array.isArray(size_x)){
+            if(size_x.length === 0)
+                this.size_x = this.size_y = 0;
+            else {
+                this.size_x = size_x[0];
+                this.size_y = size_x[1 % x.length];
+            }
+        } else {
+            this.size_x = size_x || 0;
+            this.size_y = size_y || 0;
         }
-        if (array.length == 1) {
-
-            return new Size(array[0], array[0]);
-        }
-        return new Size(array[0], array[1]);
     }
 
     /**
