@@ -2667,7 +2667,7 @@
         out[0] = this.pos[0] - 4;
         out[1] = this.pos[1] - LiteGraph.NODE_TITLE_HEIGHT;
         out[2] = this.size[0] + 4;
-        out[3] = this.flags.collapsed ? LiteGraph.NODE_TITLE_HEIGHT : this.size[1] + LiteGraph.NODE_TITLE_HEIGHT;
+        out[3] = this.size[1] + LiteGraph.NODE_TITLE_HEIGHT;
 
         return out;
     };
