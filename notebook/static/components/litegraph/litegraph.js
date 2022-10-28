@@ -2280,7 +2280,7 @@
      */
     LGraphNode.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots, call_back) {
         this.makeSureNameUniqueIn(slot_name, slots);
-        let slot = NodeSlot(slot_name, slot_pos, data_type, default_value);
+        let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
 
