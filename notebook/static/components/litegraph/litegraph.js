@@ -4751,7 +4751,7 @@
                 if(eh.isButtonJustReleased(EventHandler.Keys.LMB)){
                     this.handler.set_state(new DefaultState(this.handler));
                 }
-                
+
             }
         }
 
@@ -4759,7 +4759,8 @@
             this.handler = handler;
 
             var lg = handler.graphcanvas;
-            
+
+            var link_pos = lg.hovered.link_pos;
             var i = lg.hovered.slot;
             lg.connecting_node = lg.hovered.node;
             lg.connecting_pos = link_pos;
@@ -4769,10 +4770,9 @@
                 lg.connecting_output = lg.hovered.output;
                 lg.connecting_output.slot_index = lg.hovered.slot;
             }
-            
-            if(lg.hovered.input){                
+
+            if(lg.hovered.input){
                 var input = lg.hovered.input;
-                var link_pos = lg.hovered.link_pos;
                 var node = lg.hovered.node;
                 var i = lg.hovered.slot;
                 if (input.link !== null) {
@@ -4781,7 +4781,7 @@
                     ];
                     if (!LiteGraph.click_do_break_link_to){
                         node.disconnectInput(i);
-                    }                    
+                    }
                     lg.connecting_node = lg.graph._nodes_by_id[
                         link_info.origin_id
                     ];
@@ -4797,13 +4797,13 @@
                     lg.connecting_input = lg.hovered.input;
                     lg.connecting_input.slot_index = lg.hovered.slot;
                 }
-                
+
             }
-            
+
             lg.dirty_bgcanvas = true;
 
             this.update = function(){
-                
+
                 var eh = handler.graphcanvas.event_handler;
                 var lg = handler.graphcanvas;
                 var node = null;
@@ -4862,8 +4862,9 @@
                     }
                 }
                 console.log("Drag link state");
+                console.log(lg.connecting_pos);
                 if(eh.isButtonJustReleased(EventHandler.Keys.LMB)){
-                    
+
                     lg.dirty_canvas = true;
                     lg.dirty_bgcanvas = true;
 
@@ -4895,11 +4896,6 @@
                                 slot = lg.hovered.slot;
                                 node = lg.hovered.node;
                             }
-                            /* var slot = lg.isOverNodeOutput(
-                                node,
-                                e.canvasX,
-                                e.canvasY
-                            );*/
 
                             if (slot != -1) {
                                 node.connect(slot, lg.connecting_node, lg.connecting_slot); // lg is inverted has output-input nature like
@@ -4944,11 +4940,11 @@
                     lg.connecting_input = null;
                     lg.connecting_pos = null;
                     lg.connecting_node = null;
-                    lg.connecting_slot = -1; 
-                    
+                    lg.connecting_slot = -1;
+
                     this.handler.set_state(new DefaultState(this.handler));
                 }
-                
+
             }
         }
 
@@ -4969,7 +4965,7 @@
 
                 if(LMBClick){
                     if(!lg.hovered){
-                        
+
                     } else {
                         if(lg.hovered.button){
                             lg.hovered.button.onClick();
@@ -4990,11 +4986,11 @@
 
                             } //TODO: process widgets
                             handler.set_state(new DraggingNodesState(handler));
-                            
+
                             if (!lg.selected_nodes[node.id]) {
-                                lg.processNodeSelected(node, 
+                                lg.processNodeSelected(node,
                                     lg.event_handler.isButtonDown(EventHandler.Keys.SHIFT_LEFT) ||
-                                    lg.event_handler.isButtonDown(EventHandler.Keys.CTRL_LEFT) 
+                                    lg.event_handler.isButtonDown(EventHandler.Keys.CTRL_LEFT)
                                 );
                             }
                         } else if(lg.hovered.isLink) {
@@ -5004,7 +5000,7 @@
                         } else if(lg.hovered.isComment){
                             /* TODO: begin drag or resize comment */
                         }
-                    } 
+                    }
                 }
                 if(eh.isButtonJustReleased(EventHandler.Keys.RMB)){
                     lg.processContextMenu();
@@ -5013,13 +5009,13 @@
                 //TODO: double click
             }
         }
-        
+
         this.graphcanvas = graphcanvas;
         this.state = new DefaultState(this);
         this.update = function(){
             state.update();
         }
-        
+
         this.set_state = function(state){
             this.state = state;
         }
@@ -5104,9 +5100,9 @@
 
         this.links_render_mode = LiteGraph.SPLINE_LINK;
 
-        this.mouse = [0, 0]; //mouse in canvas coordinates, where 0,0 is the top-left corner of the blue rectangle
-        this.graph_mouse = [0, 0]; //mouse in graph coordinates, where 0,0 is the top-left corner of the blue rectangle
-		this.canvas_mouse = this.graph_mouse; //LEGACY: REMOVE THIS, USE GRAPH_MOUSE INSTEAD
+        //this.mouse = [0, 0]; //mouse in canvas coordinates, where 0,0 is the top-left corner of the blue rectangle
+        //this.event_handler.state.graph_mouse = [0, 0]; //mouse in graph coordinates, where 0,0 is the top-left corner of the blue rectangle
+		this.canvas_mouse = this.event_handler.state.graph_mouse; //LEGACY: REMOVE THIS, USE GRAPH_MOUSE INSTEAD
 
         //to personalize the search box
         this.onSearchBox = null;
@@ -5567,14 +5563,14 @@
         return doc.defaultView || doc.parentWindow;
     };
 
-    
+
     /**
      * updates the scene bounding box
      *
      * @method updateSceneBBox
      */
      LGraphCanvas.prototype.updateSceneBBox = function() {
-    
+
         // scale the minimap
         // TODO: account for node header
         let bbox = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
@@ -5588,11 +5584,11 @@
         }
 
         //duplicated code
-        
+
 		var ctx = this.ctx;
         var viewport =
         this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
-        
+
         let vwidth = viewport[2] - viewport[0];
         let vheight = viewport[3] - viewport[1];
 
@@ -5621,16 +5617,16 @@
      * @method computeHovered
      */
     LGraphCanvas.prototype.computeHovered = function() {
-        
+
         var b = this.canvas.getBoundingClientRect();
         var mouseX = this.event_handler.state.mouse.x - b.left;
         var mouseY = this.event_handler.state.mouse.y - b.top;
         for(let i = this.hoverables.length-1; i>-1; i--){
             bb = this.hoverables[i].bbox;
-            
+
            /* if(this.hoverables[i].isButton){
                 console.log("button", this.hoverables[i]);
-                
+
             }*/
             if(isInsideRectangle(
                 mouseX,mouseY,
@@ -5652,7 +5648,7 @@
         var ctx = this.ctx
         var viewport =
             this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
-            
+
         let vwidth = viewport[2] - viewport[0];
         let vheight = viewport[3] - viewport[1];
 
@@ -5666,17 +5662,17 @@
             vheight * (-minimap_margins[1] - minimap_margins[3] + 1.0)
         ];
 
-        
+
         if(this.frozen_view){
             //set viewport
-            var mpos = [this.mouse[0]- this.canvas.getBoundingClientRect().left,
-                        this.mouse[1] - this.canvas.getBoundingClientRect().top];
-            
+            var mpos = [this.event_handler.state.mouse.x- this.canvas.getBoundingClientRect().left,
+                        this.event_handler.state.mouse.y - this.canvas.getBoundingClientRect().top];
+
             let scale = this.minimapTransform.scale;
             let translation = this.minimapTransform.translation;
 
-            
-            
+
+
             mpos[0] = mpos[0]*scale;
             mpos[1] = mpos[1]*scale;
             mpos[0] = mpos[0] - translation[0];
@@ -5702,8 +5698,8 @@
                             (bbox[0] + bbox[2]) * 0.5,
                             this.minimap_vp[1] * scale + (this.minimap_vp[3] * scale * 0.5) -
                             (bbox[1] + bbox[3]) * 0.5]
-        
-        
+
+
         this.minimapTransform = {
             scale: scale,
             translation: translation
@@ -5742,8 +5738,8 @@
                 this.hovered.button.hover = true;
             }
 
-            this.hoverables = [];        
-            
+            this.hoverables = [];
+
             this.event_handler.preUpdate()
             this.update();
             this.event_handler.update();
@@ -5783,7 +5779,7 @@
             this.just_released = just_released;
             return this;
         }
-        
+
         this.state = {
             keys: {},
             mouse: {x: 0, y: 0},
@@ -5791,7 +5787,7 @@
             delta_mouse: {x: 0, y: 0},
             graph_mouse: {x:0, y:0}
         }
-        
+
 
         this.just_pressed_keys= [];
         this.just_released_keys = [];
@@ -5816,7 +5812,7 @@
             }
         }
 
-        
+
         this.setKeyUp = function(key){
             let just_pressed = false;
             let just_released = false;
@@ -5876,7 +5872,7 @@
         this.preUpdate = function(){
             this.state.delta_mouse.x = this.state.mouse.x - this.state.old_mouse.x;
             this.state.delta_mouse.y = this.state.mouse.y - this.state.old_mouse.y;
-        
+
             var clientX_rel = 0;
             var clientY_rel = 0;
 
@@ -5891,7 +5887,7 @@
 
             this.state.graph_mouse.x = clientX_rel / this.graphcanvas.ds.scale - this.graphcanvas.ds.offset[0];
             this.state.graph_mouse.y = clientY_rel / this.graphcanvas.ds.scale - this.graphcanvas.ds.offset[1];
-
+            console.log(this.state.graph_mouse);
         }
         this.update = function(){
             this.state.old_mouse.x = this.state.mouse.x;
@@ -5899,7 +5895,7 @@
             for(let i = 0; i<this.just_pressed_keys.length; i++){
                 this.just_pressed_keys[i].just_pressed = false;
             }
-            
+
             for(let i = 0; i<this.just_released_keys.length; i++){
                 this.just_released_keys[i].just_released = false;
             }
@@ -5941,7 +5937,7 @@
         MMB: "MMB"
     }
 
-   
+
 
     LGraphCanvas.prototype.copyToClipboard = function() {
         var clipboard_info = {
@@ -6035,8 +6031,8 @@
                 node.configure(node_data);
 
 				//paste in last known mouse position
-                node.pos[0] += this.graph_mouse[0] - posMin[0]; //+= 5;
-                node.pos[1] += this.graph_mouse[1] - posMin[1]; //+= 5;
+                node.pos[0] += this.event_handler.state.graph_mouse.x - posMin[0]; //+= 5;
+                node.pos[1] += this.event_handler.state.graph_mouse.y - posMin[1]; //+= 5;
 
                 this.graph.add(node,{doProcessChange:false});
 
@@ -6652,7 +6648,7 @@
                 this.renderLink(
                     ctx,
                     this.connecting_pos,
-                    [this.event_handler.state.graph_mouse[0], this.event_handler.state.graph_mouse[1]],
+                    [this.event_handler.state.graph_mouse.x, this.event_handler.state.graph_mouse.y],
                     null,
                     false,
                     null,
@@ -6675,8 +6671,8 @@
 	                ctx.fill();
 					ctx.beginPath();
                     ctx.rect(
-                        this.graph_mouse[0] - 6 + 0.5,
-                        this.graph_mouse[1] - 5 + 0.5,
+                        this.event_handler.state.graph_mouse.x - 6 + 0.5,
+                        this.event_handler.state.graph_mouse.y - 5 + 0.5,
                         14,
                         10
                     );
@@ -6697,8 +6693,8 @@
 	                ctx.fill();
 					ctx.beginPath();
                     ctx.arc(
-                        this.graph_mouse[0],
-                        this.graph_mouse[1],
+                        this.event_handler.state.graph_mouse.x,
+                        this.event_handler.state.graph_mouse.y,
                         4,
                         0,
                         Math.PI * 2
@@ -6873,8 +6869,8 @@
                         this.dragging_canvas = false;
                         newnode.setProperty("name", input.name);
                         newnode.setProperty("type", input.type);
-                        this.node_dragged.pos[0] = this.graph_mouse[0] - 5;
-                        this.node_dragged.pos[1] = this.graph_mouse[1] - 5;
+                        this.node_dragged.pos[0] = this.event_handler.state.graph_mouse.x - 5;
+                        this.node_dragged.pos[1] = this.event_handler.state.graph_mouse.y - 5;
                         this.graph.afterChange();
                     }
                     else
@@ -6943,8 +6939,8 @@
                         this.dragging_canvas = false;
                         newnode.setProperty("name", output.name);
                         newnode.setProperty("type", output.type);
-                        this.node_dragged.pos[0] = this.graph_mouse[0] - 5;
-                        this.node_dragged.pos[1] = this.graph_mouse[1] - 5;
+                        this.node_dragged.pos[0] = this.event_handler.state.graph_mouse.x - 5;
+                        this.node_dragged.pos[1] = this.event_handler.state.graph_mouse.y - 5;
                         this.graph.afterChange();
                     }
                     else
@@ -7653,7 +7649,7 @@
         ctx.globalAlpha = 1.0;
 
         if(this.resizable !== false){
-            
+
             this.addNodeCornerToHoverables(node);
         }
     };
@@ -7675,7 +7671,7 @@
             height: 10
 
         }
-        
+
         slot.bbox = this.transformGraph2CanvasBbox(slot.bbox);
         this.hoverables.push(slot);
     }
@@ -7685,7 +7681,7 @@
         let tmp = {}
         tmp.isLink = true;
         tmp.link = link;
-        
+
         let center = link._pos;
         tmp.bbox = {
             left: center[0]- 4,
@@ -7774,7 +7770,7 @@
                 width: 10,
                 height:10
             }
-            
+
             tmp.bbox = this.transformGraph2CanvasBbox(tmp.bbox);
             this.hoverables.push(tmp);
         }
@@ -7796,7 +7792,7 @@
             width: comment.size[0] + 2*(4 + margin),
             height: comment.size[1] + 2*(margin) + margin_top
         }
-        
+
         tmp.bbox = this.transformGraph2CanvasBbox(tmp.bbox);
         this.hoverables.push(tmp);
 
@@ -7856,8 +7852,8 @@
             scale *= 1.0/1.1;
             that.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
         }
-        
-        
+
+
         this.drawButton(b0);
 
         let b1 = this.gui.zoom_widget_buttons.reset;
@@ -7881,7 +7877,7 @@
             that.ds.offset[0] =  ((that.canvas.width * 0.5) / that.ds.scale) - center[0];
             that.ds.offset[1] =  ((that.canvas.height* 0.5) / that.ds.scale) - center[1];
         }
-        
+
         this.drawButton(b1);
 
         let b2 = this.gui.zoom_widget_buttons.plus;
@@ -7895,7 +7891,7 @@
             scale *= 1.1;
             that.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
         }
-        
+
         this.drawButton(b2);
 
         let b3 = this.gui.zoom_widget_buttons.fullscreen;
@@ -7937,12 +7933,12 @@
 
         var viewport =
         this.viewport || [0, 0, ctx.canvas.width, ctx.canvas.height];
-        
+
         let vwidth = viewport[2] - viewport[0];
         let vheight = viewport[3] - viewport[1];
 
         let minimap = LGraphCanvas.minimap;
-        
+
         this.addMinimapToHoverables(this.minimap_vp);
 
         ctx.beginPath();
@@ -7958,12 +7954,12 @@
         ctx.clip();
 
         ctx.fill();
-        ctx.closePath();                    
-        
+        ctx.closePath();
+
         ctx.scale(1.0 / this.minimapTransform.scale, 1.0 / this.minimapTransform.scale);
         ctx.translate(this.minimapTransform.translation[0],this.minimapTransform.translation[1]);
 
-        
+
         // draw nodes
         var drawn_nodes = 0;
 
@@ -8137,7 +8133,7 @@
         ctx.shadowColor = "transparent";
 
         if (node.onDrawBackground) {
-            node.onDrawBackground(ctx, this, this.canvas, this.graph_mouse );
+            node.onDrawBackground(ctx, this, this.canvas, this.event_handler.state.graph_mouse );
         }
 
         //title bg (remember, it is rendered ABOVE the node)
@@ -8285,7 +8281,7 @@
 			if (!node.flags.collapsed && node.subgraph && !node.skip_subgraph_button) {
 				var w = LiteGraph.NODE_TITLE_HEIGHT;
 				var x = node.size[0] - w;
-				var over = LiteGraph.isInsideRectangle( this.graph_mouse[0] - node.pos[0], this.graph_mouse[1] - node.pos[1], x+2, -w+2, w-4, w-4 );
+				var over = LiteGraph.isInsideRectangle( this.event_handler.state.graph_mouse.x - node.pos[0], this.event_handler.state.graph_mouse.y - node.pos[1], x+2, -w+2, w-4, w-4 );
 				ctx.fillStyle = over ? "#888" : "#555";
 				if( shape == LiteGraph.BOX_SHAPE || low_quality)
 					ctx.fillRect(x+2, -w+2, w-4, w-4);
@@ -13369,7 +13365,8 @@ if (typeof exports != "undefined") {
         }
     };
 
-    FunctionDefinition.prototype.onDrawBackground = function (ctx, graphcanvas, canvas, pos) {
+    FunctionDefinition.prototype.onDrawBackground = function (ctx, graphcanvas, canvas, a_pos) {
+        var pos = [a_pos.x,a_pos.y]
         if (this.flags.collapsed)
             return;
         var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
