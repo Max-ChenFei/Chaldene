@@ -4755,6 +4755,22 @@
             }
         }
 
+        function DraggingCanvasState(handler){
+            this.handler = handler;
+            this.update = function(){
+                var lg = this.handler.graphcanvas;
+                var eh = lg.event_handler;
+                lg.ds.offset[0] += eh.state.delta_mouse.x / lg.ds.scale;
+                lg.ds.offset[1] += eh.state.delta_mouse.y / lg.ds.scale;
+                lg.dirty_canvas = true;
+                lg.dirty_bgcanvas = true;
+
+                if(!eh.isButtonDown(EventHandler.Keys.RMB)){
+                    handler.set_state(new DefaultState(this.handler));
+                }
+            }
+        }
+
         function DraggingLinkState(handler){
             this.handler = handler;
 
@@ -4861,8 +4877,7 @@
                         }
                     }
                 }
-                console.log("Drag link state");
-                console.log(lg.connecting_pos);
+
                 if(eh.isButtonJustReleased(EventHandler.Keys.LMB)){
 
                     lg.dirty_canvas = true;
@@ -4951,13 +4966,31 @@
 
         function DefaultState(handler){
             this.handler = handler;
+            //todo: have multiple states?
+            this.rmbDownTimer = 0.0;
+
+            //todo: make delta a global variable and pass it to update
+            this.oldTime = LiteGraph.getTime();
+            this.newTime = LiteGraph.getTime();
             this.update = function(){
+                this.oldTime = this.newTime;
+                this.newTime = LiteGraph.getTime();
+                var delta = this.newTime-this.oldTime;
+
                 var eh = handler.graphcanvas.event_handler;
                 var lg = handler.graphcanvas;
                 //TODO: make sure pressed buttons aaren't necessarily down
                 var LMBClick = eh.isButtonJustPressed(EventHandler.Keys.LMB);
                 var RMBClick = eh.isButtonJustPressed(EventHandler.Keys.RMB);
                 var MMBClick = eh.isButtonJustPressed(EventHandler.Keys.MMB);
+
+                if(eh.isButtonDown(EventHandler.Keys.RMB)){
+                    this.rmbDownTimer +=delta;
+                } else {
+                    this.rmbDownTimer = 0.0;
+                }
+
+                var RMBRelease = eh.isButtonJustReleased(EventHandler.Keys.RMB);
 
                 if(LMBClick || RMBClick || MMBClick){
                     LiteGraph.closeAllContextMenus();
@@ -4981,11 +5014,11 @@
                                 lg.resizing_node = node;
                                 lg.canvas.style.cursor = "se-resize";
                             } else if (lg.hovered.isSlot){
-                                handler.set_state(new DraggingLinkState(handler));
+                                handler.set_state(new DraggingLinkState(this.handler));
                                 return;
 
                             } //TODO: process widgets
-                            handler.set_state(new DraggingNodesState(handler));
+                            handler.set_state(new DraggingNodesState(this.handler));
 
                             if (!lg.selected_nodes[node.id]) {
                                 lg.processNodeSelected(node,
@@ -5002,8 +5035,12 @@
                         }
                     }
                 }
-                if(eh.isButtonJustReleased(EventHandler.Keys.RMB)){
+                if(RMBRelease){
+                    if(this.rmbDownTimer < 300)
                     lg.processContextMenu();
+                }
+                if(this.rmbDownTimer >=150 && !lg.hovered){
+                    this.handler.set_state(new DraggingCanvasState(this.handler));
                 }
                 //TODO: when to not allow interaction?
                 //TODO: double click
