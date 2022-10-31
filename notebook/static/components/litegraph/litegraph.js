@@ -815,6 +815,32 @@
         }
     };
 
+    function Variable(name, type, value) {
+        this.name = name;
+        this.type = type;
+        this.value = value
+    };
+
+    Variable.prototype.getValue = function() {
+        return this.value;
+    };
+
+    Variable.prototype._update = function(name, new_value) {
+        if (this[name] != new_value)
+            this[name] = new_value;
+    };
+
+    Variable.prototype.updateName = function(new_name) {
+       this._update('name', new_name);
+    };
+
+    Variable.prototype.updateType = function(new_type) {
+        this._update('type', new_type);
+    };
+
+    Variable.prototype.updateValue = function(new_value) {
+        this._update('value', new_value);
+    };
 
     //*********************************************************************************
     // LGraph CLASS
