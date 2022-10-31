@@ -809,6 +809,13 @@
         return this.elapsed_time;
     };
 
+    makeSureNameUniqueIn = function(name, obj){
+        if (! name in obj){
+            throw "Name is already in use";
+        }
+    };
+
+
     //*********************************************************************************
     // LGraph CLASS
     //*********************************************************************************
@@ -1871,7 +1878,7 @@
      * @param {Array} slots
      */
     LGraphNode.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots, call_back) {
-        this.makeSureNameUniqueIn(slot_name, slots);
+        makeSureNameUniqueIn(slot_name, slots);
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
