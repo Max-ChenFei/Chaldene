@@ -2223,7 +2223,7 @@
 		+ onMouseUp
 		+ onMouseEnter
 		+ onMouseLeave
-		+ onMouseMove
+		+ onMove
 		+ onDblClick: double clicked in the node
 		+ onInputDblClick: input slot double clicked
 		+ onOutputDblClick: output slot double clicked
