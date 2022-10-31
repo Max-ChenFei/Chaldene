@@ -2026,8 +2026,12 @@
     LiteGraph.Connector = Connector;
 
     const SlotType = {
-        Exec: "Exec"
+        Exec: "Exec",
+        number: "number",
+        string: "string",
+        boolean: "boolean"
     }
+    
     // *************************************************************
     //   Slot CLASS                                          *******
     // *************************************************************
