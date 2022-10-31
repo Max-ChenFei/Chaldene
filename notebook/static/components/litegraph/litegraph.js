@@ -768,6 +768,46 @@
         };
     }
 
+    function Scene(){
+          //timing
+        this.globaltime = 0;
+        this.runningtime = 0;
+        this.fixedtime = 0;
+        this.fixedtime_lapse = 0.01;
+        this.elapsed_time = 0.01;
+        this.last_update_time = 0;
+        this.starttime = 0;
+    };
+
+    /**
+     * Returns the amount of time the graph has been running in milliseconds
+     * @method getTime
+     * @return {number} number of milliseconds the graph has been running
+     */
+    Scene.prototype.getTime = function() {
+        return this.globaltime;
+    };
+
+    /**
+     * Returns the amount of time accumulated using the fixedtime_lapse var. This is used in context where the time increments should be constant
+     * @method getFixedTime
+     * @return {number} number of milliseconds the graph has been running
+     */
+
+    Scene.prototype.getFixedTime = function() {
+        return this.fixedtime;
+    };
+
+    /**
+     * Returns the amount of time it took to compute the latest iteration. Take into account that this number could be not correct
+     * if the nodes are using graphical actions
+     * @method getElapsedTime
+     * @return {number} number of milliseconds it took the last cycle
+     */
+
+    Scene.prototype.getElapsedTime = function() {
+        return this.elapsed_time;
+    };
 
     //*********************************************************************************
     // LGraph CLASS
@@ -835,14 +875,6 @@
 		this.vars = {};
 		this.extra = {}; //to store custom data
 
-        //timing
-        this.globaltime = 0;
-        this.runningtime = 0;
-        this.fixedtime = 0;
-        this.fixedtime_lapse = 0.01;
-        this.elapsed_time = 0.01;
-        this.last_update_time = 0;
-        this.starttime = 0;
 
         this.catch_errors = true;
 
@@ -941,36 +973,6 @@
         }
 
         this.setDirtyCanvas(true, true);
-    };
-
-    /**
-     * Returns the amount of time the graph has been running in milliseconds
-     * @method getTime
-     * @return {number} number of milliseconds the graph has been running
-     */
-    LGraph.prototype.getTime = function() {
-        return this.globaltime;
-    };
-
-    /**
-     * Returns the amount of time accumulated using the fixedtime_lapse var. This is used in context where the time increments should be constant
-     * @method getFixedTime
-     * @return {number} number of milliseconds the graph has been running
-     */
-
-    LGraph.prototype.getFixedTime = function() {
-        return this.fixedtime;
-    };
-
-    /**
-     * Returns the amount of time it took to compute the latest iteration. Take into account that this number could be not correct
-     * if the nodes are using graphical actions
-     * @method getElapsedTime
-     * @return {number} number of milliseconds it took the last cycle
-     */
-
-    LGraph.prototype.getElapsedTime = function() {
-        return this.elapsed_time;
     };
 
     /**
