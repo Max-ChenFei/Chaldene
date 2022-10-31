@@ -813,26 +813,13 @@
      */
 
     LGraph.prototype.clear = function() {
-        this.last_node_id = 0;
-        this.last_link_id = 0;
-
-        this._version = -1; //used to detect changes
-
-        //safe clear
-        if (this._nodes) {
-            for (var i = 0; i < this._nodes.length; ++i) {
-                var node = this._nodes[i];
-                if (node.onRemoved) {
+        for (const node of Object.values(this.nodes)) {
+            if (node.onRemoved) {
                     node.onRemoved();
-                }
             }
         }
 
-        //nodes
-        this._nodes = [];
-        this._nodes_by_id = {};
-        this._nodes_in_order = []; //nodes sorted in execution order
-        this._nodes_executable = null; //nodes that contain onExecute sorted in execution order
+        this.nodes = {}
 
         //other scene stuff
         this._comments = [];
@@ -1082,7 +1069,7 @@
         this._version++;
 
         this._nodes.push(node);
-        this._nodes_by_id[node.id] = node;
+        this.getNodeById[node.id] = node;
 
         if (node.onAdded) {
             node.onAdded(this);
@@ -1117,7 +1104,7 @@
             return;
         }
 
-        if (this._nodes_by_id[node.id] == null) {
+        if (this.getNodeById[node.id] == null) {
             return;
         } //not found
 
@@ -1175,7 +1162,7 @@
         if (pos != -1) {
             this._nodes.splice(pos, 1);
         }
-        delete this._nodes_by_id[node.id];
+        delete this.getNodeById[node.id];
 
         if (this.onNodeRemoved) {
             this.onNodeRemoved(node);
@@ -1199,7 +1186,7 @@
         if (id == null) {
             return null;
         }
-        return this._nodes_by_id[id];
+        return this.nodes[id];
     };
 
     /**
@@ -1329,7 +1316,7 @@
             this._nodes[i] = newnode;
             newnode.configure(node.serialize());
             newnode.graph = this;
-            this._nodes_by_id[newnode.id] = newnode;
+            this.getNodeById[newnode.id] = newnode;
             if (node.inputs) {
                 newnode.inputs = node.inputs.concat();
             }
