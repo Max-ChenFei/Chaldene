@@ -847,7 +847,7 @@
     //*********************************************************************************
 
     /**
-     * LGraph is the class that contain a full graph. We instantiate one and add nodes to it, and then we can run the execution loop.
+     * LGraph is the class that contain a full graph. We instantiate one and add nodes to it.
 	 * supported callbacks:
 		+ onNodeAdded: when a new node is added to the graph
 		+ onNodeRemoved: when a node inside this graph is removed
@@ -859,109 +859,38 @@
      */
 
     function LGraph(o) {
-        if (LiteGraph.debug) {
-            console.log("Graph created");
-        }
-        this.list_of_graphcanvas = null;
-        this.clear();
-
-        if (o) {
-            this.configure(o);
-        }
+        this.init();
     }
 
     global.LGraph = LiteGraph.LGraph = LGraph;
 
-    //default supported types
-    LGraph.supported_types = ["number", "string", "boolean"];
+    LGraph.prototype.init = function() {
+        this.nodes = {}; // for better collision detection
+        this.connectors = {};
+        this.out_connector_ids = {}; // {out_node: {out_slot: connector_ids,... }}
+        this.in_connectors_ids = {}; // {in_node: {in_slot: connector_ids,... }}
+        this.local_vars = {};
+        this.subgraphs = {};
+        this.inputs = {};
+        this.outputs = {};
+        this.next_unique_id = 0;
+    }
 
-    //used to know which types of connections support this graph (some graphs do not allow certain types)
-    LGraph.prototype.getSupportedTypes = function() {
-        return this.supported_types || LGraph.supported_types;
-    };
+    LGraph.prototype.getUniqueId = function() {
+        return this.next_unique_id++;
+    }
 
     /**
-     * Removes all nodes from this graph
+     * Clear the graph
      * @method clear
      */
-
     LGraph.prototype.clear = function() {
         for (const node of Object.values(this.nodes)) {
             if (node.onRemoved) {
-                    node.onRemoved();
+                node.onRemoved();
             }
         }
-
-        this.nodes = {}
-
-        //other scene stuff
-        this._comments = [];
-
-        //links
-        this.links = {}; //container with all the links
-
-        //iterations
-        this.iteration = 0;
-
-        //custom data
-        this.config = {};
-		this.vars = {};
-		this.extra = {}; //to store custom data
-
-
-        this.catch_errors = true;
-
-        this.nodes_actioning = [];
-        this.nodes_executedAction = [];
-
-        //subgraph_data
-        this.inputs = {};
-        this.outputs = {};
-
-        //notify canvas to redraw
-        this.change();
-
-        this.sendActionToCanvas("clear");
-    };
-
-    /**
-     * Attach Canvas to this graph
-     * @method attachCanvas
-     * @param {GraphCanvas} graph_canvas
-     */
-
-    LGraph.prototype.attachCanvas = function(graphcanvas) {
-        if (graphcanvas.constructor != LGraphCanvas) {
-            throw "attachCanvas expects a LGraphCanvas instance";
-        }
-        if (graphcanvas.graph && graphcanvas.graph != this) {
-            graphcanvas.graph.detachCanvas(graphcanvas);
-        }
-
-        graphcanvas.graph = this;
-
-        if (!this.list_of_graphcanvas) {
-            this.list_of_graphcanvas = [];
-        }
-        this.list_of_graphcanvas.push(graphcanvas);
-    };
-
-    /**
-     * Detach Canvas from this graph
-     * @method detachCanvas
-     * @param {GraphCanvas} graph_canvas
-     */
-    LGraph.prototype.detachCanvas = function(graphcanvas) {
-        if (!this.list_of_graphcanvas) {
-            return;
-        }
-
-        var pos = this.list_of_graphcanvas.indexOf(graphcanvas);
-        if (pos == -1) {
-            return;
-        }
-        graphcanvas.graph = null;
-        this.list_of_graphcanvas.splice(pos, 1);
+        this.init();
     };
 
     /**
@@ -1013,149 +942,80 @@
      * @method add
      * @param {LGraphNode} node the instance of the node
      */
-
     LGraph.prototype.add = function(node) {
-        if (!node) {
-            return;
-        }
+        if (!node) return;
 
-        if (node.constructor === LGraphComment) {
-            this._comments.push(node);
-            this.setDirtyCanvas(true);
-            this.change();
-            node.graph = this;
-            this._version++;
-            return;
-        }
-
-        //nodes
-        if (node.id != -1 && this._nodes_by_id[node.id] != null) {
-            console.warn(
-                "LiteGraph: there is already a node with this ID, changing it"
-            );
-            node.id = ++this.last_node_id;
-        }
-
-        if (this._nodes.length >= LiteGraph.MAX_NUMBER_OF_NODES) {
-            throw "LiteGraph: max number of nodes in a graph reached";
-        }
-
-        //give him an id
-        if (node.id == null || node.id == -1) {
-            node.id = ++this.last_node_id;
-        } else if (this.last_node_id < node.id) {
-            this.last_node_id = node.id;
-        }
-
-        node.graph = this;
-        this._version++;
-
-        this._nodes.push(node);
-        this.getNodeById[node.id] = node;
+        node.id =  this.getUniqueId();
+        this.nodes[node.id] = node;
 
         if (node.onAdded) {
-            node.onAdded(this);
+            node.onAdded();
         }
 
         if (this.onNodeAdded) {
             this.onNodeAdded(node);
         }
+    };
 
-        this.setDirtyCanvas(true);
-        this.change();
+    /**
+     * remove a connector
+     * @method removeConnector
+     * @param {Number} connector_id
+     */
+    LGraph.prototype.removeConnector = function(connector_id) {
+        const connector = this.connectors[connector_id];
+        if(!connector) return;
 
-        return node; //to chain actions
+        let out_node = this.nodes[connector.out_node_id];
+        if (out_node) out_node.breakConnectionOfOutput(connector.out_slot_name);
+        let in_node = this.nodes[connector.in_node_id];
+        if (in_node) in_node.breakConnectionOfInput(connector.in_slot_name);
+
+        delete this.in_connectors[connector.in_node_id][connector.in_slot_name];
+        delete this.out_connectors[connector.out_node_id][connector.out_slot_name];
+        delete this.connectors[connector_id];
+    };
+
+    LGraph.prototype.removeConnectors = function(connector_ids) {
+        if (connector_ids.constructor === Array)
+            for (const id of connector_ids) {
+                this.removeConnector(id);
+            }
+    };
+
+    LGraph.prototype.clearInConnectorsOfNode = function(node_id) {
+        const ids = Object.values(this.in_connectors[node_id]);
+        this.removeConnectors(ids);
+    };
+
+    LGraph.prototype.clearOutConnectorsOfNode = function(node_id) {
+        const ids = Object.values(this.out_connectors[node_id]);
+        this.removeConnectors(ids);
+    };
+
+    LGraph.prototype.clearConnectorsOfNode = function(node_id) {
+        this.clearInConnectorsOfNode(node_id);
+        this.clearOutConnectorsOfNode(node_id);
     };
 
     /**
      * Removes a node from the graph
      * @method remove
-     * @param {LGraphNode} node the instance of the node
+     * @param {String} node_id
      */
+    LGraph.prototype.remove = function(node_id) {
+        const node = this.nodes[node_id]
+        if (!node) return;
 
-    LGraph.prototype.remove = function(node) {
-        if (node.constructor === LiteGraph.LGraphComment) {
-            var index = this._comments.indexOf(node);
-            if (index != -1) {
-                this._comments.splice(index, 1);
-            }
-            node.graph = null;
-            this._version++;
-            this.setDirtyCanvas(true, true);
-            this.change();
-            return;
+        if (this.onNodeRemoved) {
+            this.onNodeRemoved(node_id);
         }
+        this.clearConnectorsOfNode(node_id);
 
-        if (this.getNodeById[node.id] == null) {
-            return;
-        } //not found
-
-        if (node.ignore_remove) {
-            return;
-        } //cannot be removed
-
-		this.beforeChange(); //sure? - almost sure is wrong
-
-        //disconnect inputs
-        if (node.inputs) {
-            for (var i = 0; i < node.inputs.length; i++) {
-                var slot = node.inputs[i];
-                if (slot.link != null) {
-                    node.disconnectInput(i);
-                }
-            }
-        }
-
-        //disconnect outputs
-        if (node.outputs) {
-            for (var i = 0; i < node.outputs.length; i++) {
-                var slot = node.outputs[i];
-                if (slot.links != null && slot.links.length) {
-                    node.disconnectOutput(i);
-                }
-            }
-        }
-
-        //node.id = -1; //why?
-
-        //callback
         if (node.onRemoved) {
             node.onRemoved();
         }
-
-        node.graph = null;
-        this._version++;
-
-        //remove from canvas render
-        if (this.list_of_graphcanvas) {
-            for (var i = 0; i < this.list_of_graphcanvas.length; ++i) {
-                var canvas = this.list_of_graphcanvas[i];
-                if (canvas.selected_nodes[node.id]) {
-                    delete canvas.selected_nodes[node.id];
-                }
-                if (canvas.node_dragged == node) {
-                    canvas.node_dragged = null;
-                }
-            }
-        }
-
-        //remove from containers
-        var pos = this._nodes.indexOf(node);
-        if (pos != -1) {
-            this._nodes.splice(pos, 1);
-        }
-        delete this.getNodeById[node.id];
-
-        if (this.onNodeRemoved) {
-            this.onNodeRemoved(node);
-        }
-
-		//close panels
-		this.sendActionToCanvas("checkPanels");
-
-        this.setDirtyCanvas(true, true);
-		this.afterChange(); //sure? - almost sure is wrong
-        this.change();
+        delete this.nodes[node.id];
     };
 
     /**
@@ -1163,438 +1023,181 @@
      * @method getNodeById
      * @param {Number} id
      */
-
     LGraph.prototype.getNodeById = function(id) {
-        if (id == null) {
-            return null;
-        }
+        if (!id) return null;
         return this.nodes[id];
     };
 
-    /**
-     * Returns a list of nodes that matches a class
-     * @method findNodesByClass
-     * @param {Class} classObject the class itself (not an string)
-     * @return {Array} a list with all the nodes of this type
-     */
-    LGraph.prototype.findNodesByClass = function(classObject, result) {
-        result = result || [];
-        result.length = 0;
-        for (var i = 0, l = this._nodes.length; i < l; ++i) {
-            if (this._nodes[i].constructor === classObject) {
-                result.push(this._nodes[i]);
-            }
-        }
-        return result;
+    LGraph.prototype.addSubGraph = function(name, subgraph) {
+        makeSureNameUniqueIn(name, this.subgraphs);
+        this.subgraphs[name] = subgraph;
+    };
+
+    LGraph.prototype.removeSubGraph = function(name) {
+        delete this.subgraphs[name];
+    };
+
+    LGraph.prototype.getSubGraph = function(name) {
+        return this.subgraphs[name];
     };
 
     /**
-     * Returns a list of nodes that matches a type
-     * @method findNodesByType
-     * @param {String} type the name of the node type
-     * @return {Array} a list with all the nodes of this type
-     */
-    LGraph.prototype.findNodesByType = function(type, result) {
-        var type = type.toLowerCase();
-        result = result || [];
-        result.length = 0;
-        for (var i = 0, l = this._nodes.length; i < l; ++i) {
-            if (this._nodes[i].type.toLowerCase() == type) {
-                result.push(this._nodes[i]);
-            }
-        }
-        return result;
-    };
-
-    /**
-     * Returns the first node that matches a name in its title
-     * @method findNodeByTitle
-     * @param {String} name the name of the node to search
-     * @return {Node} the node or null
-     */
-    LGraph.prototype.findNodeByTitle = function(title) {
-        for (var i = 0, l = this._nodes.length; i < l; ++i) {
-            if (this._nodes[i].title == title) {
-                return this._nodes[i];
-            }
-        }
-        return null;
-    };
-
-    /**
-     * Returns a list of nodes that matches a name
-     * @method findNodesByTitle
-     * @param {String} name the name of the node to search
-     * @return {Array} a list with all the nodes with this name
-     */
-    LGraph.prototype.findNodesByTitle = function(title) {
-        var result = [];
-        for (var i = 0, l = this._nodes.length; i < l; ++i) {
-            if (this._nodes[i].title == title) {
-                result.push(this._nodes[i]);
-            }
-        }
-        return result;
-    };
-
-    /**
-     * Returns the top-most node in this position of the canvas
-     * @method getNodeOnPos
-     * @param {number} x the x coordinate in canvas space
-     * @param {number} y the y coordinate in canvas space
-     * @param {Array} nodes_list a list with all the nodes to search from, by default is all the nodes in the graph
-     * @return {LGraphNode} the node at this position or null
-     */
-    LGraph.prototype.getNodeOnPos = function(x, y, nodes_list, margin) {
-        nodes_list = nodes_list || this._nodes;
-		var nRet = null;
-        for (var i = nodes_list.length - 1; i >= 0; i--) {
-            var n = nodes_list[i];
-            if (n.isPointInside(x, y, margin)) {
-                // check for lesser interest nodes (TODO check for overlapping, use the top)
-				/*if (typeof n == "LGraphComment"){
-					nRet = n;
-				}else{*/
-					return n;
-				/*}*/
-            }
-        }
-        return nRet;
-    };
-
-    /**
-     * Returns the top-most comment in that position
-     * @method getCommentOnPos
-     * @param {number} x the x coordinate in canvas space
-     * @param {number} y the y coordinate in canvas space
-     * @return {LGraphComment} the comment or null
-     */
-    LGraph.prototype.getCommentOnPos = function(x, y) {
-        for (var i = this._comments.length - 1; i >= 0; i--) {
-            var g = this._comments[i];
-            if (g.isPointInside(x, y, 2, true)) {
-                return g;
-            }
-        }
-        return null;
-    };
-
-    /**
-     * Checks that the node type matches the node type registered, used when replacing a nodetype by a newer version during execution
-     * this replaces the ones using the old version with the new version
-     * @method checkNodeTypes
-     */
-    LGraph.prototype.checkNodeTypes = function() {
-        var changes = false;
-        for (var i = 0; i < this._nodes.length; i++) {
-            var node = this._nodes[i];
-            var ctor = LiteGraph.registered_node_types[node.type];
-            if (node.constructor == ctor) {
-                continue;
-            }
-            console.log("node being replaced by newer version: " + node.type);
-            var newnode = LiteGraph.createNode(node.type);
-            changes = true;
-            this._nodes[i] = newnode;
-            newnode.configure(node.serialize());
-            newnode.graph = this;
-            this.getNodeById[newnode.id] = newnode;
-            if (node.inputs) {
-                newnode.inputs = node.inputs.concat();
-            }
-            if (node.outputs) {
-                newnode.outputs = node.outputs.concat();
-            }
-        }
-    };
-
-    // ********** GLOBALS *****************
-
-    LGraph.prototype.onAction = function(action, param, options) {
-        this._input_nodes = this.findNodesByClass(
-            LiteGraph.GraphInput,
-            this._input_nodes
-        );
-        for (var i = 0; i < this._input_nodes.length; ++i) {
-            var node = this._input_nodes[i];
-            if (node.properties.name != action) {
-                continue;
-            }
-            //wrap node.onAction(action, param);
-            node.actionDo(action, param, options);
-            break;
-        }
-    };
-
-    LGraph.prototype.trigger = function(action, param) {
-        if (this.onTrigger) {
-            this.onTrigger(action, param);
-        }
-    };
-
-    /**
-     * Tell this graph it has a global graph input of this type
-     * @method addGlobalInput
+     * @method add variable to objects
      * @param {String} name
      * @param {String} type
      * @param {*} value [optional]
      */
-    LGraph.prototype.addInput = function(name, type, value) {
-        var input = this.inputs[name];
-        if (input) {
-            //already exist
-            return;
-        }
+    LGraph.prototype.addVarTo = function(name, type, value, obj, callback) {
+        makeSureNameUniqueIn(name, Object.keys(obj));
+        let v = new Variable(name, type, value);
+        obj[name] = v;
 
-		this.beforeChange();
-        this.inputs[name] = { name: name, type: type, value: value };
-        this._version++;
-		this.afterChange();
-
-        if (this.onInputAdded) {
-            this.onInputAdded(name, type);
-        }
-
-        if (this.onInputsOutputsChange) {
-            this.onInputsOutputsChange();
+        if (callback) {
+            callback(v);
         }
     };
 
+    LGraph.prototype.addInput = function(name, type, value) {
+        this.addVarTo(name, type, value, this.inputs, this.onInputAdded);
+    };
+
+    LGraph.prototype.addOutput = function(name, type, value) {
+        this.addVarTo(name, type, value, this.outputs, this.onOutputAdded);
+    };
+
+    LGraph.prototype.addLocalVar = function(name, type, value) {
+        this.addVarTo(name, type, value, this.local_vars);
+    };
+
     /**
-     * Assign a data to the global graph input
+     * @method getVarValue
+     * @param {String} name
+     * @return {*} the value
+     */
+    LGraph.prototype.getVarValueFrom = function(name, obj) {
+        let v = obj[name];
+        if (!v) return null;
+        return v.getValue();
+    };
+
+    LGraph.prototype.getInputValue = function(name) {
+        this.getVarValueFrom(name, this.inputs)
+    };
+
+    LGraph.prototype.getOutputValue = function(name) {
+        this.getVarValueFrom(name, this.outputs)
+    };
+
+    LGraph.prototype.getLocalVarValue = function(name) {
+        this.getVarValueFrom(name, this.local_vars)
+    };
+
+    /**
+     * Assign a data to the global graph variable
      * @method setGlobalInputData
      * @param {String} name
      * @param {*} data
      */
-    LGraph.prototype.setInputData = function(name, data) {
-        var input = this.inputs[name];
-        if (!input) {
-            return;
-        }
-        input.value = data;
+    LGraph.prototype.setVarValueOf = function(name, new_value, obj) {
+        let v = obj[name];
+        if (!v) return;
+        v.updateValue(new_value);
+    };
+
+    LGraph.prototype.setInputVarValue = function(name, new_value) {
+       this.setVarValueOf(name, new_value, this.inputs)
+    };
+
+    LGraph.prototype.setOutputVarValue = function(name, new_value) {
+       this.setVarValueOf(name, new_value, this.outputs)
+    };
+
+    LGraph.prototype.setLocalVarValue = function(name, new_value) {
+       this.setVarValueOf(name, new_value, this.local_vars)
     };
 
     /**
-     * Returns the current value of a global graph input
-     * @method getInputData
-     * @param {String} name
-     * @return {*} the data
-     */
-    LGraph.prototype.getInputData = function(name) {
-        var input = this.inputs[name];
-        if (!input) {
-            return null;
-        }
-        return input.value;
-    };
-
-    /**
-     * Changes the name of a global graph input
      * @method renameInput
-     * @param {String} old_name
+     * @param {String} name
      * @param {String} new_name
      */
-    LGraph.prototype.renameInput = function(old_name, name) {
-        if (name == old_name) {
-            return;
-        }
+    LGraph.prototype.renameVarOf = function(name, new_name, obj, callback) {
+        if (name == new_name) return;
 
-        if (!this.inputs[old_name]) {
-            return false;
-        }
+        let v = obj[name];
+        if (!v) return;
 
-        if (this.inputs[name]) {
-            console.error("there is already one input with that name");
-            return false;
-        }
+        makeSureNameUniqueIn(new_name, Object.keys(this.inputs));
+        v.updateName(new_name);
 
-        this.inputs[name] = this.inputs[old_name];
-        delete this.inputs[old_name];
-        this._version++;
+        obj[new_name] = obj[name];
+        delete obj[new_name];
 
-        if (this.onInputRenamed) {
-            this.onInputRenamed(old_name, name);
-        }
-
-        if (this.onInputsOutputsChange) {
-            this.onInputsOutputsChange();
+        if (callback) {
+            callback(name, new_name);
         }
     };
 
+    LGraph.prototype.renameInputVar = function(name, new_name) {
+        this.renameVarOf(name, new_name, this.inputs);
+    };
+
+    LGraph.prototype.renameOutputVar = function(name, new_name) {
+        this.renameVarOf(name, new_name, this.outputs);
+    };
+
+    LGraph.prototype.renameLocalVarVar = function(name, new_name) {
+        this.renameVarOf(name, new_name, this.local_vars);
+    };
+
     /**
-     * Changes the type of a global graph input
+     * Changes the type of a variable
      * @method changeInputType
      * @param {String} name
      * @param {String} type
      */
-    LGraph.prototype.changeInputType = function(name, type) {
-        if (!this.inputs[name]) {
-            return false;
-        }
+    LGraph.prototype.changeVarTypeOf = function(name, new_type, obj) {
+        let v = obj[name];
+        if (!v) return;
+        v.updateType(new_type);
+    };
 
-        if (
-            this.inputs[name].type &&
-            String(this.inputs[name].type).toLowerCase() ==
-                String(type).toLowerCase()
-        ) {
-            return;
-        }
+    LGraph.prototype.changeInputVarType = function(name, new_type) {
+      this.changeVarTypeOf(name, new_type, this.inputs)
+    };
 
-        this.inputs[name].type = type;
-        this._version++;
-        if (this.onInputTypeChanged) {
-            this.onInputTypeChanged(name, type);
-        }
+    LGraph.prototype.changeOutputVarType = function(name, new_type) {
+      this.changeVarTypeOf(name, new_type, this.outputs)
+    };
+
+    LGraph.prototype.changeLocalVarType = function(name, new_type) {
+      this.changeVarTypeOf(name, new_type, this.local_vars)
     };
 
     /**
-     * Removes a global graph input
+     * Removes a variable
      * @method removeInput
      * @param {String} name
      * @param {String} type
      */
-    LGraph.prototype.removeInput = function(name) {
-        if (!this.inputs[name]) {
-            return false;
-        }
-
-        delete this.inputs[name];
-        this._version++;
-
-        if (this.onInputRemoved) {
-            this.onInputRemoved(name);
-        }
-
-        if (this.onInputsOutputsChange) {
-            this.onInputsOutputsChange();
-        }
-        return true;
+    LGraph.prototype.removeVarOf = function(name, obj) {
+        let v = obj[name];
+        if (!v) return;
+        delete obj[name];
     };
 
-    /**
-     * Creates a global graph output
-     * @method addOutput
-     * @param {String} name
-     * @param {String} type
-     * @param {*} value
-     */
-    LGraph.prototype.addOutput = function(name, type, value) {
-        this.outputs[name] = { name: name, type: type, value: value };
-        this._version++;
-
-        if (this.onOutputAdded) {
-            this.onOutputAdded(name, type);
-        }
-
-        if (this.onInputsOutputsChange) {
-            this.onInputsOutputsChange();
-        }
+    LGraph.prototype.removeInputVar = function(name) {
+       this.removeVarOf(name, this.inputs);
     };
 
-    /**
-     * Assign a data to the global output
-     * @method setOutputData
-     * @param {String} name
-     * @param {String} value
-     */
-    LGraph.prototype.setOutputData = function(name, value) {
-        var output = this.outputs[name];
-        if (!output) {
-            return;
-        }
-        output.value = value;
+    LGraph.prototype.removeOutputVar = function(name) {
+       this.removeVarOf(name, this.outputs);
     };
 
-    /**
-     * Returns the current value of a global graph output
-     * @method getOutputData
-     * @param {String} name
-     * @return {*} the data
-     */
-    LGraph.prototype.getOutputData = function(name) {
-        var output = this.outputs[name];
-        if (!output) {
-            return null;
-        }
-        return output.value;
+    LGraph.prototype.removeLocalVar = function(name) {
+       this.removeVarOf(name, this.local_vars);
     };
 
-    /**
-     * Renames a global graph output
-     * @method renameOutput
-     * @param {String} old_name
-     * @param {String} new_name
-     */
-    LGraph.prototype.renameOutput = function(old_name, name) {
-        if (!this.outputs[old_name]) {
-            return false;
-        }
-
-        if (this.outputs[name]) {
-            console.error("there is already one output with that name");
-            return false;
-        }
-
-        this.outputs[name] = this.outputs[old_name];
-        delete this.outputs[old_name];
-        this._version++;
-
-        if (this.onOutputRenamed) {
-            this.onOutputRenamed(old_name, name);
-        }
-
-        if (this.onInputsOutputsChange) {
-            this.onInputsOutputsChange();
-        }
-    };
-
-    /**
-     * Changes the type of a global graph output
-     * @method changeOutputType
-     * @param {String} name
-     * @param {String} type
-     */
-    LGraph.prototype.changeOutputType = function(name, type) {
-        if (!this.outputs[name]) {
-            return false;
-        }
-
-        if (
-            this.outputs[name].type &&
-            String(this.outputs[name].type).toLowerCase() ==
-                String(type).toLowerCase()
-        ) {
-            return;
-        }
-
-        this.outputs[name].type = type;
-        this._version++;
-        if (this.onOutputTypeChanged) {
-            this.onOutputTypeChanged(name, type);
-        }
-    };
-
-    /**
-     * Removes a global graph output
-     * @method removeOutput
-     * @param {String} name
-     */
-    LGraph.prototype.removeOutput = function(name) {
-        if (!this.outputs[name]) {
-            return false;
-        }
-        delete this.outputs[name];
-        this._version++;
-
-        if (this.onOutputRemoved) {
-            this.onOutputRemoved(name);
-        }
-
-        if (this.onInputsOutputsChange) {
-            this.onInputsOutputsChange();
-        }
-        return true;
-    };
 
     // *************************************************************
     //   Connector CLASS                                     *******
@@ -1886,12 +1489,7 @@
         return this.title || this.constructor.title;
     };
 
-	// ******************* slots (create, remove, query and get connected node) *****************
-    LGraphNode.prototype.makeSureNameUniqueIn = function(name, obj){
-        if (! name in obj){
-            throw "Slot Name {name} already existed in {obj.constructor.name}";
-        }
-    };
+
 
     /**
      * add a new slot to slots
