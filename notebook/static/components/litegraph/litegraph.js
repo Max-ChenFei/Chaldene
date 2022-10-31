@@ -2487,13 +2487,21 @@
         }
     };
 
-    LGraphNode.prototype.clearNodeConnections= function() {
+    LGraphNode.prototype.clearInConnections= function() {
         for (let slot of this.inputs){
             this.clearConnectionsOf(slot)
         }
-         for (let slot of this.outputs){
+    };
+
+    LGraphNode.prototype.clearOutConnections= function() {
+        for (let slot of this.outputs){
             this.clearConnectionsOf(slot)
         }
+    };
+
+    LGraphNode.prototype.clearNodeConnections= function() {
+        this.clearInConnections();
+        this.clearOutConnections();
     };
 
     LGraphNode.prototype.move= function(delta_x, delta_y) {
