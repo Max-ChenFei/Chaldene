@@ -2247,12 +2247,16 @@
 
     global.LGraphNode = LiteGraph.LGraphNode = LGraphNode;
 
+    LGraphNode.prototype.id = undefined;
     LGraphNode.prototype.title = undefined;
     LGraphNode.prototype.type = "*";
     LGraphNode.prototype.desc = "";
     LGraphNode.prototype.inputs = {};
     LGraphNode.prototype.outputs = {};
     LGraphNode.prototype.flags = {};
+    LGraphNode.prototype.pos = new Pos(0, 0);
+    LGraphNode.prototype.size = new Size(10, 10);
+
 
     // *********************** Node information **************************************
     /**
