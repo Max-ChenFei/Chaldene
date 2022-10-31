@@ -2494,7 +2494,7 @@
         }
     };
 
-    LGraphNode.prototype.ClearNodeConnections= function() {
+    LGraphNode.prototype.clearNodeConnections= function() {
         for (let slot of this.inputs){
             this.clearConnectionsOf(slot)
         }
