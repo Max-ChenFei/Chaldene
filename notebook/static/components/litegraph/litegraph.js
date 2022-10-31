@@ -976,59 +976,6 @@
     };
 
     /**
-     * Sends an event to all the nodes, useful to trigger stuff
-     * @method sendEventToAllNodes
-     * @param {String} eventname the name of the event (function to be called)
-     * @param {Array} params parameters in array format
-     */
-    LGraph.prototype.sendEventToAllNodes = function(eventname, params, mode) {
-        mode = mode || LiteGraph.ALWAYS;
-
-        var nodes = this._nodes_in_order ? this._nodes_in_order : this._nodes;
-        if (!nodes) {
-            return;
-        }
-
-        for (var j = 0, l = nodes.length; j < l; ++j) {
-            var node = nodes[j];
-
-            if (
-                node.constructor === LiteGraph.FunctionDefinition &&
-                eventname != "onExecute"
-            ) {
-                if (node.mode == mode) {
-                    node.sendEventToAllNodes(eventname, params, mode);
-                }
-                continue;
-            }
-
-            if (!node[eventname] || node.mode != mode) {
-                continue;
-            }
-            if (params === undefined) {
-                node[eventname]();
-            } else if (params && params.constructor === Array) {
-                node[eventname].apply(node, params);
-            } else {
-                node[eventname](params);
-            }
-        }
-    };
-
-    LGraph.prototype.sendActionToCanvas = function(action, params) {
-        if (!this.list_of_graphcanvas) {
-            return;
-        }
-
-        for (var i = 0; i < this.list_of_graphcanvas.length; ++i) {
-            var c = this.list_of_graphcanvas[i];
-            if (c[action]) {
-                c[action].apply(c, params);
-            }
-        }
-    };
-
-    /**
      * Adds a new node instance to this graph
      * @method add
      * @param {LGraphNode} node the instance of the node
