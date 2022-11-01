@@ -386,8 +386,8 @@
     function Variable(name, type, value) {
         this.name = name;
         this.type = type;
-        this.value = value
-    };
+        this.value = value;
+    }
 
     Variable.prototype.getValue = function() {
         return this.value;
@@ -442,11 +442,11 @@
         this.inputs = {};
         this.outputs = {};
         this.next_unique_id = 0;
-    }
+    };
 
     LGraph.prototype.getUniqueId = function() {
         return this.next_unique_id++;
-    }
+    };
 
     /**
      * Clear the graph
