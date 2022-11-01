@@ -771,8 +771,8 @@
     function Scene(){
     };
 
-    makeSureNameUniqueIn = function(name, obj){
-        if (! name in obj){
+    let makeSureNameUniqueIn = function (name, obj) {
+        if (!name in obj) {
             throw "Name is already in use";
         }
     };
