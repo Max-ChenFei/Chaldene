@@ -138,9 +138,6 @@
      */
 
     var LiteGraph = (global.LiteGraph = {
-        VERSION: 0.4,
-
-        CANVAS_GRID_SIZE: 10,
 
         NODE_TITLE_HEIGHT: 30,
         NODE_TITLE_TEXT_Y: 20,
@@ -172,9 +169,8 @@
         EVENT_LINK_COLOR: "#AFA",
         CONNECTING_LINK_COLOR: "#AFA",
 
-        MAX_NUMBER_OF_NODES: 1000, //avoid infinite loops
         DEFAULT_POSITION: [100, 100], //default node position
-        VALID_SHAPES: ["default", "box", "round", "card"], //,"circle"
+        VALID_SHAPES: ["default", "box", "round", "card"],
 
         //shapes are used for nodes but also for slots
         BOX_SHAPE: 1,
@@ -183,13 +179,6 @@
         CARD_SHAPE: 4,
         ARROW_SHAPE: 5,
         GRID_SHAPE: 6, // intended for slot arrays
-
-        //enums
-        INPUT: 1,
-        OUTPUT: 2,
-
-        EVENT: -1, //for outputs
-        ACTION: -1, //for inputs
 
         UP: 1,
         DOWN: 2,
@@ -202,24 +191,20 @@
         LINEAR_LINK: 1,
         SPLINE_LINK: 2,
 
-        NORMAL_TITLE: 0,
         NO_TITLE: 1,
         TRANSPARENT_TITLE: 2,
         AUTOHIDE_TITLE: 3,
         VERTICAL_LAYOUT: "vertical", // arrange nodes vertically
 
         proxy: null, //used to redirect calls
-        node_images_path: "",
 
         debug: false,
         catch_exceptions: true,
         throw_errors: true,
-        allow_scripts: false, //if set to true some nodes like Formula would be allowed to evaluate code that comes from unsafe sources (like node configuration), which could lead to exploits
 
 		Globals: {}, //used to store vars between graphs
 
         searchbox_extras: {}, //used to add extra features to the search box
-        auto_sort_node_types: false, // [true!] If set to true, will automatically sort node types / categories in the context menus
 
 		node_box_coloured_when_on: false, // [true!] this make the nodes box (top left circle) coloured when triggered (execute/action), visual feedback
         node_box_coloured_by_mode: false, // [true!] nodebox based on node mode, visual feedback
@@ -242,16 +227,12 @@
 
 		do_add_triggers_slots: false, // [true!] will create and connect event slots when using action/events connections, !WILL CHANGE node mode when using onTrigger (enable mode colors), onExecuted does not need this
 
-		allow_multi_output_for_events: true, // [false!] being events, it is strongly reccomended to use them sequentually, one by one
-
-		middle_click_slot_add_default_node: false, //[true!] allows to create and connect a ndoe clicking with the third button (wheel)
-
 		release_link_on_empty_shows_menu: true, //[true!] dragging a link to empty space will open a menu, add from list, search or defaults
 
         pointerevents_method: "mouse", // "mouse"|"pointer" use mouse for retrocompatibility issues? (none found @ now)
         // TODO implement pointercancel, gotpointercapture, lostpointercapture, (pointerover, pointerout if necessary)
 
-        node_factory: new NodeFactory(),
+        type_registry: new TypeRegistry(),
         /**
          * Register a node class so it can be listed when the user wants to create a new one
          * @method registerNodeType
@@ -260,7 +241,7 @@
          */
 
         registerNodeType: function(type, base_class) {
-            return this.node_factory.registerNodeType(type, base_class);
+            return this.type_registry.registerNodeType(type, base_class);
         },
 
         /**
@@ -269,46 +250,14 @@
          * @param {String|Object} type name of the node or the node constructor itself
          */
         unregisterNodeType: function(type) {
-            return this.node_factory.unregisterNodeType(type);
+            return this.type_registry.unregisterNodeType(type);
 		},
-
-        /**
-        * Save a slot type and his node
-        * @method registerSlotType
-        * @param {String|Object} type name of the node or the node constructor itself
-        * @param {String} slot_type name of the slot type (variable type), eg. string, number, array, boolean, ..
-        */
-        registerNodeAndSlotType: function(type, slot_type, out){
-            return this.node_factory.registerNodeAndSlotType(type, slot_type, out);
-        },
-
-        /**
-         * Create a new nodetype by passing a function, it wraps it with a proper class and generates inputs according to the parameters of the function.
-         * Useful to wrap simple methods that do not require properties, and that only process some input to generate an output.
-         * @method wrapFunctionAsNode
-         * @param {String} name node name with namespace (p.e.: 'math/sum')
-         * @param {Function} func
-         * @param {Array} param_types [optional] an array containing the type of every parameter, otherwise parameters will accept any type
-         * @param {String} return_type [optional] string with the return type, otherwise it will be generic
-         * @param {Object} properties [optional] properties to be configurable
-         */
-        wrapFunctionAsNode: function(
-            name,
-            func,
-            param_types,
-            return_type
-        ) {
-            return this.node_factory.wrapFunctionAsNode( name,
-            func,
-            param_types,
-            return_type);
-        },
 
         /**
          * Removes all previously registered node's types
          */
         clearRegisteredTypes: function() {
-            return this.node_factory.clearRegisteredTypes();
+            return this.type_registry.clearRegisteredTypes();
         },
 
         /**
@@ -320,7 +269,7 @@
          */
 
         createNode: function(type, options) {
-            return this.node_factory.createNode(type, options);
+            return this.type_registry.createNode(type, options);
         },
 
         /**
@@ -330,32 +279,7 @@
          * @return {Class} the node class
          */
         getNodeType: function(type) {
-            return this.node_factory.getNodeType[type];
-        },
-
-        /**
-         * Returns a list of node types matching one category
-         * @method getNodeTypesInCategory
-         * @param {String} category category name
-         * @return {Array} array with all the node classes
-         */
-
-        getNodeTypesInCategory: function(category, filter) {
-            return this.node_factory.getNodeTypesInCategory(category, filter);
-        },
-
-        /**
-         * Returns a list with all the node type categories
-         * @method getNodeTypesCategories
-         * @param {String} filter only nodes with ctor.filter equal can be shown
-         * @return {Array} array with all the names of the categories
-         */
-        getNodeTypesCategories: function( filter ) {
-            return this.node_factory.getNodeTypesCategories(filter);
-        },
-
-        cloneObject: function(obj, target) {
-           return this.node_factory.cloneObject(obj, target);
+            return this.type_registry.getNodeType[type];
         },
 
         /**
