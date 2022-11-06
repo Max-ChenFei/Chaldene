@@ -4703,6 +4703,144 @@
         this.offset[1] = 0;
     };
 
+    function inClosedInterval(v, min, max){
+        return x >= min && x <= max;
+    }
+
+    function RectBBox() {
+        this.min_x = 0;
+        this.max_x = 0;
+        this.min_y = 0;
+        this.max_y = 0;
+    };
+
+    RectBBox.prototype.isInside = function (x, y){
+        return inClosedInterval(x, this.min_x, this.max_x) && inClosedInterval(y, this.min_y, this.max_y);
+    }
+
+    RectBBox.prototype.isZeroArea = function (){
+        return this.min_x == this.max_x || this.min_y == this.max_y
+    }
+
+    AreTwoRectBboxOverlap = function (rect_a, rect_b){
+        if (!rect_a || !rect_b) return false;
+        if (rect_a.isZeroArea() || rect_b.isZeroArea()) return false;
+        const oneNodeOnLeft = rect_a.min_x > rect_b.max_x || rect_b.min_x > rect_a.max_x;
+        if (oneNodeOnLeft) return false;
+        const oneNodeOnTop = rect_a.min_y > rect_b.max_y || rect_b.min_y > rect_a.max_y;
+        if (oneNodeOnTop) return false;
+        return true;
+    }
+
+    function SceneCoordToObjCoord(scene_x, scene_y, obj){
+        if (!obj.pos) return [undefined, undefined];
+        return [scene_x - obj.pos.x, scene_y - obj.pox.y];
+    }
+
+    function HitResult(is_hitted, hit_obj, hit_local_x, hit_local_y, hit_component) {
+        this.is_hitted = is_hitted;
+        this.hit_obj = hit_obj;
+        this.hit_local_x = hit_local_x;
+        this.hit_local_y = hit_local_y;
+        this.hit_component = hit_component;
+    };
+
+    const CollisionChannel = {
+        overlap: "overlap", // bbox is overlap with
+        hover: "hover", // bbox that can be hovered by the mouse cursor
+        press: "press", // bbox that can be pressed by the pointer (mouse, touch)
+    };
+
+    function CollisionDetector(){
+        this._colliableObjs = {}; // bbox stands for bounding box
+        this._next_unique_id = 0;
+        this.initBboxForEachChannel();
+    };
+
+    CollisionDetector.prototype.initBboxForEachChannel = function() {
+        for (const channel of Object.values(CollisionChannel)) {
+            this._colliableObjs[channel] = {}
+        }
+    };
+
+    CollisionDetector.prototype.clear = function() {
+        this._colliableObjs = {};
+        this._next_unique_id = 0;
+        this.initBboxForEachChannel();
+    };
+
+    CollisionDetector.prototype.getUniqueId = function() {
+        return this._next_unique_id++;
+    };
+
+    CollisionDetector.prototype.addToChannel = function(obj, channel) {
+        if (!this._colliableObjs[channel]) return;
+        if (!obj.bbox_id) obj['bbox_id'] = this.getUniqueID();
+        this._colliableObjs[channel][obj.bbox_id] = obj;
+    };
+
+    CollisionDetector.prototype.add = function(obj) {
+        if (!obj) return;
+        const bbox = obj.getBoundingBox();
+        if (!bbox && bbox.isZeroArea()) return;
+        obj['bbox_id'] = this.getUniqueID();
+        if (obj.onOverlapped) this.addToChannel(obj, CollisionChannel.overlap);
+        this.addToChannel(obj, CollisionChannel.hover);
+        this.addToChannel(obj, CollisionChannel.press);
+    };
+
+    CollisionDetector.prototype.remove = function(bbox_id) {
+        for (const obj_in_channel of Object.values(this._colliableObjs)) {
+            delete obj_in_channel[bbox_id];
+        }
+    };
+
+     /**
+     * get hitted obj that the (x, y) in, used for selection
+     * @method getColliableAtPos
+     * @param {Number} scene_x
+     * @param {Number} scene_y
+     * @return {HitResult} returns hit result of input x, and y*/
+    CollisionDetector.prototype.getHitResultAtPos = function(scene_x, scene_y) {
+        let objs = this._colliableObjs[CollisionChannel.press];
+        for (const obj of Object.values(objs)) {
+            if (obj.getBoundingBox().isInside(scene_x, scene_y)){
+                const local_pos = SceneCoordToObjCoord(scene_x, scene_y, obj);
+                const hit_component = this.getHitComponentAtPos(local_pos[0], local_pos[1], obj);
+                return new HitResult(true, obj, local_pos[0], local_pos[1], hit_component);
+            }
+        }
+        return new HitResult(false);
+    }
+
+    CollisionDetector.prototype.getHitComponentAtPos = function(local_x, local_y, obj) {
+        for (const comp of Object.values(obj.colliable_componnets)) {
+            if (comp.getBoundingBox().isInside(local_x, local_y)){
+                return comp;
+            }
+        }
+        return undefined;
+    };
+
+    /**
+     * get overlapping colliables in the channel, used for marquee selection, comment node
+     * @method getOverlappingColliablesIn
+     * @param {RectBBox} bbox
+     * @param {CollisionChannel} channel
+     * @return {Array} returns the objects in the collision channel that overlap with the bounding box*/
+    CollisionDetector.prototype.getOverlappingObjsInChannel = function(bbox, channel) {
+        let overlapped = [];
+        channel = channel || CollisionChannel.press;
+        let objs = this._colliableObjs[channel];
+        for (const obj of Object.values(objs)) {
+            if(AreTwoRectBboxOverlap(bbox, obj.getBoundingBox())) {
+                overlapped.push(obj);
+            }
+        }
+        return overlapped;
+    }
+
+
     //*********************************************************************************
     // LGraphCanvas: LGraph renderer CLASS
     //*********************************************************************************
