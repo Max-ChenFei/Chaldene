@@ -1046,6 +1046,8 @@
     LGraphNode.prototype.flags = {};
     LGraphNode.prototype.pos = new Pos(0, 0);
     LGraphNode.prototype.size = new Size(10, 10);
+    LGraphNode.prototype.colliable_componnets = {};
+
 
 
     // *********************** Node information **************************************
