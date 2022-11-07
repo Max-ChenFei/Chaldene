@@ -1,7 +1,5 @@
 var canvas = document.getElementById("mainCanvas");
 
-
-
 function TextBox(ctx){
     function max(i1,i2){
         if(i1<i2)
@@ -61,6 +59,22 @@ function TextBox(ctx){
     function Caret(){
         this.line=0;
         this.char=0;
+        /* return -1 if c is bigger than this, 0 if equal, 1 if lesser */
+        this.comp = function(c){
+            if(c.line == this.line){
+                if(c.char > this.char){
+                    return -1;
+                } else if(c.char<this.char){
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }else if(c.line>this.line){
+                return -1;
+            } else {
+                return 1;
+            }
+        }
     }
     let textBox = this;
 
@@ -68,7 +82,7 @@ function TextBox(ctx){
         this.slice = function(a,b){
             let l = new Line();
             l.chars = this.chars.slice(a,b);
-            if(b!==undefined)
+            if(b===0 || b)
                 l.cumWidths = this.cumWidths.slice(a,b+1);
             else
                 l.cumWidths = this.cumWidths.slice(a);
@@ -136,6 +150,61 @@ function TextBox(ctx){
         }
     }
 
+    let that = this;
+    this.selection = {
+        min: null,
+        max: null,
+        first: null,
+        start: function(){
+            if(this.first){
+                return;
+            }
+
+            this.min = new Caret();
+            this.max = new Caret();
+            this.first = new Caret();
+
+            this.min.char = that.caret.char;
+            this.min.char = that.caret.char;
+            this.max.line = that.caret.line;
+            this.max.line = that.caret.line;
+            this.first.char = that.caret.char;
+            this.first.line = that.caret.line;
+        },
+
+
+        end: function(){
+            this.min = null;
+            this.max = null;
+            this.first = null;
+        },
+
+        update: function(){
+            if(this.first.comp(that.caret)<0){
+                this.min.char = this.first.char;
+                this.min.line = this.first.line;
+                this.max.char = that.caret.char;
+                this.max.line = that.caret.line;
+            } else {
+                this.max.char = this.first.char;
+                this.max.line = this.first.line;
+                this.min.char = that.caret.char;
+                this.min.line = that.caret.line;
+            }
+
+            if(this.none()){
+                this.end();
+            }
+        },
+
+        none: function(){
+            return (!this.min || !this.max ||
+                    (this.min.line === this.max.line &&
+                        this.min.char === this.max.char)
+            );
+        }
+    }
+
     this.cache = new CharCache(ctx);
     this.caret = new Caret();
     this.caret.line = 2;
@@ -166,6 +235,10 @@ function TextBox(ctx){
     }
 
     this.putChar = function(char){
+        if(!this.selection.none()){
+            this.delete();
+            this.selection.end();
+        }
         let line = this.lines[this.caret.line];
         if(line.chars.length<=this.caret.char){
             line = line.append(new Line(char))
@@ -185,8 +258,24 @@ function TextBox(ctx){
         console.log(this.lines[this.caret.line].chars.length);
         console.log(this.lines[this.caret.line]);
     }
-    this.deleteChar = function(forward){
-        console.log(forward,"delete")
+    this.delete = function(forward){
+        if(!this.selection.none()){
+            this.caret.char = this.selection.min.char;
+            this.caret.line = this.selection.min.line;
+
+            let maxLine = this.lines[this.selection.max.line].slice(this.selection.max.char);
+            let minLine = this.lines[this.selection.min.line].slice(0,this.selection.min.char);
+
+
+            let new_line = minLine.append(maxLine);
+
+            this.lines = this.lines.slice(0,this.selection.min.line)
+                        .concat([new_line])
+                        .concat(this.lines.slice(this.selection.max.line+1));
+
+            this.selection.end();
+            return;
+        }
         let line = this.lines[this.caret.line];
         if(forward){
             if(line.chars.length<=this.caret.char){
@@ -227,49 +316,75 @@ function TextBox(ctx){
         this.caret.char = 0;
         this.caret.line +=1;
     }
-    this.moveCaret = function(direction){
-        switch(direction){
-            case 0: //right
-                if(this.caret.char+1>this.lines[this.caret.line].chars.length){
-                    if(this.lines[this.caret.line+1]){
-                        this.caret.char = 0;
-                        this.caret.line +=1;
-                    }
-                } else {
-                    this.caret.char+= 1;
-                }
-                break;
-            case 1: //left
-                if(this.caret.char-1 < 0){
-                    if(this.caret.line>0){
-                        this.caret.char = this.lines[this.caret.line-1].chars.length;
-                        this.caret.line -=1;
-                    }
-                } else {
-                    this.caret.char -=1;
-                }
-                break;
-            case 2: //down
-                if(this.caret.line<this.lines.length-1){
-                    this.caret.line+=1;
-                    //todo: go to closest character instead
-                    this.caret.char =
-                        min(this.caret.char,
-                        this.lines[this.caret.line].chars.length);
-
-                }
-                break;
-            case 3: //up
-                if(this.caret.line>0){
-                    this.caret.line-=1;
-                    //todo: go to closest character instead
-                    this.caret.char =
-                        min(this.caret.char,
-                        this.lines[this.caret.line].chars.length);
-
-                }
-                break;
+    this.moveCaret = function(direction, select = false){
+        if(select){
+            this.selection.start();
         }
+        if(select || this.selection.none()){
+            switch(direction){
+                case 0: //right
+                    if(this.caret.char+1>this.lines[this.caret.line].chars.length){
+                        if(this.lines[this.caret.line+1]){
+                            this.caret.char = 0;
+                            this.caret.line +=1;
+                        }
+                    } else {
+                        this.caret.char+= 1;
+                    }
+                    break;
+                case 1: //left
+                    if(this.caret.char-1 < 0){
+                        if(this.caret.line>0){
+                            this.caret.char = this.lines[this.caret.line-1].chars.length;
+                            this.caret.line -=1;
+                        }
+                    } else {
+                        this.caret.char -=1;
+                    }
+                    break;
+                case 2: //down
+                    if(this.caret.line<this.lines.length-1){
+                        this.caret.line+=1;
+                        //todo: go to closest character instead
+                        this.caret.char =
+                            min(this.caret.char,
+                            this.lines[this.caret.line].chars.length);
+
+                    }
+                    break;
+                case 3: //up
+                    if(this.caret.line>0){
+                        this.caret.line-=1;
+                        //todo: go to closest character instead
+                        this.caret.char =
+                            min(this.caret.char,
+                            this.lines[this.caret.line].chars.length);
+
+                    }
+                    break;
+            }
+        } else {
+            switch(direction){
+                case 0:
+                case 2:
+                    this.caret.line = this.selection.max.line;
+                    this.caret.char = this.selection.max.char;
+                    break;
+                case 1:
+                case 3:
+                    this.caret.line = this.selection.min.line;
+                    this.caret.char = this.selection.min.char;
+                    break;
+            }
+        }
+
+        if(select){
+            this.selection.update();
+        }
+        if(!select){
+            this.selection.end();
+        }
+
     }
 
     this.draw = function(ctx){
@@ -284,12 +399,36 @@ function TextBox(ctx){
         ctx.closePath();
         ctx.clip();
 
-        ctx.fillStyle = this.textColor;
         let font = this.default_font;
+        if(!this.selection.none()){
+            ctx.fillStyle = "rgb(150,150,250)";
+            for(let i = this.selection.min.line; i<=this.selection.max.line; i++){
+                let rectMinX = this.bbox.left;
+                let cw = this.lines[i].cumWidths;
+                let rectWidth = cw[cw.length-1]-rectMinX+this.bbox.left;
+                if(this.selection.min.line == i){
+                    rectMinX += cw[this.selection.min.char];
+                    rectWidth -= cw[this.selection.min.char];
+                }
+
+
+                if(this.selection.max.line == i){
+                    rectWidth = cw[this.selection.max.char]-rectMinX+this.bbox.left;
+                }
+
+                let rectMinY = this.bbox.top+ i*font.height+font.height*0.2;
+                let height = font.height;
+
+                ctx.fillRect(rectMinX,rectMinY,rectWidth,height);
+            }
+        }
+
+
+        ctx.fillStyle = this.textColor;
         ctx.font = font.getFontDeclaration();
         //console.log(ctx.font);
-
         for(let i = 0; i<this.lines.length; i++){
+
             //draw line all at once. Can be used if line has single style
             ctx.fillText(this.lines[i].getText(),this.bbox.left,this.bbox.top+font.height*(i+1));
         }
@@ -332,18 +471,18 @@ function App(){
         console.log(e);
 
         if(e.code === "ArrowRight"){
-            that.textbox.moveCaret(0);
+            that.textbox.moveCaret(0,e.shiftKey);
         }
 
         if(e.code === "ArrowLeft"){
-            that.textbox.moveCaret(1);
+            that.textbox.moveCaret(1,e.shiftKey);
         }
 
         if(e.code === "ArrowDown"){
-            that.textbox.moveCaret(2);
+            that.textbox.moveCaret(2,e.shiftKey);
         }
         if(e.code === "ArrowUp"){
-            that.textbox.moveCaret(3);
+            that.textbox.moveCaret(3,e.shiftKey);
         }
         //todo: check this
         if(e.key.length===1){
@@ -355,11 +494,11 @@ function App(){
         }
 
         if(e.key === "Delete"){
-            that.textbox.deleteChar(true);
+            that.textbox.delete(true);
         }
 
         if(e.key === "Backspace"){
-            that.textbox.deleteChar(false);
+            that.textbox.delete(false);
         }
         if(e.key === "Enter"){
             that.textbox.lineBreak();
@@ -378,8 +517,7 @@ function App(){
 
     this.loop = function(){
         that.ctx.save();
-        that.ctx.fillStyle = "rgb(255,0,255)"
-        //that.ctx.rect(0,0,  20,20);
+        that.ctx.fillStyle = "rgb(255,0,255)";
         that.ctx.fillRect(0,0,canvas.width,canvas.height);
         that.ctx.restore();
 
