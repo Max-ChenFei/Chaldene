@@ -885,7 +885,7 @@
         this.desc = desc;
     };
 
-    function Pos(x, y){
+    function Point(x, y){
         if (Array.isArray(x)){
             if(x.length === 0)
                 this.x = this.y = 0;
@@ -899,7 +899,7 @@
         }
     };
 
-    Pos.prototype.add = function(delta_x, delta_y){
+    Point.prototype.add = function(delta_x, delta_y){
         this.x += delta_x? delta_x: 0;
         this.y += delta_y? delta_y: 0;
     };
@@ -991,7 +991,7 @@
 
     /*
 	title: string
-	pos: Pos
+	pos: Point
 	size: Size
 
 	node operations callbacks:
@@ -1044,7 +1044,7 @@
     LGraphNode.prototype.inputs = {};
     LGraphNode.prototype.outputs = {};
     LGraphNode.prototype.flags = {};
-    LGraphNode.prototype.pos = new Pos(0, 0);
+    LGraphNode.prototype.pos = new Point(0, 0);
     LGraphNode.prototype.size = new Size(10, 10);
     LGraphNode.prototype.colliable_componnets = {};
 
