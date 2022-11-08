@@ -374,9 +374,6 @@
         };
     }
 
-    function Scene(){
-    };
-
     let makeSureNameUniqueIn = function (name, obj) {
         if (!name in obj) {
             throw "Name is already in use";
@@ -1364,7 +1361,43 @@
         return this.x_1 <= this.x_2 && this.y_1 <= this.y_2;
     };
 
+    /**
+     *
+     * @class Scene
+     * @constructor
+     * @param {HTMLCanvas} canvas the canvas where you want to render
+     * @param {LGraph} graph, the content to display
+     * @param {Rect} viewport in view coordinate, max size are(canvas.width, canvas.height)
+     */
+    function Scene(canvas, graph, viewport, drawing_context){
+        this.canvas = canvas;
+        this.graph = graph;
+        this.viewport = viewport;
+        this.view = new View(this);
+        this.drawing_context = drawing_context || '2d';
+        this.renderer = new Renderer(this);
+        this.setStartRenderWhenCanvasOnFocus();
+        this.setStopRenderWhenCanvasOnBlur();
+        this.visiable_items = {};
+    };
 
+    Scene.prototype.setStartRenderWhenCanvasOnFocus = function(){
+        this.canvas.addEventListener("focus", this.renderer.startRender());
+    };
+
+    Scene.prototype.setStopRenderWhenCanvasOnBlur = function(){
+        this.canvas.addEventListener("blur", this.renderer.stopRender());
+    };
+
+    Scene.prototype.setRenderDrawingContext = function(ctx){
+        this.drawing_context = ctx;
+        this.renderer.drawing_context = ctx;
+    };
+
+    Scene.prototype.sceneRect = function(){
+        if(!this.view) return new Rect(0, 0, this.canvas.width, this.canvas.height);
+        return this.view.sceneRect();
+    };
 
     //****************************************
 
