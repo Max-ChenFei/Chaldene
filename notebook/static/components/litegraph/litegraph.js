@@ -1326,6 +1326,44 @@
         delete this.nodes_inside[node_id];
     };
 
+    /**
+     * The Rect class defines a rectangle in the plane using number.
+     * @class Rect
+     * @param {Number} left
+     * @param {Number} top
+     * @param {Number} width
+     * @param {Number} height
+     * @constructor
+     */
+    function Rect(left, top, width, height){
+        this.x_1 = left;
+        this.y_1 = top;
+        this.x_2 = left + width - 1;
+        this.y_2 = top + height - 1;
+        Object.defineProperties(Rect.prototype, {
+            "x": {
+                get() { return this.x_1;},
+                set(x) { this.x_1 = x}
+            },
+            "y": {
+                get() { return this.y_1;},
+                set(y) { this.y_1 = y}
+            },
+            "width": {
+                get() { return this.x_2 - this.x_1 + 1;},
+                set(w) { this.x_2 = this.x_1 + w - 1}
+            },
+            "height": {
+                get() { return this.y_2 - this.y_1 + 1;},
+                set(h) { this.y_2 = this.y_1 + h - 1}
+            }
+        });
+    };
+
+    Rect.prototype.isValid = function() {
+        return this.x_1 <= this.x_2 && this.y_1 <= this.y_2;
+    };
+
     //****************************************
 
     //Scale and Offset
