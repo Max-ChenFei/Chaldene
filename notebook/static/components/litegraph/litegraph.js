@@ -5077,7 +5077,7 @@
             "#151515"))
         {
             scale *= 1.0/1.1;
-            this.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]); this.changeDeltaScale
+            this.ds.changeScale(scale, [viewport[0] + 0.5*viewport[2], viewport[1] + 0.5*viewport[3]]);
         }
         if(this.drawButton(
             zwidget.start.x + zwidget.button_width +zwidget.spacing,
