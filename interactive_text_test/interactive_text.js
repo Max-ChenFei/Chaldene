@@ -340,14 +340,26 @@ function TextBox(ctx){
             y:this.mouse.y - this.bbox.top,
         }
         this.caret.line = Math.floor(localCoords.y/this.default_font.height);
+        if(this.caret.line<0){
+            this.caret.line = 0;
+            this.caret.char = 0;
+            return;
+        }
+        if(this.caret.line>=this.lines.length){
+            this.caret.line = this.lines.length-1;
+            this.caret.char = this.lines[this.caret.line].chars.length;
+            return;
+        }
+
         //todo: binary search
         let line = this.lines[this.caret.line]
         this.caret.char = 0;
         for(let i = 1; i<line.cumWidths.length; i++){
-            this.caret.char = i;
-            if(line.cumWidths[i]>localCoords.x){
+            
+            if((line.cumWidths[i] + line.cumWidths[i-1])*0.5 >localCoords.x){
                 break;
             }
+            this.caret.char = i;
         }        
     }
 
