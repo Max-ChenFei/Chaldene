@@ -78,6 +78,19 @@ function TextBox(ctx){
     }
     let textBox = this;
 
+    this.mousedown = function(){
+        this.useMouseCursor = true;
+        if(this.selection.first){
+            this.selection.end();
+        }
+        this.computeMouseCursor();
+        this.selection.start();
+    }
+
+    this.mouseup = function(){
+        this.useMouseCursor = false;
+    }
+
     function Line(str){
         this.slice = function(a,b){
             let l = new Line();
@@ -180,6 +193,9 @@ function TextBox(ctx){
         },
 
         update: function(){
+            if(!this.first){
+                return;
+            }
             if(this.first.comp(that.caret)<0){
                 this.min.char = this.first.char;
                 this.min.line = this.first.line;
@@ -210,7 +226,8 @@ function TextBox(ctx){
     this.caret.line = 2;
     this.caret.char = 9;
     this.insert = false;
-    this.font_family = "Times New Roman"
+    this.font_family = "Times New Roman";
+    this.mouse = {x:0,y:0};
 
     this.backgroundColor = "rgb(30,170,20)";
     this.textColor = "rgb(230,230,230)";
@@ -316,7 +333,29 @@ function TextBox(ctx){
         this.caret.char = 0;
         this.caret.line +=1;
     }
+
+    this.computeMouseCursor = function(){
+        let localCoords = {
+            x:this.mouse.x - this.bbox.left,
+            y:this.mouse.y - this.bbox.top,
+        }
+        this.caret.line = Math.floor(localCoords.y/this.default_font.height);
+        //todo: binary search
+        let line = this.lines[this.caret.line]
+        this.caret.char = 0;
+        for(let i = 1; i<line.cumWidths.length; i++){
+            this.caret.char = i;
+            if(line.cumWidths[i]>localCoords.x){
+                break;
+            }
+        }        
+    }
+
     this.moveCaret = function(direction, select = false){
+        if(this.useMouseCursor){
+            //this.computeMouseCursor();
+            return;
+        }
         if(select){
             this.selection.start();
         }
@@ -388,6 +427,10 @@ function TextBox(ctx){
     }
 
     this.draw = function(ctx){
+        if(this.useMouseCursor){
+            this.computeMouseCursor();
+        }
+        this.selection.update();
         ctx.save();
         ctx.fillStyle = this.backgroundColor;
         ctx.fillRect(this.bbox.left,this.bbox.top,this.bbox.width,this.bbox.height);
@@ -467,6 +510,18 @@ function TextBox(ctx){
 
 function App(){
     var that = this;
+    function mousemove(e){
+        that.textbox.mouse.x = e.clientX - canvas.getBoundingClientRect().x;
+        that.textbox.mouse.y = e.clientY - canvas.getBoundingClientRect().y;
+    }
+
+    function mousedown(e){
+        that.textbox.mousedown();
+    }
+
+    function mouseup(e){
+        that.textbox.mouseup();
+    }
     function onKeyDown(e){
         console.log(e);
 
@@ -512,6 +567,9 @@ function App(){
         this.ctx = canvas.getContext("2d");
         this.textbox = new TextBox(this.ctx);
         document.addEventListener("keydown",onKeyDown);
+        document.addEventListener("mousedown",mousedown);
+        document.addEventListener("mouseup",mouseup);
+        document.addEventListener("mousemove",mousemove);
     }
 
 
