@@ -1,6 +1,11 @@
 var canvas = document.getElementById("mainCanvas");
 
+
+
 function TextBox(ctx){
+
+    
+
     function max(i1,i2){
         if(i1<i2)
             return i2;
@@ -300,7 +305,6 @@ function TextBox(ctx){
     this.caret.line = 2;
     this.caret.char = 9;
     this.insert = false;
-    this.font_family = "Times New Roman";
     this.mouse = {x:0,y:0};
 
     this.backgroundColor = "rgb(30,170,20)";
@@ -519,13 +523,21 @@ function TextBox(ctx){
         this.editing = false;
     }
 
-    this.draw = function(ctx){
-        if(this.useMouseCursor){
-            
+    this.update = function(delta){
+        if(!this.time){
+            this.time = 0;
+        }
+        this.time+=delta;
+        
+        if(this.useMouseCursor){            
             this.selection.start();
             this.computeMouseCursor();
             this.selection.update();
         }
+
+    }
+
+    this.draw = function(ctx){
         ctx.save();
         ctx.fillStyle = this.backgroundColor;
         ctx.fillRect(this.bbox.left,this.bbox.top,this.bbox.width,this.bbox.height);
@@ -572,11 +584,16 @@ function TextBox(ctx){
         if(this.editing){
 
         let current_line = this.lines[this.caret.line];
+
+        let factor = Math.abs(Math.cos(this.time*2))
+        //factor = factor*factor;
+        ctx.globalAlpha = factor;
+
         if(!this.insert){
             ctx.fillRect(
                 this.bbox.left+current_line.getCharBegin(this.caret.char),
                 this.bbox.top+ this.caret.line*font.height+font.height*0.2,
-                1,
+                2,
                 font.height);
         } else {
             let current_width = font.height;
@@ -596,6 +613,21 @@ function TextBox(ctx){
 
     }
 }
+
+TextBox.TextBoxSettings = function(){
+    this.ctx = null;
+    this.canvas = null;
+    this.font_family = "Serif";
+    this.height = 12;
+    this.formatting = "LeftAlign";
+    this.backgroundColor = "rgb(255,0,255)";
+    this.textColor = "rgb(255,255,255)";
+    this.selectColor = "rgb(25,25,255)";
+    this.editable = true;
+    this.autoscrollInEdit = {x: true, y:true};
+    this.rollingText = "horizontal";
+}
+
 
 function App(){
     var that = this;
@@ -648,6 +680,9 @@ function App(){
         that.ctx.fillRect(0,0,canvas.width,canvas.height);
         that.ctx.restore();
 
+        let delta = 1./60.;
+
+        that.textbox.update(delta);
         that.textbox.draw(that.ctx);
         window.requestAnimationFrame(that.loop);
     }
