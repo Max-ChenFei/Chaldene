@@ -398,7 +398,6 @@ function TextBox(ctx){
 
     this.moveCaret = function(direction, select = false){
         if(this.useMouseCursor){
-            //this.computeMouseCursor();
             return;
         }
         if(select){
@@ -473,6 +472,8 @@ function TextBox(ctx){
 
     this.draw = function(ctx){
         if(this.useMouseCursor){
+            
+            this.selection.start();
             this.computeMouseCursor();
             this.selection.update();
         }
