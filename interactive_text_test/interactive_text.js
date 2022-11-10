@@ -2,9 +2,9 @@ var canvas = document.getElementById("mainCanvas");
 
 
 
-function TextBox(ctx){
+function TextBox(tbs){
 
-    
+    let ctx = tbs.ctx;
 
     function max(i1,i2){
         if(i1<i2)
@@ -16,10 +16,6 @@ function TextBox(ctx){
         if(i1>=i2)
             return i2;
         return i1;
-    }
-
-    function InnerText(str){
-        this.lines = [];
     }
 
     function BBox(left,top,width,height){
@@ -240,6 +236,10 @@ function TextBox(ctx){
         }
     }
 
+    function rgb2str(rgb){
+        return "rgb("+rgb[0]+", "+rgb[1]+", "+rgb[2]+")";
+    }
+
     let that = this;
     this.selection = {
         min: null,
@@ -298,7 +298,6 @@ function TextBox(ctx){
         }
     }
 
-    this.editable = true;
 
     this.cache = new CharCache(ctx);
     this.caret = new Caret();
@@ -307,19 +306,24 @@ function TextBox(ctx){
     this.insert = false;
     this.mouse = {x:0,y:0};
 
-    this.backgroundColor = "rgb(30,170,20)";
-    this.textColor = "rgb(230,230,230)";
-
-    this.bbox = new BBox(40,50,370,180);
+    
+    this.editable = tbs.editable;
+    this.background_color = rgb2str(tbs.background_color);
+    this.text_color =  rgb2str(tbs.text_color);
+    this.selection_color = rgb2str(tbs.selection_color);
+    
+    this.bbox = new BBox(tbs.left,tbs.top,tbs.width,tbs.height);
     this.offset = {x: 0, y:0};
     this.default_font = new Font();
-    this.default_alignment = "Centered";
+    this.default_font.set_family(tbs.default_font_family);
+    this.default_font.set_height(tbs.default_line_height);
+    this.default_alignment = tbs.default_alignment;
 
     
-    this.rollingText = true;
-    this.editScroll = true;
+    this.rolling_text = tbs.rolling_text;
+    this.edit_scroll = tbs.edit_scroll;
 
-    let rawText = "Hello World!\nThis is just sample text!\nI want to see a very long line here so it goes over the bounds!\nAnd then\nsome\nshort\nones!";
+    let rawText = tbs.default_text;
 
     this.lineUpdate =function(i){
         this.lines[i].update();
@@ -547,7 +551,7 @@ function TextBox(ctx){
             this.minWidth = min(x0,this.minWidth);
         }
 
-        if(!this.editing && this.rollingText){
+        if(!this.editing && this.rolling_text){
             if(this.maxWidth-this.minWidth>this.bbox.width){
                 let help = this.time*0.3;
                 let even = (Math.floor(help/Math.PI)%2);
@@ -562,7 +566,7 @@ function TextBox(ctx){
             }
         }
         
-        if(this.editing && this.editScroll){
+        if(this.editing && this.edit_scroll){
             let x = this.lines[this.caret.line].getCharBegin(this.caret.char);
             if(x<0-this.offset.x){
                 this.offset.x = -x;
@@ -593,7 +597,7 @@ function TextBox(ctx){
     this.draw = function(ctx){
         ctx.save();
         ctx.translate(this.bbox.left,this.bbox.top);
-        ctx.fillStyle = this.backgroundColor;
+        ctx.fillStyle = this.background_color;
         ctx.fillRect(0,0,this.bbox.width,this.bbox.height);
         //ctx.fill()
 
@@ -605,7 +609,7 @@ function TextBox(ctx){
 
         let font = this.default_font;
         if(!this.selection.none() && this.editing){
-            ctx.fillStyle = "rgb(150,150,250)";
+            ctx.fillStyle = this.selection_color;
             for(let i = this.selection.min.line; i<=this.selection.max.line; i++){
                 let rectMinX = this.lines[i].getCharBegin(0);
                 let cw = this.lines[i].cumWidths;
@@ -628,7 +632,7 @@ function TextBox(ctx){
         }
 
 
-        ctx.fillStyle = this.textColor;
+        ctx.fillStyle = this.text_color;
         ctx.font = font.getFontDeclaration();
         //console.log(ctx.font);
         for(let i = 0; i<this.lines.length; i++){
@@ -669,17 +673,30 @@ function TextBox(ctx){
 }
 
 TextBox.TextBoxSettings = function(){
-    this.ctx = null;
     this.canvas = null;
-    this.font_family = "Serif";
-    this.height = 12;
-    this.formatting = "LeftAlign";
-    this.backgroundColor = "rgb(255,0,255)";
-    this.textColor = "rgb(255,255,255)";
-    this.selectColor = "rgb(25,25,255)";
-    this.editable = true;
-    this.autoscrollInEdit = {x: true, y:true};
-    this.rollingText = "horizontal";
+    this.ctx = null;
+    this.left = 0;
+    this.top = 0;
+    this.width = 200;
+    this.height = 50;
+    this.default_font_family = "serif";
+    this.background_color = [0,0,0];
+    this.text_color = [255,255,255];
+    this.selection_color = [0,0,250];
+    this.default_line_height = 10;
+    this.default_alignment = "LeftAligned";
+    this.default_text = "";
+    this.rolling_text=true;
+    this.edit_scroll=true;
+    this.editable=false;
+}
+
+TextBox.shallow_clone = function(o){
+    let a={};
+    for(let i in o){
+        a[i] = o[i];
+    }
+    return a;
 }
 
 
@@ -720,7 +737,27 @@ function App(){
 //example usage
     this.init=function(){
         this.ctx = canvas.getContext("2d");
-        this.textbox = new TextBox(this.ctx);
+
+        let tbs = new TextBox.TextBoxSettings();
+        tbs.canvas = canvas;
+        tbs.ctx = this.ctx;
+        tbs.left = 20;
+        tbs.top = 30;
+        tbs.width = 400;
+        tbs.height = 300;
+        tbs.default_font_family = "arial";
+        tbs.background_color = [50,50,100];
+        tbs.text_color = [200,200,200];
+        tbs.selection_color = [150,150,200];
+        tbs.default_line_height = 30;
+        tbs.default_alignment = "RightAligned";
+        tbs.default_text = "Hello World!\nLorem ipsum lorem ipsum lorem ipsum\nShort sentence.\nSingle.\nWord.\nLorem;\nipsum;\nlorem\nipsum\n";
+        tbs.rolling_text=true;
+        tbs.edit_scroll=true;
+        tbs.editable=true;
+
+
+        this.textbox = new TextBox(tbs);
         document.addEventListener("keydown",onKeyDown);
         document.addEventListener("mousedown",mousedown);
         document.addEventListener("mouseup",mouseup);
