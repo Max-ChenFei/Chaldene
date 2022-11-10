@@ -195,11 +195,11 @@ function TextBox(ctx){
 
         this.draw = function(ctx,i){
             if(this.formatting === "LeftAligned"){
-                ctx.fillText(this.getText(),textbox.bbox.left,textbox.bbox.top+this.font.height*(i+1));
+                ctx.fillText(this.getText(),textbox.bbox.left+textbox.offset.x,textbox.bbox.top+this.font.height*(i+1)+textbox.offset.y);
             } else if(this.formatting === "RightAligned") {
-                ctx.fillText(this.getText(),textbox.bbox.left+textbox.bbox.width-this.cumWidths[this.cumWidths.length-1],textbox.bbox.top+this.font.height*(i+1));
+                ctx.fillText(this.getText(),textbox.bbox.left+textbox.offset.x+textbox.bbox.width-this.cumWidths[this.cumWidths.length-1],textbox.bbox.top+this.font.height*(i+1)+textbox.offset.y);
             } else if(this.formatting === "Centered"){
-                ctx.fillText(this.getText(),((2*textbox.bbox.left+textbox.bbox.width)-this.cumWidths[this.cumWidths.length-1])*0.5,textbox.bbox.top+this.font.height*(i+1));
+                ctx.fillText(this.getText(),((2*(textbox.bbox.left+textbox.offset.x)+textbox.bbox.width)-this.cumWidths[this.cumWidths.length-1])*0.5,textbox.bbox.top+this.font.height*(i+1)+textbox.offset.y);
             }
         }
 
@@ -311,7 +311,13 @@ function TextBox(ctx){
     this.textColor = "rgb(230,230,230)";
 
     this.bbox = new BBox(40,50,370,180);
+    this.offset = {x: 0, y:0};
     this.default_font = new Font();
+    this.default_alignment = "Centered";
+
+    
+    this.rollingText = true;
+    this.editScroll = true;
 
     let rawText = "Hello World!\nThis is just sample text!\nI want to see a very long line here so it goes over the bounds!\nAnd then\nsome\nshort\nones!";
 
@@ -319,10 +325,11 @@ function TextBox(ctx){
         this.lines[i].update();
     }
 
+
     let lines = rawText.split("\n");
     this.lines = [];
     for(let i = 0; i<lines.length; i++){
-        this.lines.push(new Line(lines[i],this.default_font,"RightAligned"));
+        this.lines.push(new Line(lines[i],this.default_font,this.default_alignment));
     }
 
     this.toggleInsert = function(){
@@ -412,8 +419,8 @@ function TextBox(ctx){
 
     this.computeMouseCursor = function(){
         let localCoords = {
-            x:this.mouse.x - this.bbox.left,
-            y:this.mouse.y - this.bbox.top,
+            x:this.mouse.x - this.bbox.left-this.offset.x,
+            y:this.mouse.y - this.bbox.top-this.offset.y,
         }
         this.caret.line = Math.floor(localCoords.y/this.default_font.height);
         if(this.caret.line<0){
@@ -528,7 +535,53 @@ function TextBox(ctx){
             this.time = 0;
         }
         this.time+=delta;
+
+
+        this.maxWidth = this.bbox.width;
+        this.minWidth = 0;
+        for(let i = 0; i<this.lines.length; i++){
+
+            let x1 = this.lines[i].getCharBegin(this.lines[i].chars.length);
+            let x0 = this.lines[i].getCharBegin(0);
+            this.maxWidth = max(x1,this.maxWidth);
+            this.minWidth = min(x0,this.minWidth);
+        }
+
+        if(!this.editing && this.rollingText){
+            if(this.maxWidth-this.minWidth>this.bbox.width){
+                let help = this.time*0.3;
+                let even = (Math.floor(help/Math.PI)%2);
+                if(even==0){
+                    even = -1;
+                }
+                let scroll = -(even*Math.cos(help)*0.5-0.5);
+
+                this.offset.x = -scroll*this.minWidth + (-1+scroll)*(this.maxWidth-this.bbox.width);
+            } else {
+                this.offset.x = 0;
+            }
+        }
         
+        if(this.editing && this.editScroll){
+            let x = this.lines[this.caret.line].getCharBegin(this.caret.char);
+            if(x<0-this.offset.x){
+                this.offset.x = -x;
+            }
+            if(x>this.bbox.width-this.offset.x){
+                this.offset.x = this.bbox.width-x;
+            }
+
+            let y0 = this.caret.line*this.default_font.height;
+            let y1 = y0+this.default_font.height;
+
+            if(y0<0-this.offset.y){
+                this.offset.y = -y0;
+            }
+            if(y1>this.bbox.height-this.offset.y){
+                this.offset.y = this.bbox.height-y1;
+            }
+        }
+
         if(this.useMouseCursor){            
             this.selection.start();
             this.computeMouseCursor();
@@ -569,7 +622,7 @@ function TextBox(ctx){
                 let rectMinY = this.bbox.top+ i*font.height+font.height*0.2;
                 let height = this.lines[i].font.height;
 
-                ctx.fillRect(rectMinX+this.bbox.left,rectMinY,rectWidth,height);
+                ctx.fillRect(rectMinX+this.bbox.left+this.offset.x,rectMinY+this.offset.y,rectWidth,height);
             }
         }
 
@@ -591,8 +644,8 @@ function TextBox(ctx){
 
         if(!this.insert){
             ctx.fillRect(
-                this.bbox.left+current_line.getCharBegin(this.caret.char),
-                this.bbox.top+ this.caret.line*font.height+font.height*0.2,
+                this.bbox.left+current_line.getCharBegin(this.caret.char) + this.offset.x,
+                this.bbox.top+ this.offset.y+ this.caret.line*font.height+font.height*0.2,
                 2,
                 font.height);
         } else {
@@ -602,8 +655,8 @@ function TextBox(ctx){
                 current_width = current_line.getCharBegin(this.caret.char+1)-current_line.getCharBegin(this.caret.char);
             }
             ctx.fillRect(
-                this.bbox.left+current_line.getCharBegin(this.caret.char),
-                this.bbox.top+ this.caret.line*font.height+font.height,
+                this.bbox.left+current_line.getCharBegin(this.caret.char) + this.offset.x,
+                this.bbox.top+ this.offset.y+this.caret.line*font.height+font.height,
                 current_width,
                 2);
         }
