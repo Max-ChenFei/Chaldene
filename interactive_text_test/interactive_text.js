@@ -195,11 +195,11 @@ function TextBox(ctx){
 
         this.draw = function(ctx,i){
             if(this.formatting === "LeftAligned"){
-                ctx.fillText(this.getText(),textbox.bbox.left+textbox.offset.x,textbox.bbox.top+this.font.height*(i+1)+textbox.offset.y);
+                ctx.fillText(this.getText(),textbox.offset.x,this.font.height*(i+1)+textbox.offset.y);
             } else if(this.formatting === "RightAligned") {
-                ctx.fillText(this.getText(),textbox.bbox.left+textbox.offset.x+textbox.bbox.width-this.cumWidths[this.cumWidths.length-1],textbox.bbox.top+this.font.height*(i+1)+textbox.offset.y);
+                ctx.fillText(this.getText(),textbox.offset.x+textbox.bbox.width-this.cumWidths[this.cumWidths.length-1],this.font.height*(i+1)+textbox.offset.y);
             } else if(this.formatting === "Centered"){
-                ctx.fillText(this.getText(),((2*(textbox.bbox.left+textbox.offset.x)+textbox.bbox.width)-this.cumWidths[this.cumWidths.length-1])*0.5,textbox.bbox.top+this.font.height*(i+1)+textbox.offset.y);
+                ctx.fillText(this.getText(),((2*(textbox.offset.x)+textbox.bbox.width)-this.cumWidths[this.cumWidths.length-1])*0.5,this.font.height*(i+1)+textbox.offset.y);
             }
         }
 
@@ -419,8 +419,8 @@ function TextBox(ctx){
 
     this.computeMouseCursor = function(){
         let localCoords = {
-            x:this.mouse.x - this.bbox.left-this.offset.x,
-            y:this.mouse.y - this.bbox.top-this.offset.y,
+            x:this.mouse.x - this.offset.x,
+            y:this.mouse.y - this.offset.y,
         }
         this.caret.line = Math.floor(localCoords.y/this.default_font.height);
         if(this.caret.line<0){
@@ -592,13 +592,14 @@ function TextBox(ctx){
 
     this.draw = function(ctx){
         ctx.save();
+        ctx.translate(this.bbox.left,this.bbox.top);
         ctx.fillStyle = this.backgroundColor;
-        ctx.fillRect(this.bbox.left,this.bbox.top,this.bbox.width,this.bbox.height);
+        ctx.fillRect(0,0,this.bbox.width,this.bbox.height);
         //ctx.fill()
 
 
         ctx.beginPath();
-        ctx.rect(this.bbox.left,this.bbox.top,this.bbox.width,this.bbox.height);
+        ctx.rect(0,0,this.bbox.width,this.bbox.height);
         ctx.closePath();
         ctx.clip();
 
@@ -619,10 +620,10 @@ function TextBox(ctx){
                     rectWidth = cw[this.selection.max.char]-rectMinX+this.lines[i].getCharBegin(0);
                 }
 
-                let rectMinY = this.bbox.top+ i*font.height+font.height*0.2;
+                let rectMinY = i*font.height+font.height*0.2;
                 let height = this.lines[i].font.height;
 
-                ctx.fillRect(rectMinX+this.bbox.left+this.offset.x,rectMinY+this.offset.y,rectWidth,height);
+                ctx.fillRect(rectMinX+this.offset.x,rectMinY+this.offset.y,rectWidth,height);
             }
         }
 
@@ -644,8 +645,8 @@ function TextBox(ctx){
 
         if(!this.insert){
             ctx.fillRect(
-                this.bbox.left+current_line.getCharBegin(this.caret.char) + this.offset.x,
-                this.bbox.top+ this.offset.y+ this.caret.line*font.height+font.height*0.2,
+                current_line.getCharBegin(this.caret.char) + this.offset.x,
+                this.offset.y+ this.caret.line*font.height+font.height*0.2,
                 2,
                 font.height);
         } else {
@@ -655,8 +656,8 @@ function TextBox(ctx){
                 current_width = current_line.getCharBegin(this.caret.char+1)-current_line.getCharBegin(this.caret.char);
             }
             ctx.fillRect(
-                this.bbox.left+current_line.getCharBegin(this.caret.char) + this.offset.x,
-                this.bbox.top+ this.offset.y+this.caret.line*font.height+font.height,
+                current_line.getCharBegin(this.caret.char) + this.offset.x,
+                this.offset.y+this.caret.line*font.height+font.height,
                 current_width,
                 2);
         }
@@ -685,8 +686,8 @@ TextBox.TextBoxSettings = function(){
 function App(){
     var that = this;
     function mousemove(e){
-        that.textbox.mouse.x = e.clientX - canvas.getBoundingClientRect().x;
-        that.textbox.mouse.y = e.clientY - canvas.getBoundingClientRect().y;
+        that.textbox.mouse.x = e.clientX - that.textbox.bbox.left - canvas.getBoundingClientRect().x;
+        that.textbox.mouse.y = e.clientY - that.textbox.bbox.top  - canvas.getBoundingClientRect().y;
     }
 
     function mousedown(e){
