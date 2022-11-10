@@ -86,9 +86,46 @@ function TextBox(ctx){
         this.computeMouseCursor();
         this.selection.start();
     }
-
     this.mouseup = function(){
         this.useMouseCursor = false;
+    }
+
+
+    this.onkeydown = function(e){
+        
+        if(e.code === "ArrowRight"){
+            this.moveCaret(0,e.shiftKey);
+        }
+
+        if(e.code === "ArrowLeft"){
+            this.moveCaret(1,e.shiftKey);
+        }
+
+        if(e.code === "ArrowDown"){
+            this.moveCaret(2,e.shiftKey);
+        }
+        if(e.code === "ArrowUp"){
+            this.moveCaret(3,e.shiftKey);
+        }
+        //todo: check this
+        if(e.key.length===1){
+            this.putChar(e.key);
+        }
+
+        if(e.key === "Insert"){
+            this.toggleInsert();
+        }
+
+        if(e.key === "Delete"){
+            this.delete(true);
+        }
+
+        if(e.key === "Backspace"){
+            this.delete(false);
+        }
+        if(e.key === "Enter"){
+            this.lineBreak();
+        }
     }
 
     function Line(str,font,formatting="LeftAligned",textwrap="false"){
@@ -255,6 +292,8 @@ function TextBox(ctx){
             );
         }
     }
+
+    this.editable = true;
 
     this.cache = new CharCache(ctx);
     this.caret = new Caret();
@@ -470,6 +509,16 @@ function TextBox(ctx){
 
     }
 
+    this.edit = function(){
+        if(!this.editable)
+            return
+        this.editing = true;
+    }
+
+    this.noEdit = function(){
+        this.editing = false;
+    }
+
     this.draw = function(ctx){
         if(this.useMouseCursor){
             
@@ -489,7 +538,7 @@ function TextBox(ctx){
         ctx.clip();
 
         let font = this.default_font;
-        if(!this.selection.none()){
+        if(!this.selection.none() && this.editing){
             ctx.fillStyle = "rgb(150,150,250)";
             for(let i = this.selection.min.line; i<=this.selection.max.line; i++){
                 let rectMinX = this.lines[i].getCharBegin(0);
@@ -519,8 +568,9 @@ function TextBox(ctx){
         for(let i = 0; i<this.lines.length; i++){
             this.lines[i].draw(ctx,i);
         }
-        //console.log(this.lines);
-        //console.log(ctx.measureText("i"), ctx.measureText("H"), ctx.measureText("Hi"),ctx.measureText(","));
+        
+        if(this.editing){
+
         let current_line = this.lines[this.caret.line];
         if(!this.insert){
             ctx.fillRect(
@@ -540,7 +590,7 @@ function TextBox(ctx){
                 current_width,
                 2);
         }
-
+        }
         //ctx.fillRect(this.bbox.left,this.bbox.top,10,10);
         ctx.restore();
 
@@ -555,50 +605,30 @@ function App(){
     }
 
     function mousedown(e){
-        that.textbox.mousedown();
+        let cb = canvas.getBoundingClientRect();
+        if(e.clientX  > cb.x + that.textbox.bbox.left && 
+            e.clientX < cb.x + that.textbox.bbox.left+that.textbox.bbox.width &&
+            e.clientY > cb.y + that.textbox.bbox.top && 
+            e.clientY < cb.y + that.textbox.bbox.top+that.textbox.bbox.height
+        )
+        {
+            that.textbox.edit();
+            that.textbox.mousedown();
+        } else {
+            that.textbox.noEdit();
+        }
     }
 
     function mouseup(e){
-        that.textbox.mouseup();
+        if(that.textbox.editing)
+            that.textbox.mouseup();
     }
     function onKeyDown(e){
-        console.log(e);
+        
+        if(that.textbox.editing)
+            that.textbox.onkeydown(e);
 
-        if(e.code === "ArrowRight"){
-            that.textbox.moveCaret(0,e.shiftKey);
-        }
 
-        if(e.code === "ArrowLeft"){
-            that.textbox.moveCaret(1,e.shiftKey);
-        }
-
-        if(e.code === "ArrowDown"){
-            that.textbox.moveCaret(2,e.shiftKey);
-        }
-        if(e.code === "ArrowUp"){
-            that.textbox.moveCaret(3,e.shiftKey);
-        }
-        //todo: check this
-        if(e.key.length===1){
-            that.textbox.putChar(e.key);
-        }
-
-        if(e.key === "Insert"){
-            that.textbox.toggleInsert();
-        }
-
-        if(e.key === "Delete"){
-            that.textbox.delete(true);
-        }
-
-        if(e.key === "Backspace"){
-            that.textbox.delete(false);
-        }
-        if(e.key === "Enter"){
-            that.textbox.lineBreak();
-        }
-
-        console.log(that.textbox.lines[that.textbox.caret.line]);
     }
 
 //example usage
