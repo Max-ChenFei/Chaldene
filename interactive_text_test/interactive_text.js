@@ -323,6 +323,8 @@ function TextBox(tbs){
     this.rolling_text = tbs.rolling_text;
     this.edit_scroll = tbs.edit_scroll;
 
+    this.max_lines = tbs.max_lines;
+
     let rawText = tbs.default_text;
 
     this.lineUpdate =function(i){
@@ -414,6 +416,9 @@ function TextBox(tbs){
     }
 
     this.lineBreak = function(){
+        if(this.max_lines>0 && this.lines.length>=this.max_lines)
+            return;
+
         let new_line = this.lines[this.caret.line].slice(this.caret.char);
         this.lines[this.caret.line] = this.lines[this.caret.line].slice(0,this.caret.char);
         this.lines = this.lines.slice(0,this.caret.line+1).concat([new_line]).concat(this.lines.slice(this.caret.line+1));
@@ -689,6 +694,7 @@ TextBox.TextBoxSettings = function(){
     this.rolling_text=true;
     this.edit_scroll=true;
     this.editable=false;
+    this.max_lines = 0;  /* Maximum number of lines. 0 means infinite. */
 }
 
 TextBox.shallow_clone = function(o){
@@ -755,6 +761,7 @@ function App(){
         tbs.rolling_text=true;
         tbs.edit_scroll=true;
         tbs.editable=true;
+        tbs.max_lines=0;
 
 
         this.textbox = new TextBox(tbs);
