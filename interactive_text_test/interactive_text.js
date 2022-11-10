@@ -76,7 +76,7 @@ function TextBox(ctx){
             }
         }
     }
-    let textBox = this;
+    let textbox = this;
 
     this.mousedown = function(){
         this.useMouseCursor = true;
@@ -91,9 +91,14 @@ function TextBox(ctx){
         this.useMouseCursor = false;
     }
 
-    function Line(str){
+    function Line(str,font,formatting="LeftAligned",textwrap="false"){
+        this.formatting = formatting;
+        this.font = font;
+
         this.slice = function(a,b){
             let l = new Line();
+            l.formatting = this.formatting;
+            l.font = this.font;
             l.chars = this.chars.slice(a,b);
             if(b===0 || b)
                 l.cumWidths = this.cumWidths.slice(a,b+1);
@@ -105,10 +110,14 @@ function TextBox(ctx){
             }
 
             l.rawText = this.rawText.slice(a,b);
+            
             return l;
         }
         this.append = function(line){
             let a = new Line();
+            a.formatting = this.formatting;
+            a.font = this.font;
+
             a.chars = this.chars.concat(line.chars);
             a.cumWidths = this.cumWidths.slice(0,-1).concat(line.cumWidths);
 
@@ -116,6 +125,8 @@ function TextBox(ctx){
                 a.cumWidths[i] += this.cumWidths[this.chars.length];
             }
             a.rawText = this.rawText.concat(line.rawText);
+
+
             return a;
         }
 
@@ -129,7 +140,7 @@ function TextBox(ctx){
             //todo: allow for different fonts and styles in a single line
             for(let i = 0; i<str.length; i++){
                 //todo: separate chars from graphemes
-                let c = textBox.cache.getChar(str[i],textBox.default_font);
+                let c = textbox.cache.getChar(str[i],this.font);
                 this.chars.push(c);
                 this.cumWidths.push(c.metric.width+this.cumWidths[this.cumWidths.length-1]);
             }
@@ -138,6 +149,30 @@ function TextBox(ctx){
 
         this.getText = function(){
             return this.rawText;
+        }
+
+        this.draw = function(ctx,i){
+            if(this.formatting === "LeftAligned"){
+                ctx.fillText(this.getText(),textbox.bbox.left,textbox.bbox.top+this.font.height*(i+1));
+            } else if(this.formatting === "RightAligned") {
+                ctx.fillText(this.getText(),textbox.bbox.left+textbox.bbox.width-this.cumWidths[this.cumWidths.length-1],textbox.bbox.top+this.font.height*(i+1));
+            } else if(this.formatting === "Centered"){
+                ctx.fillText(this.getText(),((2*textbox.bbox.left+textbox.bbox.width)-this.cumWidths[this.cumWidths.length-1])*0.5,textbox.bbox.top+this.font.height*(i+1));
+            }
+        }
+
+        this.getCharBegin = function(i){
+            if(this.formatting === "LeftAligned"){
+                return this.cumWidths[i];
+            } else if(this.formatting === "RightAligned") {
+                return this.cumWidths[i] +textbox.bbox.width-this.cumWidths[this.cumWidths.length-1];
+            } else if(this.formatting === "Centered"){
+                return this.cumWidths[i]+ ((textbox.bbox.width)-this.cumWidths[this.cumWidths.length-1])*0.5;
+            }
+        }
+
+        this.getCharCenter = function(i){
+            return (this.getCharBegin(i+1)+this.getCharBegin(i)) * 0.5;
         }
 
     }
@@ -173,14 +208,14 @@ function TextBox(ctx){
                 return;
             }
 
-            this.min = new Caret();
-            this.max = new Caret();
+            this.min   = new Caret();
+            this.max   = new Caret();
             this.first = new Caret();
 
-            this.min.char = that.caret.char;
-            this.min.char = that.caret.char;
-            this.max.line = that.caret.line;
-            this.max.line = that.caret.line;
+            this.min.char   = that.caret.char;
+            this.min.line   = that.caret.line;
+            this.max.char   = that.caret.char;
+            this.max.line   = that.caret.line;
             this.first.char = that.caret.char;
             this.first.line = that.caret.line;
         },
@@ -235,7 +270,7 @@ function TextBox(ctx){
     this.bbox = new BBox(40,50,370,180);
     this.default_font = new Font();
 
-    let rawText = "Hello World!\nThis is just sample text!\nI want to se a very long line here so it goes over the bounds!\nAnd then\nsome\nshort\nones!";
+    let rawText = "Hello World!\nThis is just sample text!\nI want to see a very long line here so it goes over the bounds!\nAnd then\nsome\nshort\nones!";
 
     this.lineUpdate =function(i){
         this.lines[i].update();
@@ -244,7 +279,7 @@ function TextBox(ctx){
     let lines = rawText.split("\n");
     this.lines = [];
     for(let i = 0; i<lines.length; i++){
-        this.lines.push(new Line(lines[i]));
+        this.lines.push(new Line(lines[i],this.default_font,"RightAligned"));
     }
 
     this.toggleInsert = function(){
@@ -258,22 +293,20 @@ function TextBox(ctx){
         }
         let line = this.lines[this.caret.line];
         if(line.chars.length<=this.caret.char){
-            line = line.append(new Line(char))
+            line = line.append(new Line(char,line.font))
             this.caret.char = line.chars.length;
         } else if(this.insert){
             line = line.slice(0,this.caret.char)
-            .append(new Line(char))
+            .append(new Line(char,line.font))
             .append(line.slice(this.caret.char+1));
             this.caret.char+=1;
         } else {
             line = line.slice(0,this.caret.char)
-            .append(new Line(char))
+            .append(new Line(char,line.font))
             .append(line.slice(this.caret.char));
             this.caret.char+=1;
         }
         this.lines[this.caret.line]=line;
-        console.log(this.lines[this.caret.line].chars.length);
-        console.log(this.lines[this.caret.line]);
     }
     this.delete = function(forward){
         if(!this.selection.none()){
@@ -354,12 +387,12 @@ function TextBox(ctx){
         //todo: binary search
         let line = this.lines[this.caret.line]
         this.caret.char = 0;
-        for(let i = 1; i<line.cumWidths.length; i++){
+        for(let i = 0; i<line.chars.length; i++){
             
-            if((line.cumWidths[i] + line.cumWidths[i-1])*0.5 >localCoords.x){
+            if(line.getCharCenter(i) >localCoords.x){
                 break;
             }
-            this.caret.char = i;
+            this.caret.char = i+1;
         }        
     }
 
@@ -441,8 +474,8 @@ function TextBox(ctx){
     this.draw = function(ctx){
         if(this.useMouseCursor){
             this.computeMouseCursor();
+            this.selection.update();
         }
-        this.selection.update();
         ctx.save();
         ctx.fillStyle = this.backgroundColor;
         ctx.fillRect(this.bbox.left,this.bbox.top,this.bbox.width,this.bbox.height);
@@ -458,9 +491,9 @@ function TextBox(ctx){
         if(!this.selection.none()){
             ctx.fillStyle = "rgb(150,150,250)";
             for(let i = this.selection.min.line; i<=this.selection.max.line; i++){
-                let rectMinX = this.bbox.left;
+                let rectMinX = this.lines[i].getCharBegin(0);
                 let cw = this.lines[i].cumWidths;
-                let rectWidth = cw[cw.length-1]-rectMinX+this.bbox.left;
+                let rectWidth = cw[cw.length-1];
                 if(this.selection.min.line == i){
                     rectMinX += cw[this.selection.min.char];
                     rectWidth -= cw[this.selection.min.char];
@@ -468,13 +501,13 @@ function TextBox(ctx){
 
 
                 if(this.selection.max.line == i){
-                    rectWidth = cw[this.selection.max.char]-rectMinX+this.bbox.left;
+                    rectWidth = cw[this.selection.max.char]-rectMinX+this.lines[i].getCharBegin(0);
                 }
 
                 let rectMinY = this.bbox.top+ i*font.height+font.height*0.2;
-                let height = font.height;
+                let height = this.lines[i].font.height;
 
-                ctx.fillRect(rectMinX,rectMinY,rectWidth,height);
+                ctx.fillRect(rectMinX+this.bbox.left,rectMinY,rectWidth,height);
             }
         }
 
@@ -483,16 +516,14 @@ function TextBox(ctx){
         ctx.font = font.getFontDeclaration();
         //console.log(ctx.font);
         for(let i = 0; i<this.lines.length; i++){
-
-            //draw line all at once. Can be used if line has single style
-            ctx.fillText(this.lines[i].getText(),this.bbox.left,this.bbox.top+font.height*(i+1));
+            this.lines[i].draw(ctx,i);
         }
         //console.log(this.lines);
         //console.log(ctx.measureText("i"), ctx.measureText("H"), ctx.measureText("Hi"),ctx.measureText(","));
         let current_line = this.lines[this.caret.line];
         if(!this.insert){
             ctx.fillRect(
-                this.bbox.left + current_line.cumWidths[this.caret.char],
+                this.bbox.left+current_line.getCharBegin(this.caret.char),
                 this.bbox.top+ this.caret.line*font.height+font.height*0.2,
                 1,
                 font.height);
@@ -500,10 +531,10 @@ function TextBox(ctx){
             let current_width = font.height;
             let line = this.lines[this.caret.line]
             if(this.caret.char<line.chars.length){
-                current_width = line.cumWidths[this.caret.char+1]-line.cumWidths[this.caret.char];
+                current_width = current_line.getCharBegin(this.caret.char+1)-current_line.getCharBegin(this.caret.char);
             }
             ctx.fillRect(
-                this.bbox.left + current_line.cumWidths[this.caret.char],
+                this.bbox.left+current_line.getCharBegin(this.caret.char),
                 this.bbox.top+ this.caret.line*font.height+font.height,
                 current_width,
                 2);
@@ -514,11 +545,6 @@ function TextBox(ctx){
 
     }
 }
-
-
-
-
-
 
 function App(){
     var that = this;
