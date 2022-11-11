@@ -308,6 +308,8 @@ function TextBox(tbs){
 
     
     this.editable = tbs.editable;
+    this.selectable = tbs.selectable;
+    this.reset_view_on_unfocus=tbs.reset_view_on_unfocus;
     this.background_color = rgb2str(tbs.background_color);
     this.text_color =  rgb2str(tbs.text_color);
     this.selection_color = rgb2str(tbs.selection_color);
@@ -571,7 +573,7 @@ function TextBox(tbs){
             }
         }
         
-        if(this.editing && this.edit_scroll){
+        if((this.editing || !this.selection.none()) && this.edit_scroll){
             let x = this.lines[this.caret.line].getCharBegin(this.caret.char);
             if(x<0-this.offset.x){
                 this.offset.x = -x;
@@ -589,6 +591,10 @@ function TextBox(tbs){
             if(y1>this.bbox.height-this.offset.y){
                 this.offset.y = this.bbox.height-y1;
             }
+        }
+        if(this.selection.none() && !this.editing && !this.rolling_text &&this.reset_view_on_unfocus ){
+            this.offset.x =0;
+            this.offset.y =0;
         }
 
         if(this.useMouseCursor){            
@@ -613,7 +619,7 @@ function TextBox(tbs){
         ctx.clip();
 
         let font = this.default_font;
-        if(!this.selection.none() && this.editing){
+        if(!this.selection.none() &&(this.selectable || this.editing)){
             ctx.fillStyle = this.selection_color;
             for(let i = this.selection.min.line; i<=this.selection.max.line; i++){
                 let rectMinX = this.lines[i].getCharBegin(0);
@@ -694,6 +700,8 @@ TextBox.TextBoxSettings = function(){
     this.rolling_text=true;
     this.edit_scroll=true;
     this.editable=false;
+    this.selectable=true;
+    this.reset_view_on_unfocus=true;
     this.max_lines = 0;  /* Maximum number of lines. 0 means infinite. */
 }
 
@@ -725,11 +733,12 @@ function App(){
             that.textbox.mousedown();
         } else {
             that.textbox.noEdit();
+            that.textbox.selection.end();
         }
     }
 
     function mouseup(e){
-        if(that.textbox.editing)
+        if(that.textbox.editing || that.textbox.selectable)
             that.textbox.mouseup();
     }
     function onKeyDown(e){
@@ -758,10 +767,12 @@ function App(){
         tbs.default_line_height = 30;
         tbs.default_alignment = "RightAligned";
         tbs.default_text = "Hello World!\nLorem ipsum lorem ipsum lorem ipsum\nShort sentence.\nSingle.\nWord.\nLorem;\nipsum;\nlorem\nipsum\n";
-        tbs.rolling_text=true;
+        tbs.rolling_text=false;
         tbs.edit_scroll=true;
         tbs.editable=true;
+        tbs.selectable=true;
         tbs.max_lines=0;
+        tbs.reset_view_on_unfocus = true;
 
 
         this.textbox = new TextBox(tbs);
