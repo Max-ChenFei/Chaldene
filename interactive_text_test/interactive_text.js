@@ -108,6 +108,8 @@ function TextBox(tbs){
             this.moveCaret(3,e.shiftKey);
         }
         //todo: check this
+
+
         if(e.key.length===1){
             this.putChar(e.key);
         }
@@ -304,7 +306,9 @@ function TextBox(tbs){
     this.caret.char = 9;
     this.insert = false;
     this.mouse = {x:0,y:0};
-    this._inputCallbacks ={};
+    this._callbacks = {};
+    this._callbacks["editEnd"] = {};
+    this._callbacks["editStart"] = {};
 
     
     this.editable = tbs.editable;
@@ -580,27 +584,29 @@ function TextBox(tbs){
     this.edit = function(){
         if(!this.editable)
             return
+        
+        this.runCallbacks("editStart");
         this.editing = true;
     }
 
     this.noEdit = function(){
         if(this.editing){
             this.editing = false;
-            this.runInputCallbacks();
+            this.runCallbacks("editEnd");
         }
         
         this.selection.end();
     }
 
-    this.runInputCallbacks = function(){
-        let callbacks =  Object.entries(this._inputCallbacks);
+    this.runCallbacks = function(name){
+        let callbacks =  Object.entries(this._callbacks[name]);
         for(let i in callbacks){
             callbacks[i][1]();
         }
     }
 
-    this.addInputCallback = function(callback){
-        this._inputCallbacks[callback]=callback;
+    this.addCallback = function(name,callback){
+        this._callbacks[name][callback]=callback;
     }
 
     this.update = function(delta){
@@ -853,7 +859,7 @@ function App(){
         tbs.default_text = "Hello World!\nLorem ipsum lorem ipsum lorem ipsum\nShort sentence.\nSingle.\nWord.\nLorem;\nipsum;\nlorem\nipsum\n";
         tbs.rolling_text=false;
         tbs.edit_scroll=true;
-        tbs.editable=true;
+        tbs.editable=false;
         tbs.selectable=true;
         tbs.max_lines=0;
         tbs.reset_view_on_unfocus = true;
@@ -868,11 +874,13 @@ function App(){
         tbs.height = 60;
         tbs.default_text ="uuugh";
         tbs.max_lines=1;
+        tbs.editable=true;
         this.textbox2 = new TextBox(tbs);
         
         
 
-        this.textbox2.addInputCallback(function(){
+        this.textbox2.addCallback("editEnd",
+            function(){
             let s = that.textbox2.getText();
             s = s.split(/\s+/)[0];
             s = (Math.round(s)).toString();
