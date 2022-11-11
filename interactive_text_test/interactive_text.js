@@ -111,6 +111,16 @@ function TextBox(tbs){
         }
         //todo: check this
 
+        if(e.code ==="KeyC" && e.ctrlKey){
+            this.copy();
+            return;
+        }
+
+        
+        if(e.code ==="KeyV" && e.ctrlKey){
+            this.paste();
+            return;
+        }
 
         if(e.key.length===1){
             this.putChar(e.key);
@@ -132,13 +142,13 @@ function TextBox(tbs){
         }
     }
 
-    function Line(str,font,formatting="LeftAligned",textwrap="false"){
-        this.formatting = formatting;
+    function Line(str,font,alignment="LeftAligned",textwrap="false"){
+        this.alignment = alignment;
         this.font = font;
 
         this.slice = function(a,b){
             let l = new Line();
-            l.formatting = this.formatting;
+            l.alignment = this.alignment;
             l.font = this.font;
             l.chars = this.chars.slice(a,b);
             if(b===0 || b)
@@ -156,7 +166,7 @@ function TextBox(tbs){
         }
         this.append = function(line){
             let a = new Line();
-            a.formatting = this.formatting;
+            a.alignment = this.alignment;
             a.font = this.font;
 
             a.chars = this.chars.concat(line.chars);
@@ -193,21 +203,21 @@ function TextBox(tbs){
         }
 
         this.draw = function(ctx,i){
-            if(this.formatting === "LeftAligned"){
+            if(this.alignment === "LeftAligned"){
                 ctx.fillText(this.getText(),textbox.offset.x,this.font.height*(i+1)+textbox.offset.y);
-            } else if(this.formatting === "RightAligned") {
+            } else if(this.alignment === "RightAligned") {
                 ctx.fillText(this.getText(),textbox.offset.x+textbox.bbox.width-this.cumWidths[this.cumWidths.length-1],this.font.height*(i+1)+textbox.offset.y);
-            } else if(this.formatting === "Centered"){
+            } else if(this.alignment === "Centered"){
                 ctx.fillText(this.getText(),((2*(textbox.offset.x)+textbox.bbox.width)-this.cumWidths[this.cumWidths.length-1])*0.5,this.font.height*(i+1)+textbox.offset.y);
             }
         }
 
         this.getCharBegin = function(i){
-            if(this.formatting === "LeftAligned"){
+            if(this.alignment === "LeftAligned"){
                 return this.cumWidths[i];
-            } else if(this.formatting === "RightAligned") {
+            } else if(this.alignment === "RightAligned") {
                 return this.cumWidths[i] +textbox.bbox.width-this.cumWidths[this.cumWidths.length-1];
-            } else if(this.formatting === "Centered"){
+            } else if(this.alignment === "Centered"){
                 return this.cumWidths[i]+ ((textbox.bbox.width)-this.cumWidths[this.cumWidths.length-1])*0.5;
             }
         }
@@ -311,6 +321,8 @@ function TextBox(tbs){
     this._callbacks = {};
     this._callbacks["editEnd"] = {};
     this._callbacks["editStart"] = {};
+    this._callbacks["copyToClipboard"] = {};
+    this._callbacks["pasteFromClipboard"] = {};
 
     
     this.editable = tbs.editable;
@@ -377,7 +389,7 @@ function TextBox(tbs){
         //todo: validate input args?
         let last_line = this.lines[last.line].slice(0,last.char);
         if(first.line === last.line){
-            return last.line.slice(first.char).getText();
+            return last_line.slice(first.char).getText();
         }
         let first_line = this.lines[first.line].slice(first.char);
         let ret=first_line.getText();
@@ -385,6 +397,7 @@ function TextBox(tbs){
             ret+="\n"+this.lines[i].getText();
         }
         ret+="\n"+last_line.getText();
+        return ret;
     }
 
     this.toggleInsert = function(){
@@ -392,6 +405,61 @@ function TextBox(tbs){
     }
     
     this.setText(rawText);
+
+    this.copy = function(){
+        if(this.selection.none()){
+            
+        }
+        let s = this.getTextInterval(this.selection.min,this.selection.max);
+        this.runCallbacks("copyToClipboard",s);
+    }
+
+    this.paste = function(){
+        if(!this.selection.none()){
+            this.delete();
+            this.selection.end();
+        }
+        let tw = {text:""};
+        this.runCallbacks("pasteFromClipboard",tw);
+
+        this.putText(tw.text);
+    }
+
+    this.putText = function(text){
+        let font = this.lines[this.caret.line].font;
+        let  alignment = this.lines[this.caret.line].alignment;
+        let lines = text.split("\n");
+        let new_lines =[];
+        for(let i = 0; i<lines.length;i++){
+            new_lines.push(new Line(lines[i],font,alignment));
+        }
+
+        if(new_lines.length <= 1){
+            let current_line = this.lines[this.caret.line];
+            current_line = current_line
+                    .slice(0,this.caret.char)
+                    .append(new_lines[0])
+                    .append(current_line.slice(this.caret.char));
+            this.lines[this.caret.line] = current_line;
+            this.caret.char+=new_lines[0].chars.length;
+        } else {
+            let cl = this.lines[this.caret.line];
+            
+            new_lines[new_lines.length-1] = new_lines[new_lines.length-1]
+                        .append(cl.slice(this.caret.char))
+            
+            cl=cl.slice(0,this.caret.char).append(new_lines[0]);
+            
+            this.lines[this.caret.line] = cl;
+
+            this.lines = this.lines
+            .slice(0,this.caret.line+1)
+            .concat(new_lines.slice(1))
+            .concat(this.lines.slice(this.caret.line+1));
+            this.caret.line+=new_lines.length-1;
+            this.caret.char = new_lines[new_lines.length-1].chars.length;
+        }
+    }
 
     this.putChar = function(char){
         if(!this.selection.none()){
@@ -600,10 +668,10 @@ function TextBox(tbs){
         this.selection.end();
     }
 
-    this.runCallbacks = function(name){
+    this.runCallbacks = function(name,arg){
         let callbacks =  Object.entries(this._callbacks[name]);
         for(let i in callbacks){
-            callbacks[i][1]();
+            callbacks[i][1](arg);
         }
     }
 
@@ -823,6 +891,16 @@ function App(){
         }
     }
 
+    function copy(text){
+        that.clipboard = text;
+    }
+
+    function paste(tw){
+        if(!that.clipboard)
+            return;
+        tw.text+=that.clipboard;
+    }
+
     function mouseup(e){
         if(that.textbox.editing || that.textbox.selectable)
             that.textbox.mouseup();
@@ -861,7 +939,7 @@ function App(){
         tbs.default_text = "Hello World!\nLorem ipsum lorem ipsum lorem ipsum\nShort sentence.\nSingle.\nWord.\nLorem;\nipsum;\nlorem\nipsum\n";
         tbs.rolling_text=false;
         tbs.edit_scroll=true;
-        tbs.editable=false;
+        tbs.editable=true;
         tbs.selectable=true;
         tbs.max_lines=0;
         tbs.reset_view_on_unfocus = true;
@@ -887,6 +965,12 @@ function App(){
             s = (Math.round(s)).toString();
             that.textbox2.setText(s);
         });
+
+        this.textbox.addCallback("copyToClipboard",copy);
+        this.textbox.addCallback("pasteFromClipboard",paste);
+        
+        this.textbox2.addCallback("copyToClipboard",copy);
+        this.textbox2.addCallback("pasteFromClipboard",paste);
 
         document.addEventListener("keydown",onKeyDown);
         document.addEventListener("mousedown",mousedown);
