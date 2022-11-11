@@ -91,7 +91,6 @@ function TextBox(tbs){
         this.useMouseCursor = false;
     }
 
-
     this.onkeydown = function(e){
         
         if(e.code === "ArrowRight"){
@@ -305,6 +304,7 @@ function TextBox(tbs){
     this.caret.char = 9;
     this.insert = false;
     this.mouse = {x:0,y:0};
+    this._inputCallbacks ={};
 
     
     this.editable = tbs.editable;
@@ -334,15 +334,58 @@ function TextBox(tbs){
     }
 
 
-    let lines = rawText.split("\n");
-    this.lines = [];
-    for(let i = 0; i<lines.length; i++){
-        this.lines.push(new Line(lines[i],this.default_font,this.default_alignment));
+    
+    this.getLine = function(i){
+        return this.lines[i].getText();
+    }
+    
+    this.setLine = function(str,i){
+        let font = this.default_font;
+        let alignment = this.default_alignment;
+        if(this.lines[i]){
+            font = this.lines[i].font;
+            alignment = this.lines[i].alignment;
+        }
+        this.lines[i] = new Line(str,font,alignment);
+    }
+
+    this.setText =function(text){        
+        let lines = text.split("\n");
+        this.lines = [];
+        for(let i = 0; i<lines.length; i++){
+            this.lines.push(new Line(lines[i],this.default_font,this.default_alignment));
+        }
+    }
+
+    this.getText = function(){
+        if(this.lines.length<=0)
+            return "";
+        let ret = this.lines[0].getText();
+        for(let i = 1; i<this.lines.length; i++){
+            ret+= "\n"+this.lines[i].getText();
+        }
+        return ret;
+    }
+
+    this.getTextInterval = function(first,last){
+        //todo: validate input args?
+        let last_line = this.lines[last.line].slice(0,last.char);
+        if(first.line === last.line){
+            return last.line.slice(first.char).getText();
+        }
+        let first_line = this.lines[first.line].slice(first.char);
+        let ret=first_line.getText();
+        for(let i = first.line+1;i<last.line; i++){
+            ret+="\n"+this.lines[i].getText();
+        }
+        ret+="\n"+last_line.getText();
     }
 
     this.toggleInsert = function(){
         this.insert = !this.insert;
     }
+    
+    this.setText(rawText);
 
     this.putChar = function(char){
         if(!this.selection.none()){
@@ -418,6 +461,9 @@ function TextBox(tbs){
     }
 
     this.lineBreak = function(){
+        if(this.max_lines===1){
+            this.noEdit();
+        }
         if(this.max_lines>0 && this.lines.length>=this.max_lines)
             return;
 
@@ -538,7 +584,23 @@ function TextBox(tbs){
     }
 
     this.noEdit = function(){
-        this.editing = false;
+        if(this.editing){
+            this.editing = false;
+            this.runInputCallbacks();
+        }
+        
+        this.selection.end();
+    }
+
+    this.runInputCallbacks = function(){
+        let callbacks =  Object.entries(this._inputCallbacks);
+        for(let i in callbacks){
+            callbacks[i][1]();
+        }
+    }
+
+    this.addInputCallback = function(callback){
+        this._inputCallbacks[callback]=callback;
     }
 
     this.update = function(delta){
@@ -716,9 +778,14 @@ TextBox.shallow_clone = function(o){
 
 function App(){
     var that = this;
+
     function mousemove(e){
         that.textbox.mouse.x = e.clientX - that.textbox.bbox.left - canvas.getBoundingClientRect().x;
         that.textbox.mouse.y = e.clientY - that.textbox.bbox.top  - canvas.getBoundingClientRect().y;
+    
+        that.textbox2.mouse.x = e.clientX - that.textbox2.bbox.left - canvas.getBoundingClientRect().x;
+        that.textbox2.mouse.y = e.clientY - that.textbox2.bbox.top  - canvas.getBoundingClientRect().y;
+    
     }
 
     function mousedown(e){
@@ -733,18 +800,35 @@ function App(){
             that.textbox.mousedown();
         } else {
             that.textbox.noEdit();
-            that.textbox.selection.end();
+        }
+
+        if(e.clientX  > cb.x + that.textbox2.bbox.left && 
+            e.clientX < cb.x + that.textbox2.bbox.left+that.textbox2.bbox.width &&
+            e.clientY > cb.y + that.textbox2.bbox.top && 
+            e.clientY < cb.y + that.textbox2.bbox.top+that.textbox2.bbox.height
+        )
+        {
+            that.textbox2.edit();
+            that.textbox2.mousedown();
+        } else {
+            that.textbox2.noEdit();
         }
     }
 
     function mouseup(e){
         if(that.textbox.editing || that.textbox.selectable)
             that.textbox.mouseup();
+
+        if(that.textbox2.editing || that.textbox2.selectable)
+            that.textbox2.mouseup();
     }
     function onKeyDown(e){
         
         if(that.textbox.editing)
             that.textbox.onkeydown(e);
+        
+        if(that.textbox2.editing)
+            that.textbox2.onkeydown(e);
 
 
     }
@@ -774,8 +858,27 @@ function App(){
         tbs.max_lines=0;
         tbs.reset_view_on_unfocus = true;
 
+        
 
         this.textbox = new TextBox(tbs);
+        tbs = TextBox.shallow_clone(tbs);
+
+        tbs.left = 20;
+        tbs.top = 350;
+        tbs.height = 60;
+        tbs.default_text ="uuugh";
+        tbs.max_lines=1;
+        this.textbox2 = new TextBox(tbs);
+        
+        
+
+        this.textbox2.addInputCallback(function(){
+            let s = that.textbox2.getText();
+            s = s.split(/\s+/)[0];
+            s = (Math.round(s)).toString();
+            that.textbox2.setText(s);
+        });
+
         document.addEventListener("keydown",onKeyDown);
         document.addEventListener("mousedown",mousedown);
         document.addEventListener("mouseup",mouseup);
@@ -793,6 +896,9 @@ function App(){
 
         that.textbox.update(delta);
         that.textbox.draw(that.ctx);
+        
+        that.textbox2.update(delta);
+        that.textbox2.draw(that.ctx);
         window.requestAnimationFrame(that.loop);
     }
 
