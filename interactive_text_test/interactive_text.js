@@ -4,6 +4,8 @@ var canvas = document.getElementById("mainCanvas");
 
 function TextBox(tbs){
 
+    tbs = TextBox.shallow_clone(tbs);
+
     let ctx = tbs.ctx;
 
     function max(i1,i2){
@@ -867,7 +869,6 @@ function App(){
         
 
         this.textbox = new TextBox(tbs);
-        tbs = TextBox.shallow_clone(tbs);
 
         tbs.left = 20;
         tbs.top = 350;
