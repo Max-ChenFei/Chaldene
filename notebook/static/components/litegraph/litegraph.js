@@ -1051,13 +1051,13 @@
     LGraphNode.prototype.inputs = {};
     LGraphNode.prototype.outputs = {};
     LGraphNode.prototype.flags = {};
-    LGraphNode.prototype.pos = new Point(0, 0);
+    LGraphNode.prototype.translate = new Point(0, 0);
+    LGraphNode.prototype.scale = new Point(1, 1);
     LGraphNode.prototype.size = new Size(10, 10);
     LGraphNode.prototype.colliable_componnets = {};
 
 
 
-    // *********************** Node information **************************************
     /**
      * get the title string
      * @method getTitle
@@ -1301,7 +1301,7 @@
     };
 
     LGraphNode.prototype.move= function(delta_x, delta_y) {
-        this.pos.add(delta_x, delta_y);
+        this.translate.add(delta_x, delta_y);
         if(this.onMove){
             this.onMove(delta_x, delta_y);
         }
