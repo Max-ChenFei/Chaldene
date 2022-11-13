@@ -1443,7 +1443,7 @@
                 writable: false
             },
             "viewport": {
-                get() { return this.scene.viewport || new Rect(0, 0, this.canvas.width, this.canvas.height);},
+                get() { return this.scene.viewport || new Rect(0, 0, this.scene.canvas.width, this.scene.canvas.height);},
                 writable: false
             },
             "scale_pivot": {
