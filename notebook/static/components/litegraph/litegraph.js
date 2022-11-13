@@ -1307,6 +1307,12 @@
         }
     };
 
+    LGraphNode.prototype.boundingRect = function() {
+       return new Rect(0, 0, this.size.size_x, this.size.y);
+    };
+
+
+
     function LGraphComment() {
         this.nodes_inside = {};
     }
