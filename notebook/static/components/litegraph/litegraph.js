@@ -812,6 +812,14 @@
         ];
     };
 
+    Connector.prototype.configRendering = function(config) {
+        for (const [name, value] of config) {
+            if (name instanceof String)
+                this.prototype[name] = value;
+            this.prototype.name = value;
+        }
+    };
+
     LiteGraph.Connector = Connector;
 
     const SlotType = {
