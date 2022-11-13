@@ -938,6 +938,8 @@
          this.default_value = default_value;
          this.connections = 0;
          this.extra_info = {};
+         this.state = 'unconnected' || "connected";
+         this.hovered = false;
     };
 
      NodeSlot.prototype.addExtraInfo = function (extra_info) {
