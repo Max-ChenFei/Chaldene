@@ -1377,6 +1377,12 @@
         return this.x_1 <= this.x_2 && this.y_1 <= this.y_2;
     };
 
+    Rect.prototype.isIntersectWith = function(rect) {
+        if (!rect) return false;
+        return !(this.x_1 > rect.x_2 || rect.x_1 > this.x_2 ||
+            this.y_1 > rect.y_2 || rect.y_1 > this.y_2)
+    };
+
     /**
      *
      * @class Scene
