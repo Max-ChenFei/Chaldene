@@ -4752,19 +4752,19 @@
     };
 
     function CollisionDetector(){
-        this._colliableObjs = {}; // bbox stands for bounding box
+        this._collidableObjs = {}; // bbox stands for bounding box
         this._next_unique_id = 0;
         this.initBboxForEachChannel();
     };
 
     CollisionDetector.prototype.initBboxForEachChannel = function() {
         for (const channel of Object.values(CollisionChannel)) {
-            this._colliableObjs[channel] = {}
+            this._collidableObjs[channel] = {}
         }
     };
 
     CollisionDetector.prototype.clear = function() {
-        this._colliableObjs = {};
+        this._collidableObjs = {};
         this._next_unique_id = 0;
         this.initBboxForEachChannel();
     };
@@ -4774,9 +4774,9 @@
     };
 
     CollisionDetector.prototype.addToChannel = function(obj, channel) {
-        if (!this._colliableObjs[channel]) return;
+        if (!this._collidableObjs[channel]) return;
         if (!obj.bbox_id) obj['bbox_id'] = this.getUniqueID();
-        this._colliableObjs[channel][obj.bbox_id] = obj;
+        this._collidableObjs[channel][obj.bbox_id] = obj;
     };
 
     CollisionDetector.prototype.add = function(obj) {
@@ -4790,7 +4790,7 @@
     };
 
     CollisionDetector.prototype.remove = function(bbox_id) {
-        for (const obj_in_channel of Object.values(this._colliableObjs)) {
+        for (const obj_in_channel of Object.values(this._collidableObjs)) {
             delete obj_in_channel[bbox_id];
         }
     };
@@ -4802,7 +4802,7 @@
      * @param {Number} scene_y
      * @return {HitResult} returns hit result of input x, and y*/
     CollisionDetector.prototype.getHitResultAtPos = function(scene_x, scene_y) {
-        let objs = this._colliableObjs[CollisionChannel.press];
+        let objs = this._collidableObjs[CollisionChannel.press];
         for (const obj of Object.values(objs)) {
             if (obj.getBoundingBox().isInside(scene_x, scene_y)){
                 const local_pos = SceneCoordToObjCoord(scene_x, scene_y, obj);
@@ -4814,7 +4814,7 @@
     }
 
     CollisionDetector.prototype.getHitComponentAtPos = function(local_x, local_y, obj) {
-        for (const comp of Object.values(obj.colliable_componnets)) {
+        for (const comp of Object.values(obj.collidable_components)) {
             if (comp.getBoundingBox().isInside(local_x, local_y)){
                 return comp;
             }
@@ -4831,7 +4831,7 @@
     CollisionDetector.prototype.getOverlappingObjsInChannel = function(bbox, channel) {
         let overlapped = [];
         channel = channel || CollisionChannel.press;
-        let objs = this._colliableObjs[channel];
+        let objs = this._collidableObjs[channel];
         for (const obj of Object.values(objs)) {
             if(AreTwoRectBboxOverlap(bbox, obj.getBoundingBox())) {
                 overlapped.push(obj);
