@@ -861,7 +861,25 @@ function App(){
     
         that.textbox2.mouse.x = e.clientX - that.textbox2.bbox.left - canvas.getBoundingClientRect().x;
         that.textbox2.mouse.y = e.clientY - that.textbox2.bbox.top  - canvas.getBoundingClientRect().y;
-    
+        
+        let cb = canvas.getBoundingClientRect();
+		let isOverTextBox1 = e.clientX  > cb.x + that.textbox.bbox.left && 
+            e.clientX < cb.x + that.textbox.bbox.left+that.textbox.bbox.width &&
+            e.clientY > cb.y + that.textbox.bbox.top && 
+            e.clientY < cb.y + that.textbox.bbox.top+that.textbox.bbox.height;
+		let isOverTextBox2 = e.clientX  > cb.x + that.textbox2.bbox.left && 
+            e.clientX < cb.x + that.textbox2.bbox.left+that.textbox2.bbox.width &&
+            e.clientY > cb.y + that.textbox2.bbox.top && 
+            e.clientY < cb.y + that.textbox2.bbox.top+that.textbox2.bbox.height;
+
+		if(isOverTextBox1|| isOverTextBox2)
+        {
+           canvas.style.cursor="text";
+        }
+		else{
+			canvas.style.cursor="default";
+		}
+  
     }
 
     function mousedown(e){
