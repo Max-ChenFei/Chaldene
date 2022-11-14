@@ -9018,42 +9018,6 @@
         return [x, y];
     };
 
-    LGraphCanvas.prototype.drawExecutionOrder = function(ctx) {
-        ctx.shadowColor = "transparent";
-        ctx.globalAlpha = 0.25;
-
-        ctx.textAlign = "center";
-        ctx.strokeStyle = "white";
-        ctx.globalAlpha = 0.75;
-
-        var visible_nodes = this.visible_nodes;
-        for (var i = 0; i < visible_nodes.length; ++i) {
-            var node = visible_nodes[i];
-            ctx.fillStyle = "black";
-            ctx.fillRect(
-                node.pos[0] - LiteGraph.NODE_TITLE_HEIGHT,
-                node.pos[1] - LiteGraph.NODE_TITLE_HEIGHT,
-                LiteGraph.NODE_TITLE_HEIGHT,
-                LiteGraph.NODE_TITLE_HEIGHT
-            );
-            if (node.order == 0) {
-                ctx.strokeRect(
-                    node.pos[0] - LiteGraph.NODE_TITLE_HEIGHT + 0.5,
-                    node.pos[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5,
-                    LiteGraph.NODE_TITLE_HEIGHT,
-                    LiteGraph.NODE_TITLE_HEIGHT
-                );
-            }
-            ctx.fillStyle = "#FFF";
-            ctx.fillText(
-                node.order,
-                node.pos[0] + LiteGraph.NODE_TITLE_HEIGHT * -0.5,
-                node.pos[1] - 6
-            );
-        }
-        ctx.globalAlpha = 1;
-    };
-
     /**
      * draws the widgets stored inside a node
      * @method drawNodeWidgets
@@ -9549,44 +9513,6 @@
         this.bgcanvas.width = this.canvas.width;
         this.bgcanvas.height = this.canvas.height;
         this.setDirty(true, true);
-    };
-
-    /**
-     * switches to live mode (node shapes are not rendered, only the content)
-     * this feature was designed when graphs where meant to create user interfaces
-     * @method switchLiveMode
-     **/
-    LGraphCanvas.prototype.switchLiveMode = function(transition) {
-        if (!transition) {
-            this.live_mode = !this.live_mode;
-            this.dirty_canvas = true;
-            this.dirty_bgcanvas = true;
-            return;
-        }
-
-        var self = this;
-        var delta = this.live_mode ? 1.1 : 0.9;
-        if (this.live_mode) {
-            this.live_mode = false;
-            this.editor_alpha = 0.1;
-        }
-
-        var t = setInterval(function() {
-            self.editor_alpha *= delta;
-            self.dirty_canvas = true;
-            self.dirty_bgcanvas = true;
-
-            if (delta < 1 && self.editor_alpha < 0.01) {
-                clearInterval(t);
-                if (delta < 1) {
-                    self.live_mode = true;
-                }
-            }
-            if (delta > 1 && self.editor_alpha > 0.99) {
-                clearInterval(t);
-                self.editor_alpha = 1;
-            }
-        }, 1);
     };
 
     LGraphCanvas.prototype.onNodeSelectionChange = function(node) {
@@ -12665,46 +12591,6 @@
         return true;
     }
     LiteGraph.overlapBounding = overlapBounding;
-
-    //Convert a hex value to its decimal value - the inputted hex must be in the
-    //	format of a hex triplet - the kind we use for HTML colours. The function
-    //	will return an array with three values.
-    function hex2num(hex) {
-        if (hex.charAt(0) == "#") {
-            hex = hex.slice(1);
-        } //Remove the '#' char - if there is one.
-        hex = hex.toUpperCase();
-        var hex_alphabets = "0123456789ABCDEF";
-        var value = new Array(3);
-        var k = 0;
-        var int1, int2;
-        for (var i = 0; i < 6; i += 2) {
-            int1 = hex_alphabets.indexOf(hex.charAt(i));
-            int2 = hex_alphabets.indexOf(hex.charAt(i + 1));
-            value[k] = int1 * 16 + int2;
-            k++;
-        }
-        return value;
-    }
-
-    LiteGraph.hex2num = hex2num;
-
-    //Give a array with three values as the argument and the function will return
-    //	the corresponding hex triplet.
-    function num2hex(triplet) {
-        var hex_alphabets = "0123456789ABCDEF";
-        var hex = "#";
-        var int1, int2;
-        for (var i = 0; i < 3; i++) {
-            int1 = triplet[i] / 16;
-            int2 = triplet[i] % 16;
-
-            hex += hex_alphabets.charAt(int1) + hex_alphabets.charAt(int2);
-        }
-        return hex;
-    }
-
-    LiteGraph.num2hex = num2hex;
 
     /* LiteGraph GUI elements used for canvas editing *************************************/
 
