@@ -250,7 +250,7 @@ function TextBox(tbs){
     }
 
     function rgb2str(rgb){
-        return "rgb("+rgb[0]+", "+rgb[1]+", "+rgb[2]+")";
+        return "rgba("+rgb[0]+", "+rgb[1]+", "+rgb[2]+","+ rgb[3] +")";
     }
 
     let that = this;
@@ -829,9 +829,9 @@ TextBox.TextBoxSettings = function(){
     this.width = 200;
     this.height = 50;
     this.default_font_family = "serif";
-    this.background_color = [0,0,0];
-    this.text_color = [255,255,255];
-    this.selection_color = [0,0,250];
+    this.background_color = [0,0,0,0.5];
+    this.text_color = [255,255,255,1.0];
+    this.selection_color = [0,0,250,1.0];
     this.default_line_height = 10;
     this.default_alignment = "LeftAligned";
     this.default_text = "";
@@ -949,9 +949,9 @@ function App(){
         tbs.width = 400;
         tbs.height = 300;
         tbs.default_font_family = "arial";
-        tbs.background_color = [50,50,100];
-        tbs.text_color = [200,200,200];
-        tbs.selection_color = [150,150,200];
+        tbs.background_color = [50,50,100,0.3];
+        tbs.text_color = [240,240,240,1.0];
+        tbs.selection_color = [150,150,200,1.0];
         tbs.default_line_height = 30;
         tbs.default_alignment = "RightAligned";
         tbs.default_text = "Hello World!\nLorem ipsum lorem ipsum lorem ipsum\nShort sentence.\nSingle.\nWord.\nLorem;\nipsum;\nlorem\nipsum\n";
