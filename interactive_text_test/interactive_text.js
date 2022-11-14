@@ -536,7 +536,7 @@ function TextBox(tbs){
 
     this.lineBreak = function(){
         if(this.max_lines===1){
-            this.noEdit();
+            this.endEdit();
         }
         if(this.max_lines>0 && this.lines.length>=this.max_lines)
             return;
@@ -651,7 +651,7 @@ function TextBox(tbs){
 
     }
 
-    this.edit = function(){
+    this.editBegin = function(){
         if(!this.editable)
             return
         
@@ -659,7 +659,7 @@ function TextBox(tbs){
         this.editing = true;
     }
 
-    this.noEdit = function(){
+    this.endEdit = function(){
         if(this.editing){
             this.editing = false;
             this.runCallbacks("editEnd");
@@ -890,10 +890,10 @@ function App(){
             e.clientY < cb.y + that.textbox.bbox.top+that.textbox.bbox.height
         )
         {
-            that.textbox.edit();
+            that.textbox.editBegin();
             that.textbox.mousedown();
         } else {
-            that.textbox.noEdit();
+            that.textbox.endEdit();
         }
 
         if(e.clientX  > cb.x + that.textbox2.bbox.left && 
@@ -902,10 +902,10 @@ function App(){
             e.clientY < cb.y + that.textbox2.bbox.top+that.textbox2.bbox.height
         )
         {
-            that.textbox2.edit();
+            that.textbox2.editBegin();
             that.textbox2.mousedown();
         } else {
-            that.textbox2.noEdit();
+            that.textbox2.endEdit();
         }
     }
 
