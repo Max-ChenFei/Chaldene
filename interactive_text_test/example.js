@@ -76,6 +76,15 @@ function App(){
         tbs.default_text ="uuugh";
         tbs.max_lines=1;
         tbs.editable=true;
+        tbs.padding_top = 2;
+        tbs.padding_bottom = 2;
+        tbs.padding_left = 6;
+        tbs.padding_right = 6;
+        tbs.round_corners = [[0,0],[0,0],[0,0],[0,0]];
+        tbs.round_corners[3][0] =  0.5*tbs.height/tbs.width;
+        tbs.round_corners[3][1] = 0.5;
+        tbs.round_corners[1][0] =  0.5*tbs.height/tbs.width;
+        tbs.round_corners[1][1] = 0.5;
         this.textbox2 = new TextBox(tbs);
         
         

@@ -85,10 +85,10 @@ function TextBox(tbs){
 
     this.isMouseInside = function(){
         return (
-            this.mouse.x>=0 && 
-            this.mouse.y>=0 && 
-            this.mouse.x<=this.bbox.width && 
-            this.mouse.y<=this.bbox.height
+            this.mouse.x>=this.paddedBbox.left && 
+            this.mouse.y>=this.paddedBbox.top && 
+            this.mouse.x<=this.paddedBbox.width+this.paddedBbox.left && 
+            this.mouse.y<=this.paddedBbox.height+this.paddedBbox.top 
         );
     }
 
@@ -392,8 +392,26 @@ function TextBox(tbs){
     this.background_color = rgb2str(tbs.background_color);
     this.text_color =  rgb2str(tbs.text_color);
     this.selection_color = rgb2str(tbs.selection_color);
+    this.border_color = rgb2str(tbs.border_color);
+    this.border_width =tbs.border_width;
     
-    this.bbox = new BBox(tbs.left,tbs.top,tbs.width,tbs.height);
+    this.bbox = new BBox(tbs.left+tbs.padding_left,
+                            tbs.top+tbs.padding_top,
+                            tbs.width-(tbs.padding_left+tbs.padding_right),
+                            tbs.height-(tbs.padding_top+tbs.padding_bottom));
+
+    //relative coords
+    this.paddedBbox = new BBox(-tbs.padding_left,-tbs.padding_top,
+        this.bbox.width+tbs.padding_left+tbs.padding_right,
+        this.bbox.height+tbs.padding_top+tbs.padding_bottom);
+
+    this.padding = [tbs.padding_left,tbs.padding_top,tbs.padding_right,tbs.padding_bottom];
+    this.round_corners = [
+        [tbs.round_corners[0][0],tbs.round_corners[0][1]],
+        [tbs.round_corners[1][0],tbs.round_corners[1][1]],
+        [tbs.round_corners[2][0],tbs.round_corners[2][1]],
+        [tbs.round_corners[3][0],tbs.round_corners[3][1]]
+    ]
     this.offset = {x: 0, y:0};
     this.default_font = new Font();
     this.default_font.set_family(tbs.default_font_family);
@@ -808,9 +826,76 @@ function TextBox(tbs){
         ctx.save();
         ctx.translate(this.bbox.left,this.bbox.top);
         ctx.fillStyle = this.background_color;
-        ctx.fillRect(0,0,this.bbox.width,this.bbox.height);
-        //ctx.fill()
 
+
+        let ellipsis_radii = [
+            this.round_corners[0][0]*0.5*this.paddedBbox.width,
+            this.round_corners[0][1]*0.5*this.paddedBbox.height,
+            this.round_corners[1][0]*0.5*this.paddedBbox.width,
+            this.round_corners[1][1]*0.5*this.paddedBbox.height,
+            this.round_corners[2][0]*0.5*this.paddedBbox.width,
+            this.round_corners[2][1]*0.5*this.paddedBbox.height,
+            this.round_corners[3][0]*0.5*this.paddedBbox.width,
+            this.round_corners[3][1]*0.5*this.paddedBbox.height
+        ];
+        
+        ctx.beginPath();
+        ctx.ellipse(this.paddedBbox.left+ellipsis_radii[0],
+            this.paddedBbox.top+ellipsis_radii[1],
+            ellipsis_radii[0],
+            ellipsis_radii[1],
+            0,
+            Math.PI*1.5,
+            Math.PI,
+            true        
+        );
+
+        
+        ctx.ellipse(this.paddedBbox.left+ellipsis_radii[2],
+            this.paddedBbox.top+this.paddedBbox.height-ellipsis_radii[3],
+            ellipsis_radii[2],
+            ellipsis_radii[3],
+            0,
+            Math.PI,
+            Math.PI*0.5,
+            true      
+        );
+
+        ctx.ellipse(this.paddedBbox.left+this.paddedBbox.width-ellipsis_radii[4],
+            this.paddedBbox.top+this.paddedBbox.height-ellipsis_radii[5],
+            ellipsis_radii[4],
+            ellipsis_radii[5],
+            0,
+            Math.PI*0.5,
+            0,
+            true          
+        );
+
+        ctx.ellipse(this.paddedBbox.left+this.paddedBbox.width-ellipsis_radii[6],
+            this.paddedBbox.top+ellipsis_radii[7],
+            ellipsis_radii[6],
+            ellipsis_radii[7],
+            0,
+            0,
+            -Math.PI*0.5,
+            true        
+        );
+
+        ctx.lineTo(this.paddedBbox.left+ellipsis_radii[0],this.paddedBbox.top);
+        ctx.fill()
+        
+        ctx.strokeStyle = this.border_color;
+        ctx.lineWidth   = this.border_width;
+        ctx.stroke();
+        
+        ctx.closePath();
+/*
+        ctx.fillRect(this.paddedBbox.left,
+            this.paddedBbox.top,
+            this.paddedBbox.width,
+            this.paddedBbox.height);
+        //ctx.fill()
+*/
 
         ctx.beginPath();
         ctx.rect(0,0,this.bbox.width,this.bbox.height);
@@ -891,6 +976,8 @@ TextBox.TextBoxSettings = function(){
     this.height = 50;
     this.default_font_family = "serif";
     this.background_color = [0,0,0,0.5];
+    this.border_color = [0,0,0,1.0];
+    this.border_width = 4;
     this.text_color = [255,255,255,1.0];
     this.selection_color = [0,0,250,1.0];
     this.default_line_height = 10;
@@ -901,6 +988,13 @@ TextBox.TextBoxSettings = function(){
     this.editable=false;
     this.selectable=true;
     this.reset_view_on_unfocus=true;
+    this.padding_top = 30;
+    this.padding_bottom = 20;
+    this.padding_left = 30;
+    this.padding_right = 20;
+    this.border= 10;
+    this.round_corners = [[0.1,0.1],[0.1,0.1],[0.1,0.1],[0.1,0.1]];
+    
     this.max_lines = 0;  /* Maximum number of lines. 0 means infinite. */
 }
 
