@@ -1,11 +1,8 @@
-var canvas = document.getElementById("mainCanvas");
-
-
 
 function TextBox(tbs){
 
     tbs = TextBox.shallow_clone(tbs);
-
+    let canvas = tbs.canvas;
     let ctx = tbs.ctx;
 
     function max(i1,i2){
@@ -81,7 +78,27 @@ function TextBox(tbs){
     }
     let textbox = this;
 
+    this.updateMouse = function(e){
+        this.mouse.x = e.clientX - this.bbox.left - canvas.getBoundingClientRect().x;
+        this.mouse.y = e.clientY - this.bbox.top  - canvas.getBoundingClientRect().y;
+    }
+
+    this.isMouseInside = function(){
+        return (
+            this.mouse.x>=0 && 
+            this.mouse.y>=0 && 
+            this.mouse.x<=this.bbox.width && 
+            this.mouse.y<=this.bbox.height
+        );
+    }
+
     this.mousedown = function(){
+        if((!this.isMouseInside())){
+            this.endEdit();
+            return;
+        }
+                   
+        this.editBegin();
         this.useMouseCursor = true;
         if(this.selection.first){
             this.selection.end();
@@ -90,10 +107,16 @@ function TextBox(tbs){
         this.selection.start();
     }
     this.mouseup = function(){
+        if(!this.editing && !this.selectable)
+            return;
+
         this.useMouseCursor = false;
     }
 
     this.onkeydown = function(e){
+        if(!this.editing){
+            return;
+        }
         
         if(e.code === "ArrowRight"){
             this.moveCaret(0,e.shiftKey);
@@ -851,177 +874,3 @@ TextBox.shallow_clone = function(o){
     return a;
 }
 
-
-function App(){
-    var that = this;
-
-    function mousemove(e){
-        that.textbox.mouse.x = e.clientX - that.textbox.bbox.left - canvas.getBoundingClientRect().x;
-        that.textbox.mouse.y = e.clientY - that.textbox.bbox.top  - canvas.getBoundingClientRect().y;
-    
-        that.textbox2.mouse.x = e.clientX - that.textbox2.bbox.left - canvas.getBoundingClientRect().x;
-        that.textbox2.mouse.y = e.clientY - that.textbox2.bbox.top  - canvas.getBoundingClientRect().y;
-        
-        let cb = canvas.getBoundingClientRect();
-		let isOverTextBox1 = e.clientX  > cb.x + that.textbox.bbox.left && 
-            e.clientX < cb.x + that.textbox.bbox.left+that.textbox.bbox.width &&
-            e.clientY > cb.y + that.textbox.bbox.top && 
-            e.clientY < cb.y + that.textbox.bbox.top+that.textbox.bbox.height;
-		let isOverTextBox2 = e.clientX  > cb.x + that.textbox2.bbox.left && 
-            e.clientX < cb.x + that.textbox2.bbox.left+that.textbox2.bbox.width &&
-            e.clientY > cb.y + that.textbox2.bbox.top && 
-            e.clientY < cb.y + that.textbox2.bbox.top+that.textbox2.bbox.height;
-
-		if(isOverTextBox1|| isOverTextBox2)
-        {
-           canvas.style.cursor="text";
-        }
-		else{
-			canvas.style.cursor="default";
-		}
-  
-    }
-
-    function mousedown(e){
-        let cb = canvas.getBoundingClientRect();
-        if(e.clientX  > cb.x + that.textbox.bbox.left && 
-            e.clientX < cb.x + that.textbox.bbox.left+that.textbox.bbox.width &&
-            e.clientY > cb.y + that.textbox.bbox.top && 
-            e.clientY < cb.y + that.textbox.bbox.top+that.textbox.bbox.height
-        )
-        {
-            that.textbox.editBegin();
-            that.textbox.mousedown();
-        } else {
-            that.textbox.endEdit();
-        }
-
-        if(e.clientX  > cb.x + that.textbox2.bbox.left && 
-            e.clientX < cb.x + that.textbox2.bbox.left+that.textbox2.bbox.width &&
-            e.clientY > cb.y + that.textbox2.bbox.top && 
-            e.clientY < cb.y + that.textbox2.bbox.top+that.textbox2.bbox.height
-        )
-        {
-            that.textbox2.editBegin();
-            that.textbox2.mousedown();
-        } else {
-            that.textbox2.endEdit();
-        }
-    }
-
-    function copy(text){
-        that.clipboard = text;
-    }
-
-    function paste(tw){
-        if(!that.clipboard)
-            return;
-        tw.text+=that.clipboard;
-    }
-
-    function mouseup(e){
-        if(that.textbox.editing || that.textbox.selectable)
-            that.textbox.mouseup();
-
-        if(that.textbox2.editing || that.textbox2.selectable)
-            that.textbox2.mouseup();
-    }
-    function onKeyDown(e){
-        
-        if(that.textbox.editing)
-            that.textbox.onkeydown(e);
-        
-        if(that.textbox2.editing)
-            that.textbox2.onkeydown(e);
-
-
-    }
-
-//example usage
-    this.init=function(){
-        this.ctx = canvas.getContext("2d");
-
-        let tbs = new TextBox.TextBoxSettings();
-        tbs.canvas = canvas;
-        tbs.ctx = this.ctx;
-        tbs.left = 20;
-        tbs.top = 30;
-        tbs.width = 400;
-        tbs.height = 300;
-        tbs.default_font_family = "arial";
-        tbs.background_color = [50,50,100,0.3];
-        tbs.text_color = [240,240,240,1.0];
-        tbs.selection_color = [150,150,200,1.0];
-        tbs.default_line_height = 30;
-        tbs.default_alignment = "RightAligned";
-        tbs.default_text = "Hello World!\nLorem ipsum lorem ipsum lorem ipsum\nShort sentence.\nSingle.\nWord.\nLorem;\nipsum;\nlorem\nipsum\n";
-        tbs.rolling_text=false;
-        tbs.edit_scroll=true;
-        tbs.editable=true;
-        tbs.selectable=true;
-        tbs.max_lines=0;
-        tbs.reset_view_on_unfocus = true;
-
-        
-
-        this.textbox = new TextBox(tbs);
-
-        tbs.left = 20;
-        tbs.top = 350;
-        tbs.height = 60;
-        tbs.default_text ="uuugh";
-        tbs.max_lines=1;
-        tbs.editable=true;
-        this.textbox2 = new TextBox(tbs);
-        
-        
-
-        this.textbox2.addCallback("editEnd",
-            function(){
-            let s = that.textbox2.getText();
-            s = s.split(/\s+/)[0];
-            s = (Math.round(s)).toString();
-            that.textbox2.setText(s);
-        });
-
-        this.textbox.addCallback("copyToClipboard",copy);
-        this.textbox.addCallback("pasteFromClipboard",paste);
-        
-        this.textbox2.addCallback("copyToClipboard",copy);
-        this.textbox2.addCallback("pasteFromClipboard",paste);
-
-        document.addEventListener("keydown",onKeyDown);
-        document.addEventListener("mousedown",mousedown);
-        document.addEventListener("mouseup",mouseup);
-        document.addEventListener("mousemove",mousemove);
-    }
-
-
-    this.loop = function(){
-        that.ctx.save();
-        that.ctx.fillStyle = "rgb(255,0,255)";
-        that.ctx.fillRect(0,0,canvas.width,canvas.height);
-        that.ctx.restore();
-
-        let delta = 1./60.;
-
-        that.textbox.update(delta);
-        that.textbox.draw(that.ctx);
-        
-        that.textbox2.update(delta);
-        that.textbox2.draw(that.ctx);
-        window.requestAnimationFrame(that.loop);
-    }
-
-
-    this.run = function(){
-        this.init();
-        window.requestAnimationFrame(this.loop);
-    }
-
-    return this;
-}
-
-var app = new App();
-
-app.run();
