@@ -115,6 +115,10 @@ function App(){
         that.ctx.save();
         that.ctx.fillStyle = "rgb(255,0,255)";
         that.ctx.fillRect(0,0,canvas.width,canvas.height);
+        that.ctx.fillStyle = "rgb(0,0, 0)";
+		that.ctx.font = "20px serif";
+		that.ctx.fillText("multiline text input", 20, 20);
+		that.ctx.fillText("single text input", 20, 345);
         that.ctx.restore();
 
         let delta = 1./60.;
