@@ -92,6 +92,44 @@ function TextBox(tbs){
         );
     }
 
+    this.doubleClick = function(){
+        
+        if((!this.isMouseInside()))
+            return;
+
+        if(this.editing || this.selectable){
+            let line = this.lines[this.caret.line];
+            let text = line.getText();
+            words = text.split(/\b/);
+
+            //find word that includes cursor
+            let tl = 0;
+            let selected = -1;
+            let begin =0;
+            let last =0;
+            for(let i = 0; i<words.length;i++){
+                tl+=words[i].length;
+                if(this.caret.char<tl){
+                    selected = i;
+                    last = tl;
+                    break;
+                }
+            }
+            if(selected<0){
+                this.selection.end()
+                return;
+            }
+
+
+            let first = last - words[selected].length;
+            this.caret.char = first;
+            
+            this.selection.start();
+            this.caret.char = last;
+            this.selection.update();
+        }
+    }
+
     this.mousedown = function(){
         if((!this.isMouseInside())){
             this.endEdit();

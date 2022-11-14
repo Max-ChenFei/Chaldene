@@ -13,6 +13,10 @@ function App(){
         that.textbox.mousedown(e);
         that.textbox2.mousedown(e);
     }
+    function dblclick(e){
+        that.textbox.doubleClick(e);
+        that.textbox2.doubleClick(e);
+    }
 
     function copy(text){
         that.clipboard = text;
@@ -94,6 +98,7 @@ function App(){
         document.addEventListener("mousedown",mousedown);
         document.addEventListener("mouseup",mouseup);
         document.addEventListener("mousemove",mousemove);
+        document.addEventListener("dblclick",dblclick);
     }
 
 
