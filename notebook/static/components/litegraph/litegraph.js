@@ -1862,17 +1862,6 @@
             throw "This browser doesn't support Canvas";
         }
 
-        var ctx = (this.ctx = canvas.getContext("2d"));
-        if (ctx == null) {
-            if (!canvas.webgl_enabled) {
-                console.warn(
-                    "This canvas seems to be WebGL, enabling WebGL renderer"
-                );
-            }
-            this.enableWebGL();
-        }
-
-
         if (!skip_events) {
             this.bindEvents();
         }
@@ -2006,28 +1995,7 @@
             return "";
         }
         return url.substr(point + 1).toLowerCase();
-    };
-
-    /**
-     * this function allows to render the canvas using WebGL instead of Canvas2D
-     * this is useful if you plant to render 3D objects inside your nodes, it uses litegl.js for webgl and canvas2DtoWebGL to emulate the Canvas2D calls in webGL
-     * @method enableWebGL
-     **/
-    LGraphCanvas.prototype.enableWebGL = function() {
-        if (typeof GL === undefined) {
-            throw "litegl.js must be included to use a WebGL canvas";
-        }
-        if (typeof enableWebGLCanvas === undefined) {
-            throw "webglCanvas.js must be included to use this feature";
-        }
-
-        this.gl = this.ctx = enableWebGLCanvas(this.canvas);
-        this.ctx.webgl = true;
-        this.bgcanvas = this.canvas;
-        this.bgctx = this.gl;
-        this.canvas.webgl_enabled = true;
-    };
-
+    };we
     /**
      * marks as dirty the canvas, this way it will be rendered again
      *
@@ -3807,35 +3775,6 @@
     };
 
     /**
-     * adds some useful properties to a mouse event, like the position in graph coordinates
-     * @method adjustMouseEvent
-     **/
-    LGraphCanvas.prototype.adjustMouseEvent = function(e) {
-	    var clientX_rel = 0;
-        var clientY_rel = 0;
-
-    	if (this.canvas) {
-            var b = this.canvas.getBoundingClientRect();
-            clientX_rel = e.clientX - b.left;
-            clientY_rel = e.clientY - b.top;
-        } else {
-        	clientX_rel = e.clientX;
-        	clientY_rel = e.clientY;
-        }
-
-        e.deltaX = clientX_rel - this.last_mouse_position[0];
-        e.deltaY = clientY_rel- this.last_mouse_position[1];
-
-        this.last_mouse_position[0] = clientX_rel;
-        this.last_mouse_position[1] = clientY_rel;
-
-        e.canvasX = clientX_rel / this.ds.scale - this.ds.offset[0];
-        e.canvasY = clientY_rel / this.ds.scale - this.ds.offset[1];
-
-        //console.log("pointerevents: adjustMouseEvent "+e.clientX+":"+e.clientY+" "+clientX_rel+":"+clientY_rel+" "+e.canvasX+":"+e.canvasY);
-    };
-
-    /**
      * changes the zoom level of the graph (default is 1), you can pass also a place used to pivot the zoom
      * @method setZoom
      **/
@@ -3976,10 +3915,6 @@
             this.ctx = this.bgcanvas.getContext("2d");
         }
         var ctx = this.ctx;
-        if (!ctx) {
-            //maybe is using webgl...
-            return;
-        }
 
         var canvas = this.canvas;
         if ( ctx.start2D && !this.viewport ) {
@@ -4230,11 +4165,6 @@
 
         if (area){
             ctx.restore();
-        }
-
-        if (ctx.finish2D) {
-            //this is a function I use in webgl renderer
-            ctx.finish2D();
         }
     };
 
