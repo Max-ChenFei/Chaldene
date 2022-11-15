@@ -1054,7 +1054,7 @@
     LGraphNode.prototype.translate = new Point(0, 0);
     LGraphNode.prototype.scale = new Point(1, 1);
     LGraphNode.prototype.size = new Size(10, 10);
-    LGraphNode.prototype.colliable_componnets = {};
+    LGraphNode.prototype.collidable_components = {};
 
 
 
