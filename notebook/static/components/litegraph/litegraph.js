@@ -956,6 +956,10 @@
          this.translate = new Point(0, 0);
     };
 
+     NodeSlot.prototype.isInput = function () {
+         return this.slot_pos == SlotPos.exec_in || this.slot_pos == SlotPos.data_in;
+     }
+
      NodeSlot.prototype.addExtraInfo = function (extra_info) {
          Object.assign(this.extra_info, extra_info);
      };
