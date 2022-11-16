@@ -1394,25 +1394,35 @@
         return font_size * text.length * 0.6;
     }
 
-    RenderingTemplate = {
+    let RenderingTemplate = {
         scene: {
             background_image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
             background_image_repetition: "repeat",
             low_lod_color: "#FFFFFFFF",
             global_alpha:1,
             style: {
+                "0": {
+                    image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
+                    image_repetition: "repeat",
+                    global_alpha:1,
+                },
+                "1": {
+                    color: "#FFFFFFFF",
+                    global_alpha:1,
+                },
                 draw: function(ctx, lod){
                     const rect = this.sceneRect();
+                    let style = this.style[lod];
+                    if(!style) style = this.style[0];
                     ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
-                    if(lod==0 && this.isBackgroundImageValid())
-                    {
+                    if(style.image && isImageValid(style.image)){
                         ctx.fillStyle = ctx.createPattern(this.scene.background_image,
                             this.scene.background_image_repetition);
                         ctx.imageSmoothingEnabled = true
                     } else {
-                        ctx.fillStyle = this.low_lod_color;
+                        ctx.fillStyle = this.color;
                     }
-                    ctx.fillRect(rect.x, rect.y, rect.width, rect.height);;
+                    ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
                 }
             }
         },
@@ -2087,6 +2097,9 @@
             this.y_1 > rect.y_2 || rect.y_1 > this.y_2)
     };
 
+    function isImageValid(img) {
+        return img &&　img.width > 0 && img.height > 0;
+    };
     /**
      *
      * @class Scene
