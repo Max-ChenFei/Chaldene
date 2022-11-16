@@ -2202,7 +2202,37 @@
         return this.view.sceneRect();
     };
 
-    Scene.prototype.draw = function(ctx, lod) {
+    Scene.prototype.nodes = function(){
+        if(!this.graph) return [];
+        return Object.values(this.graph.nodes);
+    };
+
+    Scene.prototype.visibleNodes = function(){
+        let sceneRect = this.sceneRect();
+        let nodes = [];
+        for (const node of this.nodes()) {
+            if (sceneRect.isIntersectWith(node.boundingRect()))
+                nodes.push(node);
+        };
+        return nodes;
+    };
+
+    Scene.prototype.connectors = function(){
+        if(!this.graph) return [];
+        return Object.values(this.graph.connectors);
+    };
+
+    Scene.prototype.visibleConnectors = function(){
+        let sceneRect = this.sceneRect();
+        let connectors = [];
+        for (const connector of this.connectors()) {
+            if (sceneRect.isIntersectWith(connector.boundingRect()))
+                connectors.push(connector);
+        };
+        return connectors;
+    };
+
+    Scene.prototype.draw = function (ctx, lod) {
       if(this.style)
           this.style.draw(ctx, lod);
     };
