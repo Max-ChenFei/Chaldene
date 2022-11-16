@@ -1344,7 +1344,8 @@
     };
 
     LGraphNode.prototype.boundingRect = function() {
-       return new Rect(0, 0, this.size.size_x, this.size.y);
+        const size = this.size();
+        return new Rect(size[0], size[1], size[2], size[3]);
     };
 
     LGraphNode.prototype.draw = function(ctx, lod){
