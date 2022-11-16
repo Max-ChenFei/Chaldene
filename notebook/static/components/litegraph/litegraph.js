@@ -1006,6 +1006,11 @@
         return false;
     };
 
+    const NodeState = {
+        normal: "normal",
+        hovered: "hovered",
+        pressed: "pressed"
+    }
     // *************************************************************
     //   Node CLASS                                          *******
     // *************************************************************
@@ -1067,10 +1072,8 @@
     LGraphNode.prototype.flags = {};
     LGraphNode.prototype.translate = new Point(0, 0);
     LGraphNode.prototype.scale = new Point(1, 1);
-    LGraphNode.prototype.size = new Size(10, 10);
     LGraphNode.prototype.collidable_components = {};
-
-
+    LGraphNode.prototype.current_state = NodeState.normal;
 
     /**
      * get the title string
