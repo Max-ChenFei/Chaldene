@@ -1396,10 +1396,6 @@
 
     let RenderingTemplate = {
         scene: {
-            background_image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
-            background_image_repetition: "repeat",
-            low_lod_color: "#FFFFFFFF",
-            global_alpha:1,
             style: {
                 "0": {
                     image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
@@ -2106,9 +2102,10 @@
      * @constructor
      * @param {HTMLCanvas} canvas the canvas where you want to render
      * @param {LGraph} graph, the content to display
-     * @param {Rect} viewport in view coordinate, max size are(canvas.width, canvas.height)
+     * @param {Object} options [optional] { viewport, drawing_context, rendering_template}
      */
-    function Scene(canvas, graph, viewport, drawing_context){
+    function Scene(canvas, graph, options){
+        this.makeSureCanvasValid(canvas);
         this.canvas = canvas;
         this.graph = graph;
         this.viewport = viewport;
