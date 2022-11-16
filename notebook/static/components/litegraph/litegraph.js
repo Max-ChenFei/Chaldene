@@ -785,8 +785,6 @@
         this.out_slot_name = out_slot_name;
         this.in_node = in_node;
         this.in_slot_name = in_slot_name;
-
-        this._pos = new Float32Array(2); //center
     }
 
     Connector.prototype.configure = function(o) {
