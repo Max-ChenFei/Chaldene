@@ -831,6 +831,10 @@
         }
     };
 
+    Connector.prototype.boundingRect = function() {
+       return new Rect(0, 0, this.width(), this.height());
+    };
+
     LiteGraph.Connector = Connector;
 
     const SlotType = {
@@ -918,6 +922,10 @@
     Point.prototype.add = function(delta_x, delta_y){
         this.x += delta_x? delta_x: 0;
         this.y += delta_y? delta_y: 0;
+    };
+
+    Point.prototype.distanceTo = function(p){
+        return Math.sqrt(Math.pow(p.x - this.x, 2) + Math.pow(p.y - this.y, 2));
     };
 
     function Size(size_x, size_y){
@@ -1379,6 +1387,446 @@
     LGraphComment.prototype.removeNode = function(node_id) {
         delete this.nodes_inside[node_id];
     };
+
+    function textWidth(text, font_size){
+        if (!text)
+            return 0;
+        return font_size * text.length * 0.6;
+    }
+
+    RenderingTemplate = {
+        scene: {
+            background_image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
+            background_image_repetition: "repeat",
+            low_lod_color: "#FFFFFFFF",
+            global_alpha:1,
+            style: {
+                draw: function(ctx, lod){
+                    const rect = this.sceneRect();
+                    ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
+                    if(lod==0 && this.isBackgroundImageValid())
+                    {
+                        ctx.fillStyle = ctx.createPattern(this.scene.background_image,
+                            this.scene.background_image_repetition);
+                        ctx.imageSmoothingEnabled = true
+                    } else {
+                        ctx.fillStyle = this.low_lod_color;
+                    }
+                    ctx.fillRect(rect.x, rect.y, rect.width, rect.height);;
+                }
+            }
+        },
+        // different slot data types(number, string..), different states style sheet(selected, unselected, hovered) applied on
+        // different LOD of shape
+        slot: {
+            icon_width:10,
+            icon_height:10,
+            line_width:2,
+            to_render_text: true,
+            font_size: 12,
+            font: this.font.toString() + 'px Arial',
+            padding_between_icon_text: 3,
+            width: function(){
+                let text_width = this.to_render_text? textWidth(this.font_size, this.name) : 0;
+                return this.icon_width + text_width > 0? this.padding_between_icon_text + text_width: 0;
+            },
+            height: function(){
+                return this.icon_height;
+            },
+            getConnectedAnchorPos: function () {
+                let pos = {x: this.icon_width / 2.0, y: this.icon_height / 2.0};
+                if(this.isInput())
+                    pos.x *= -1;
+                return pos;
+            },
+
+            style: {
+                "default":{
+                    unconnected: {
+                        normal: {
+                            ctx_style: {fillStyle: null, strokeStyle: "#80b3ff"},
+                            draw: function(this_style, ctx, lod){
+                                let ctx_style = this_style.unconnected.normal.ctx_style;
+                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            }
+                        },
+                        hovered: {
+                            ctx_style: {fillStyle: null, strokeStyle: "#80b3ff"},
+                            draw: function(this_style, ctx, lod){
+                                let ctx_style = this_style.unconnected.hovered.ctx_style;
+                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            }
+                        }
+                    },
+                    connected: {
+                        normal: {
+                            ctx_style: {fillStyle: "#FF0303FF", strokeStyle: "#FF0303FF"},
+                            draw: function(this_style, ctx, lod){
+                                let ctx_style = this_style.connected.normal.ctx_style;
+                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            }
+                        },
+                        hovered: {
+                            ctx_style: {fillStyle: "#FF0303FF", strokeStyle: "#FF0303FF"},
+                            draw: function(this_style, ctx, lod){
+                                let ctx_style = this_style.connected.hovered.ctx_style;
+                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            }
+                       },
+                    },
+                    _draw_when_normal: function(this_style, ctx, ctx_style, lod){
+                        this_style.drawShape(ctx, ctx_style);
+                        if (lod == 0 && this.to_render_text)
+                            this_style.drawName(ctx, ctx_style);
+                    },
+                    _draw_when_hovered: function(this_style, ctx, ctx_style, lod){
+                        this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                        if (lod==0)
+                            this_style.hovered(ctx, ctx_style);
+                    },
+                    drawShape: function(ctx, style){
+                        ctx.save();
+                        ctx.beginPath();
+                        if(this.isInput())
+                            ctx.move(-this.height, 0);
+                        ctx.arc(this.height / 2.0, this.height / 2.0, this.height / 2.0, 0, Math.PI * 2, true);
+                        ctx.closePath();
+                        if (style.fillStyle){
+                            ctx.fillStyle = style.fillStyle;
+                            ctx.fill();
+                        }
+                        if (style.strokeStyle){
+                            ctx.lineWidth = this.lineWidth;
+                            ctx.strokeStyle = style.strokeStyle;
+                            ctx.stroke();
+                        }
+                        ctx.move(0, 0);
+                        ctx.restore();
+                    },
+                    drawName: function(ctx, style){
+                        ctx.save();
+                        ctx.font = this.font;
+                        if (style.fillStyle) ctx.fillStyle = style.fillStyle;
+                        ctx.textBaseline = "middle";
+                        let x = 0;
+                        if(this.isInput()){
+                            ctx.textAlign = "left";
+                            x = this.icon_width + this.padding_between_icon_text;
+                        } else {
+                            ctx.textAlign = "right";
+                            x = -(this.icon_width + this.padding_between_icon_text);
+                        }
+                        ctx.fillText(this.name, x, this.icon_height / 2.0 );
+                        ctx.restore();
+                    },
+                    hovered: function(ctx, style){
+                        ctx.globalAlpha = 0.2;
+                        if (style.fillStyle) ctx.fillStyle = style.fillStyle;
+                        ctx.fillRect(-this.line_width * 2, -this.line_width * 2, this.width() + this.line_width * 2, this.height() + this.line_width);
+                        ctx.globalAlpha = 1;
+                    },
+                },
+                "Exec": {
+                    unconnected: {
+                        normal: {
+                            ctx_style: {fillStyle: null, strokeStyle: "#FFFFFF"}
+                        },
+                        hovered: {
+                            ctx_style: {fillStyle: null, strokeStyle: "#FFFFFF"}
+                        },
+                    },
+                    connected: {
+                        normal: {
+                            ctx_style: {fillStyle: "#FFFFFF", strokeStyle: "#FFFFFF"}
+                        },
+                        hovered: {
+                            ctx_style: {fillStyle: "#FFFFFF", strokeStyle: "#FFFFFF"}
+                        },
+                    },
+                    drawShape: function(ctx, style) {
+                        ctx.save();
+                        ctx.beginPath();
+                        if(this.isInput())
+                            ctx.move(-this.height, 0);
+                        else
+                            ctx.moveTo(0, 0);
+                        ctx.lineTo(this.width / 2.0, 0);
+                        ctx.lineTo(this.width, this.height / 2.0);
+                        ctx.lineTo(this.width / 2.0, this.height);
+                        ctx.lineTo(0, this.height);
+                        ctx.closePath();
+                        if (style.fillStyle) {
+                            ctx.fillStyle = style.fillStyle;
+                            ctx.fill();
+                        }
+                        if (style.strokeStyle) {
+                            ctx.lineWidth = this.lineWidth;
+                            ctx.strokeStyle = style.strokeStyle;
+                            ctx.stroke();
+                        }
+                        ctx.moveTo(0, 0);
+                        ctx.restore();
+                    },
+                    __proto__: this.style.default
+                },
+                "Number": {
+                    unconnected: {
+                        normal: {
+                            ctx_style: {fillStyle: null, strokeStyle: "#00FF4AFF"}
+                        },
+                        hovered: {
+                            ctx_style: {fillStyle: null, strokeStyle: "#00FF4AFF"}
+                        },
+                    },
+                    connected: {
+                        normal: {
+                            ctx_style: {fillStyle: "#00FF4AFF", strokeStyle: "#00FF4AFF"}
+                        },
+                        hovered: {
+                            ctx_style: {fillStyle: "#00FF4AFF", strokeStyle: "#00FF4AFF"}
+                        },
+                    },
+                     __proto__: this.style.default
+                },
+            }
+        },
+        nodes: {
+            global_alpha : 1,
+            title_bar: {
+                to_render: true,
+                color: "#999",
+                height: 5,
+                font_size: 14,
+                font: this.font_size.title_bar.font_size.toString() + "px Arial",
+                font_fill_color: "FFFFFFFF"
+            },
+            central_text: {
+                to_render: true,
+                height: 20,
+                width: 10,
+                font_size: 6,
+                font: this.font_size.title_bar.font_size.toString() + "px Arial",
+                font_fill_color: "#7DCEA0",
+            },
+            slot_to_top_border: 3,
+            slot_to_side_border: 3,
+            horizontal_padding_between_slots: 5,
+            vertical_padding_between_slots: 5,
+            node_width: function (){
+                let max_width = this.slot_to_side_border * 2 + this.vertical_padding_between_slots;
+                const input_slots = Object.values(this.inputs);
+                const output_slots = Object.values(this.outputs);
+                for (let i=0; i < Math.max(input_slots.length, output_slots.length); i++){
+                    let width = input_slots[i] || 0 + output_slots[i] || 0;
+                    if (max_width < width)
+                        max_width = width;
+                }
+                if(this.central_text.to_render)
+                    max_width += this.central_text.width;
+                return max_width;
+            },
+            node_height: function (){
+                let left_side = this.slot_to_side_border * 2;
+                for (const input of Object.values(this.inputs)) {
+                    left_side += input.height();
+                }
+                left_side += this.horizontal_padding_between_slots * Math.max((Object.values(this.inputs).length - 1), 0);
+                let right_side = this.slot_to_side_border * 2;
+                for (const output of Object.values(this.outputs)) {
+                    right_side += output.height();
+                }
+                right_side += this.horizontal_padding_between_slots * Math.max((Object.values(this.outputs).length - 1), 0);
+                let central_text_height = this.central_text.to_render * this.central_text.height;
+                return Math.max(left_side, right_side, central_text_height) +　this.title_bar.to_render ? this.title_bar.height : 0
+            },
+            size: function(){
+                let y = this.title_bar.to_render ? - this.title_bar.height : 0;
+                return [0, y, this.node_width(), this.node_height()];
+            },
+
+            style: {
+                normal : {
+                    ctx_style: {fill_style: "#ffffff", stroke_style: null, line_width: 1,
+                        round_radius: 8,
+                        font_color: "FFFFFFFF"
+                    },
+                    draw: function(this_style, ctx, lod){
+                        let style = this_style.normal.ctx_style;
+                        this_style.draw(this_style, ctx, style, lod);
+                    }
+                },
+                hovered: {
+                    ctx_style: {fill_style: "#ffcf00", stroke_style: "FFCF00FF", line_width: 1,
+                        round_radius: 8,
+                        font_color: "FFFFFFFF"
+                    },
+                    draw: function(this_style, ctx, lod){
+                        let style = this_style.hovered.ctx_style;
+                        this_style.draw(this_style, ctx, style, lod);
+                    }
+                },
+                pressed: {
+                    ctx_style: {fill_style: "#0053FFFF", stroke_style: "0053FFFF", line_width: 1,
+                        round_radius: 8,
+                        font_color: "FFFFFFFF"},
+                    draw: function(this_style, ctx, lod){
+                        let style = this_style.pressed.ctx_style;
+                        this_style.draw(this_style, ctx, style, lod);
+                    }
+                },
+            },
+
+            draw: function(this_style, ctx, ctx_style, lod) {
+                this_style.drawBackground(this_style, ctx, ctx_style, lod);
+                this_style.drawTitle(this_style, ctx, ctx_style, lod);
+                this_style.drawSlots(this_style, ctx, ctx_style, lod);
+                this_style.drawCentral(this_style, ctx, ctx_style, lod);
+            },
+
+            drawBackground: function(this_style, ctx, ctx_style, lod) {
+                ctx.save();
+                if (ctx_style.fill_style) ctx.fillStyle = ctx_style.fill_style;
+                if (ctx_style.stroke_style){
+                    ctx.strokeStyle = ctx_style.stroke_style;
+                    ctx.lineWidth = ctx_style.line_width;
+                }
+                ctx.beginPath();
+                const rect = this.size();
+                ctx.roundRect(rect.x, rect.y, rect.width, rect.height, [ctx_style.round_radius]);
+                ctx.fill();
+                if (ctx_style.stroke_style){
+                    ctx.stroke();
+                }
+                ctx.restore();
+            },
+
+            drawTitle: function(ctx, ctx_style, lod){
+                if(!this.title_bar.to_render)
+                    return;
+                ctx.save();
+                ctx.fillStyle = this.title_bar.color;
+                if(lod > 0){
+                    ctx.fillRect(this.size()[0], this.size()[1], this.size()[2], this.title_bar.height);
+                    ctx.fill();
+                } else{
+                    ctx.roundRect(this.size()[0], this.size()[1], this.size()[2], this.title_bar.height, [ctx_style.round_radius]);
+                    ctx.font = this.title_bar.font;
+                    ctx.fillStyle = this.title_bar.font_fill_color;
+                    ctx.textBaseline = "middle";
+                    ctx.textAlign = "left";
+                    ctx.fillText(this.title, this.icon_width + this.padding_between_icon_text, this.height / 2.0);
+                }
+                ctx.restore();
+            },
+
+            drawSlots: function(ctx, lod){
+                ctx.save();
+                let index = 1;
+                for (let slot of Object.values(this.inputs)) {
+                    ctx.save();
+                    slot.translate.x = this.slot_to_side_border;
+                    slot.translate.y = this.slot_to_top_border + (i-1) * this.horizontal_padding_between_slots;
+                    index++;
+                    ctx.translate(slot.translate);
+                    slot.draw(ctx, lod);
+                    ctx.restore();
+                }
+                index = 1;
+                for (let slot of Object.values(this.outputs)) {
+                    ctx.save();
+                    slot.translate.x = this.width() - this.slot_to_side_border;
+                    slot.translate.y = this.slot_to_top_border + (i-1) * this.horizontal_padding_between_slots;
+                    index++;
+                    ctx.translate(slot.translate);
+                    slot.draw(ctx, lod);
+                    ctx.restore();
+                }
+                ctx.restore();
+            },
+
+            drawCentral: function(ctx, ctx_style, lod){
+                if(!this.central_text.to_render && lod>0)
+                    return;
+                ctx.save();
+                ctx.fillStyle = this.central_text.font_fill_color;
+                ctx.font = this.title_bar.font;
+                ctx.textBaseline = "middle";
+                ctx.textAlign = "center";
+                ctx.fillText(this.central_text.text, this.icon_width + this.padding_between_icon_text, this.height / 2.0);
+                ctx.restore();
+            }
+        },
+        commentNode: {
+            alpha : 0.5,
+            width: 20,
+            height: 20,
+            size: function(){
+                return [0, 0, this.width, this.height];
+            },
+
+            style: {
+                normal : {
+                    ctx_style: {fill_style: "#ffffff", stroke_style: null}
+                },
+                pressed: {
+                    ctx_style: {fill_style: "#0053FFFF", stroke_style: "0053FFFF"}
+                },
+            },
+            draw: function(this_style, ctx, ctx_style, lod) {
+                ctx.save()
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = ctx_style.fill_style;
+                ctx.stroke_style = ctx_style.stroke_style;
+                ctx.beginPath();
+                ctx.rect(0, 0, this.width, this.height);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            },
+        },
+
+        connector: {
+            default_color: "#bdbbbb",
+            style: {
+                normal: {
+                    ctx_style: {stroke_style: "#fffdfd", line_width: 2, line_join: "round", alpha: 1},
+                    draw: function(this_style, ctx, lod){
+                        const ctx_style = this_style.normal.ctx_style;
+                        this_style.draw(this_style, ctx, ctx_style, lod);
+                    }
+                },
+                hovered: {
+                    ctx_style: {stroke_style: "#f7bebe", line_width: 2, line_join: "round", alpha: 1},
+                    draw: function(this_style, ctx, lod){
+                        const ctx_style = this_style.hovered.ctx_style;
+                        this_style.draw(this_style, ctx, ctx_style, lod);
+                    }
+                }
+            },
+            draw: function(this_style, ctx, ctx_style, lod) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.lineJoin = ctx_style.line_join;
+                ctx.lineWidth = ctx_style.line_width;
+                ctx.strokeStyle = ctx_style.stroke_style;
+                ctx.globalAlpha = ctx_style.alpha;
+                const from = this.fromPos();
+                const to = this.toPos();
+                const distance = from.distanceTo(to);
+                ctx.moveTo(from.x, from.y);
+                ctx.bezierCurveTo(
+                    from.x + distance * 0.25, from.y,
+                    to.x - distance * 0.25, to.y,
+                    to.x, to.y
+                );
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+    }
+
+    RenderingTemplate.prototype.name = "RenderingTemplate";
+
 
     /**
      * The Rect class defines a rectangle in the plane using number.
