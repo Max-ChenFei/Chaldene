@@ -838,6 +838,14 @@
         draw_method(this.style, ctx, lod);
     }
 
+    Connector.prototype.mouseEnter = function() {
+        this.current_state = VisualState.hovered;
+    };
+
+    Connector.prototype.mouseLeave = function() {
+        this.current_state = VisualState.normal;
+    };
+
     const SlotType = {
         Exec: "Exec",
         number: "number",
@@ -958,9 +966,22 @@
          this.default_value = default_value;
          this.connections = 0;
          this.extra_info = {};
-         this.state = 'unconnected' || "connected";
-         this.hovered = false;
+         this.is_connected = false;
+         this.current_state = VisualState.normal;
          this.translate = new Point(0, 0);
+    };
+
+    NodeSlot.prototype.mouseEnter = function() {
+        this.current_state = VisualState.hovered;
+    };
+
+    NodeSlot.prototype.mouseLeave = function() {
+        this.current_state = VisualState.normal;
+    };
+
+    NodeSlot.prototype.mousePressed = function() {
+        this.current_state = VisualState.pressed;
+        this.is_connected = !this.is_connected;
     };
 
      NodeSlot.prototype.isInput = function () {
@@ -1027,8 +1048,8 @@
         if(!this.style) return;
         let type_style = this.style[this.data_type];
         if (!type_style) type_style = this.style['default'];
-        const event = this.hovered? "normal" : "hovered";
-        let draw_method = type_style[this.state][event].draw;
+        const connected_state = this.is_connected? "connected" : "unconnected";
+        let draw_method = type_style[connected_state][this.current_state].draw;
         draw_method(type_style, ctx, lod);
     }
 
@@ -1381,6 +1402,18 @@
             slot.pluginRenderingTemplate(template['NodeSlot']);
         }
     }
+
+    Node.prototype.mouseEnter = function() {
+        this.current_state = VisualState.hovered;
+    };
+
+    Node.prototype.moveLeave = function() {
+        this.current_state = VisualState.normal;
+    };
+
+    Node.prototype.pressed = function() {
+        this.current_state = VisualState.pressed;
+    };
 
 
     function LGraphComment() {
