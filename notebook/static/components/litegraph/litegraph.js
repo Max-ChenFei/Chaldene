@@ -531,13 +531,14 @@
         const connector = this.connectors[connector_id];
         if(!connector) return;
 
-        let out_node = this.nodes[connector.out_node_id];
+        let out_node = connector.out_node;
         if (out_node) out_node.breakConnectionOfOutput(connector.out_slot_name);
-        let in_node = this.nodes[connector.in_node_id];
+        let in_node = connector.in_node;
         if (in_node) in_node.breakConnectionOfInput(connector.in_slot_name);
-
-        delete this.in_connectors[connector.in_node_id][connector.in_slot_name];
-        delete this.out_connectors[connector.out_node_id][connector.out_slot_name];
+        let in_node_id = in_node.id;
+        let out_node_id = out_node.id;
+        delete this.in_connectors[in_node_id][connector.in_slot_name];
+        delete this.out_connectors[out_node_id][connector.out_slot_name];
         delete this.connectors[connector_id];
     };
 
