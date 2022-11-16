@@ -2106,15 +2106,35 @@
     function Scene(canvas, graph, options){
         this.makeSureCanvasValid(canvas);
         this.canvas = canvas;
+        canvas.owner = this;
         this.graph = graph;
-        this.viewport = viewport;
-        this.view = new View(this);
-        this.drawing_context = drawing_context || '2d';
+        this.viewport = options.viewport;
+        this.drawing_context = options.drawing_context || '2d';
+        this.rendering_template = options.rendering_template || RenderingTemplate;
         this.renderer = new Renderer(this);
+        this.view = new View(this);
+        this.selected_nodes = {};
+        this.command_in_process = undefined;
+        this.pluginSceneRenderingConfig();
         this.setStartRenderWhenCanvasOnFocus();
         this.setStopRenderWhenCanvasOnBlur();
-        this.visiable_items = {};
     };
+
+    Object.defineProperty(Scene.prototype, "lod", {
+        get() { return this.view? this.view.lod : 0;},
+        writable: false
+    })
+
+    Scene.prototype.makeSureCanvasValid = function(canvas){
+        if (!canvas ||　canvas.localName != "canvas") throw "The canvas is invalided."
+        if (!canvas.getContext) {
+            throw "This browser doesn't support Canvas";
+        }
+    }
+
+    Scene.prototype.pluginSceneRenderingConfig = function(){
+       this.style = this.rendering_template.scene.style;
+    }
 
     Scene.prototype.setStartRenderWhenCanvasOnFocus = function(){
         this.canvas.addEventListener("focus", this.renderer.startRender());
@@ -2124,14 +2144,13 @@
         this.canvas.addEventListener("blur", this.renderer.stopRender());
     };
 
-    Scene.prototype.setRenderDrawingContext = function(ctx){
-        this.drawing_context = ctx;
-        this.renderer.drawing_context = ctx;
+    Scene.prototype.sceneRect = function(){
+        return this.view.sceneRect();
     };
 
-    Scene.prototype.sceneRect = function(){
-        if(!this.view) return new Rect(0, 0, this.canvas.width, this.canvas.height);
-        return this.view.sceneRect();
+    Scene.prototype.draw = function(ctx, lod) {
+      if(this.style)
+          this.style.draw(ctx, lod);
     };
 
     //****************************************
