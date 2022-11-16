@@ -805,6 +805,16 @@
         }
     };
 
+    Connector.prototype.fromPos = function() {
+       if(!this.out_node) return new Point(0, 0);
+       return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name);
+    };
+
+    Connector.prototype.toPos = function() {
+       if(!this.in_node) return new Point(0, 0);
+       return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name);
+    };
+
     Connector.prototype.serialize = function() {
         return [
             this.id,
@@ -943,6 +953,7 @@
          this.extra_info = {};
          this.state = 'unconnected' || "connected";
          this.hovered = false;
+         this.translate = new Point(0, 0);
     };
 
      NodeSlot.prototype.addExtraInfo = function (extra_info) {
@@ -1069,7 +1080,12 @@
         return this.title || this.constructor.title;
     };
 
-
+    LGraphNode.prototype.getConnectedAnchorPosInScene = function(slot_name) {
+        const slot = this.inputs[slot_name] || this.outputs[slot_name];
+        if (!slot) return undefined;
+        let local_pos = slot.getConnectedAnchorPos();
+        return new Point(this.translate.x + local_pos.x, this.translate.y + local_pos.y);
+    };
 
     /**
      * add a new slot to slots
