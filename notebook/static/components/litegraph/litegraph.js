@@ -1983,7 +1983,6 @@
     };
 
     Renderer.prototype._renderBackground = function(){
-        if (!this.scene.isBackgroundImageValid()) return;
         let layer = this.layers['background'];
         let ctx = this.getDrawingContextFrom(layer.canvas);
         this._ctxFromViewToScene(ctx);
