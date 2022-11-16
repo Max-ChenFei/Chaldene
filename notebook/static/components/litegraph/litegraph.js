@@ -1827,6 +1827,221 @@
 
     RenderingTemplate.prototype.name = "RenderingTemplate";
 
+    /**
+     * @class RenderedLayer
+     * @param {Boolean} re_render
+     * @param {HTMLCanvas} canvas
+     * @param {Function} render_method
+     * @constructor
+     */
+    function RenderedLayer(re_render, canvas, render_method){
+        this.re_render = re_render;
+        this.canvas = canvas;
+        this.render_method = render_method;
+    };
+
+    RenderedLayer.prototype.updateCanvasSize = function(width, height){
+      this.canvas.width = width;
+      this.canvas.height = height;
+    };
+
+    /**
+     * This Renderer will render the visible items in the scene on the canvas.
+     * @class Renderer
+     * @constructor
+     * @param {Scene} scene
+     * @param {String} drawing_context "2d" for canvas api
+     */
+    function Renderer(scene){
+        this.scene = scene;
+        this.layers = {};
+        this.is_rendering = false;
+        // multiple layer render for optimization
+        this.render_method_for_layer = {
+            "action": this._renderActions.bind(this),
+            "nodes":this._renderNodes.bind(this),
+            "connectors":this._renderConnectors.bind(this),
+            "background": this._renderBackground.bind(this)};
+        this.initRenderLayers();
+    };
+
+    Renderer.prototype.getCanvas = function(){
+        return this.scene.canvas;
+    };
+
+    Renderer.prototype.createNewCanvas = function(){
+        let canvas = document.createElement('canvas');
+        if (!canvas) return this.getCanvas();
+        canvas.width = this.getCanvas().width;
+        canvas.height = this.getCanvas().height;
+        return canvas;
+    };
+
+    Renderer.prototype.initRenderLayers = function(){
+        for (const [name, render_method] of Object.entities(this.render_method_for_layer)) {
+            this.layers[name] = new RenderedLayer(true, this.createNewCanvas(), render_method);
+        }
+    };
+
+    Renderer.prototype.getDrawingContext = function(){
+        return this.scene.drawing_context || "2d";
+    };
+
+     /**
+     *
+     * @param changed_obj "background" "connectors" "nodes" "action"
+     */
+    RenderedLayer.prototype.notifyWhichChange = function(changed_obj){
+        if(this.layers[changed_obj]){
+            this.layers[changed_obj].to_render = true;
+        }
+    };
+
+    Renderer.prototype.updateRenderLayerSize = function(width, height){
+        for (const layer of Object.values(this.layers)) {
+            layer.updateRenderLayerSize(width, heigth);
+        }
+    };
+
+    /**
+     * @method getCanvasWindow
+     * @return {window} returns the window where the canvas is attached (the DOM root node)
+     */
+    Renderer.prototype.getRenderWindow = function() {
+        if (!this.getCanvas()) {
+            return Window;
+        }
+        let doc = this.getCanvas().ownerDocument;
+        return doc.defaultView || doc.parentWindow;
+    };
+
+    Renderer.prototype.canvasIsValid = function(){
+        if (!this.getCanvas() || this.getCanvas().width == 0 || this.getCanvas().height == 0) {
+            return false;
+        }
+        return true;
+    };
+
+    Renderer.prototype.getDrawingContextFrom = function(canvas){
+        return canvas.getContext(this.getDrawingContext());
+    };
+
+    Renderer.prototype._ctxFromViewToScene= function(ctx){
+        ctx.save();
+        ctx.scale(this.scene.view.scale, this.scene.view.scale);
+        ctx.translate(this.scene.view.translate.x, this.scene.view.translate.y);
+    };
+
+    Renderer.prototype._ctxFromSceneToView = function(ctx){
+        ctx.restore();
+    };
+
+    Renderer.prototype._ctxFromSceneToNode = function(ctx, node){
+        ctx.save();
+        ctx.translate(node.translate.x, node.translate.y);
+        ctx.scale(node.scale.x, node.scale.y);
+    };
+
+    Renderer.prototype._ctxFromNodeToScene = function(ctx){
+        ctx.restore();
+    };
+
+    Renderer.prototype._render_each_layer = function(){
+        let re_render_any_layer = false;
+        for (let layer of this.layers) {
+            if (layer.re_render) {
+                re_render_any_layer = true;
+                layer.render_method();
+                layer.re_render = false;
+            }
+        }
+        return re_render_any_layer;
+    }
+
+    Renderer.prototype._compositeLayers = function(){
+        let ctx = this.getDrawingContextFrom(this.getCanvas());
+        this._ctxFromViewToScene(ctx);
+        const rect = this.scene.sceneRect();
+        ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
+        for (let layer of this.layers) {
+            ctx.drawImage(layer.canvas, 0, 0);
+        }
+        this._ctxFromSceneToView(ctx);
+    }
+
+    Renderer.prototype._render = function(){
+        if(!this.canvasIsValid()) return;
+        const re_render_any_layer = this._render_each_layer();
+        if (!re_render_any_layer) return;
+        this._compositeLayers();
+    };
+
+    Renderer.prototype._renderBackground = function(){
+        if (!this.scene.isBackgroundImageValid()) return;
+        let layer = this.layers['background'];
+        let ctx = this.getDrawingContextFrom(layer.canvas);
+        this._ctxFromViewToScene(ctx);
+        const rect = this.scene.sceneRect();
+        ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
+        this.scene.draw(ctx, this.scene.lod);
+        this._ctxFromSceneToView(ctx);
+    };
+
+    Renderer.prototype._renderConnectors = function(){
+        let layer = this.layers['connectors'];
+        let ctx = this.getDrawingContextFrom(layer.canvas);
+        this._ctxFromViewToScene(ctx);
+        const scene_rect = this.scene.sceneRect();
+        ctx.clearRect(scene_rect.x, scene_rect.y, scene_rect.width, scene_rect.height);
+        for (let connector of this.scene.visibleConnectors()) {
+            connector.draw(ctx, this.scene.lod);
+        }
+        this._ctxFromSceneToView(ctx);
+    };
+
+
+    Renderer.prototype._renderNodes = function(){
+        let layer = this.layers['nodes'];
+        let ctx = this.getDrawingContextFrom(layer.canvas);
+        this._ctxFromViewToScene(ctx)
+        const scene_rect = this.scene.sceneRect();
+        ctx.clearRect(scene_rect.x, scene_rect.y, scene_rect.width, scene_rect.height);
+        for (let node of Object.values(this.scene.visibleNodes())) {
+            this._ctxFromSceneToNode(ctx, node);
+            node.draw(ctx, this.scene.lod);
+            this._ctxFromNodeToScene(ctx);
+        }
+        this._ctxFromSceneToView(ctx);
+    };
+
+    Renderer.prototype._renderActions = function(draw){
+        let layer = this.layers['nodes'];
+        let ctx = this.getDrawingContextFrom(layer.canvas);
+        const scene_rect = this.scene.sceneRect();
+        ctx.clearRect(scene_rect.x, scene_rect.y, scene_rect.width, scene_rect.height);
+        this._ctxFromViewToScene(ctx, node);
+        this.scene.command_in_process.draw(ctx, this.scene.lod);
+        this._ctxFromSceneToView(ctx);
+    };
+
+    Renderer.prototype.startRender = function(){
+        if(!this.canvasIsValid()) return;
+        if (this.is_rendering) return;
+        this.is_rendering = true;
+        renderFrame.call(this);
+
+        function renderFrame() {
+            this._render();
+            let window = this.getRenderWindow();
+            if (this.is_rendering) {
+                window.requestAnimationFrame(renderFrame.bind(this));
+            }
+        }
+    };
+
+    Renderer.prototype.stopRender = function(){
+        this.is_rendering = false;
+    };
 
     /**
      * The Rect class defines a rectangle in the plane using number.
