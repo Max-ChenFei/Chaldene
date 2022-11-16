@@ -1006,6 +1006,15 @@
         return false;
     };
 
+    NodeSlot.prototype.draw = function (ctx, lod) {
+        if(!style) return;
+        let type_style = this.style[this.data_type];
+        if (!type_style) type_style = this.style['default'];
+        const event = this.hovered? "normal" : "hovered";
+        let draw_method = type_style[this.state][event].draw;
+        draw_method(type_style, ctx, lod);
+    }
+
     const NodeState = {
         normal: "normal",
         hovered: "hovered",
@@ -1334,6 +1343,12 @@
        return new Rect(0, 0, this.size.size_x, this.size.y);
     };
 
+    LGraphNode.prototype.draw = function(ctx, lod){
+        if(!style) return;
+        let state_draw_method = this.style[this.current_state];
+        if (state_draw_method)
+            state_draw_method.draw(ctx, lod);
+    };
 
 
     function LGraphComment() {
