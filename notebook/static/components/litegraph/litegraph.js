@@ -783,6 +783,7 @@
         this.out_slot_name = out_slot_name;
         this.in_node = in_node;
         this.in_slot_name = in_slot_name;
+        this.current_state = VisualState.normal;
     }
 
     Connector.prototype.configure = function(o) {
@@ -832,6 +833,18 @@
     Connector.prototype.boundingRect = function() {
        return new Rect(0, 0, this.width(), this.height());
     };
+
+    Connector.prototype.pluginRenderingTemplate = function(template){
+        for (const [name, value] of Object.entities(template)) {
+            this[name] = value;
+        }
+    }
+
+    Connector.prototype.draw = function (ctx, lod){
+        if(!this.style) return;
+        let draw_method = this.style[this.current_state].draw;
+        draw_method(this.style, ctx, lod);
+    }
 
     LiteGraph.Connector = Connector;
 
@@ -1014,8 +1027,14 @@
         return false;
     };
 
+    NodeSlot.prototype.pluginRenderingTemplate = function(template){
+        for (const [name, value] of Object.entities(template)) {
+            this[name] = value;
+        }
+    };
+
     NodeSlot.prototype.draw = function (ctx, lod) {
-        if(!style) return;
+        if(!this.style) return;
         let type_style = this.style[this.data_type];
         if (!type_style) type_style = this.style['default'];
         const event = this.hovered? "normal" : "hovered";
@@ -1023,7 +1042,7 @@
         draw_method(type_style, ctx, lod);
     }
 
-    const NodeState = {
+    const VisualState = {
         normal: "normal",
         hovered: "hovered",
         pressed: "pressed"
@@ -1088,7 +1107,7 @@
     Node.prototype.translate = new Point(0, 0);
     Node.prototype.scale = new Point(1, 1);
     Node.prototype.collidable_components = {};
-    Node.prototype.current_state = NodeState.normal;
+    Node.prototype.current_state = VisualState.normal;
 
     /**
      * get the title string
@@ -1350,12 +1369,28 @@
         return new Rect(size[0], size[1], size[2], size[3]);
     };
 
-    Node.prototype.draw = function(ctx, lod){
-        if(!style) return;
+    Node.prototype.draw = function (ctx, lod){
+        if(!this.style) return;
         let state_draw_method = this.style[this.current_state];
         if (state_draw_method)
             state_draw_method.draw(ctx, lod);
     };
+
+    Node.prototype.pluginRenderingTemplate = function(template){
+        let default_node = template['Node'];
+        let this_node = template[this.constructor.name];
+        if(this_node)
+            Object.setPrototypeOf(this_node.prototype, default_node.prototype);
+        else
+            this_node = default_node;
+        for (const [name, value] of Object.entities(this_node)) {
+            this[name] = value;
+        }
+
+        for (let slot of Object.values(this.inputs.concat(this.outputs))) {
+            slot.pluginRenderingTemplate(template['NodeSlot']);
+        }
+    }
 
 
     function LGraphComment() {
@@ -1420,7 +1455,7 @@
         },
         // different slot data types(number, string..), different states style sheet(selected, unselected, hovered) applied on
         // different LOD of shape
-        slot: {
+        Nodeslot: {
             icon_width:10,
             icon_height:10,
             line_width:2,
@@ -1592,7 +1627,7 @@
                 },
             }
         },
-        nodes: {
+        Node: {
             global_alpha : 1,
             title_bar: {
                 to_render: true,
@@ -1758,7 +1793,7 @@
                 ctx.restore();
             }
         },
-        commentNode: {
+        CommentNode: {
             alpha : 0.5,
             width: 20,
             height: 20,
@@ -1787,7 +1822,7 @@
             },
         },
 
-        connector: {
+        Connector: {
             default_color: "#bdbbbb",
             style: {
                 normal: {
