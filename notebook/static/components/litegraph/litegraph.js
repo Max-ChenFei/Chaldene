@@ -1475,8 +1475,8 @@
         // (pos_scene + translate) * scale = pos_view
         this.translate = new Point(0, 0);
         this.scale = 1;
-        this.max_scale = 5;
-        this.min_scale = 0.55;
+        this.max_scale = 1;
+        this.min_scale = 0.5;
     }
 
     Object.defineProperties(View.prototype, {
@@ -1491,6 +1491,9 @@
             "scale_pivot": {
                 get() { return new Point(this.canvas.width/2, this.canvas.height/2);},
                 writable: false
+            },
+            "lod": {
+                get() { return this.scale > (this.max_scale + this.max_scale) /2.0 ? 0 : 1;},
             }
         });
 
