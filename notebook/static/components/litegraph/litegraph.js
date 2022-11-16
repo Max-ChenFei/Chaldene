@@ -771,16 +771,16 @@
      * Connector links the the output node and input node
      * @method node slot class
      * @param {Number} id the unique id of this connector
-     * @param {Number} out_node_id
+     * @param {LGraphNode} out_node
      * @param {String} out_slot_name
-     * @param {Number} in_node_id
+     * @param {LGraphNode} in_node
      * @param {String} in_slot_name
      */
-    function Connector(id, out_node_id, out_slot_name, in_node_id, in_slot_name) {
+    function Connector(id, out_node, out_slot_name, in_node, in_slot_name) {
         this.id = id;
-        this.out_node_id = out_node_id;
+        this.out_node = out_node;
         this.out_slot_name = out_slot_name;
-        this.in_node_id = in_node_id;
+        this.in_node = in_node;
         this.in_slot_name = in_slot_name;
 
         this._pos = new Float32Array(2); //center
@@ -789,15 +789,15 @@
     Connector.prototype.configure = function(o) {
         if (o.constructor === Array) {
             this.id = o[0];
-            this.out_node_id = o[1];
+            this.out_node = o[1];
             this.out_slot_name = o[2];
-            this.in_node_id = o[3];
+            this.in_node = o[3];
             this.in_slot_name = o[4];
         } else {
             this.id = o.id;
             this.out_node_id = o.out_node_id;
             this.out_slot_name = o.out_slot_name;
-            this.in_node_id = o.in_node_id;
+            this.in_node = o.in_node;
             this.in_slot_name = o.in_slot_name;
         }
     };
@@ -805,9 +805,9 @@
     Connector.prototype.serialize = function() {
         return [
             this.id,
-            this.out_node_id,
+            this.out_node,
             this.out_slot_name,
-            this.in_node_id,
+            this.in_node,
             this.in_slot_name
         ];
     };
