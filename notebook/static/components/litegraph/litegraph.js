@@ -60,7 +60,7 @@
         if (!node_class.prototype) {
             throw "Cannot register a simple object, it must be a class with a prototype";
         }
-        Object.setPrototypeOf(node_class.prototype, LGraphNode.prototype);
+        Object.setPrototypeOf(node_class.prototype, Node.prototype);
 
         if (!node_class.title) {
             node_class.title = node_class.name;
@@ -418,18 +418,16 @@
 		+ onNodeRemoved: when a node inside this graph is removed
 		+ onNodeConnectionChange: some connection has changed in the graph (connected or disconnected)
      *
-     * @class LGraph
+     * @class Graph
      * @constructor
      * @param {Object} o data from previous serialization [optional]
      */
 
-    function LGraph(o) {
+    function Graph(o) {
         this.init();
     }
 
-    global.LGraph = LiteGraph.LGraph = LGraph;
-
-    LGraph.prototype.init = function() {
+    Graph.prototype.init = function() {
         this.nodes = {}; // for better collision detection
         this.connectors = {};
         this.out_connector_ids = {}; // {out_node: {out_slot: connector_ids,... }}
@@ -441,7 +439,7 @@
         this.next_unique_id = 0;
     };
 
-    LGraph.prototype.getUniqueId = function() {
+    Graph.prototype.getUniqueId = function() {
         return this.next_unique_id++;
     };
 
@@ -449,7 +447,7 @@
      * Clear the graph
      * @method clear
      */
-    LGraph.prototype.clear = function() {
+    Graph.prototype.clear = function() {
         for (const node of Object.values(this.nodes)) {
             if (node.onRemoved) {
                 node.onRemoved();
@@ -462,7 +460,7 @@
      * Positions every node in a more readable manner
      * @method arrange
      */
-    LGraph.prototype.arrange = function (margin, layout) {
+    Graph.prototype.arrange = function (margin, layout) {
         margin = margin || 100;
 
         var nodes = this.computeExecutionOrder(false, true);
@@ -505,9 +503,9 @@
     /**
      * Adds a new node instance to this graph
      * @method add
-     * @param {LGraphNode} node the instance of the node
+     * @param {Node} node the instance of the node
      */
-    LGraph.prototype.add = function(node) {
+    Graph.prototype.add = function(node) {
         if (!node) return;
 
         node.id =  this.getUniqueId();
@@ -527,7 +525,7 @@
      * @method removeConnector
      * @param {Number} connector_id
      */
-    LGraph.prototype.removeConnector = function(connector_id) {
+    Graph.prototype.removeConnector = function(connector_id) {
         const connector = this.connectors[connector_id];
         if(!connector) return;
 
@@ -542,24 +540,24 @@
         delete this.connectors[connector_id];
     };
 
-    LGraph.prototype.removeConnectors = function(connector_ids) {
+    Graph.prototype.removeConnectors = function(connector_ids) {
         if (connector_ids.constructor === Array)
             for (const id of connector_ids) {
                 this.removeConnector(id);
             }
     };
 
-    LGraph.prototype.clearInConnectorsOfNode = function(node_id) {
+    Graph.prototype.clearInConnectorsOfNode = function(node_id) {
         const ids = Object.values(this.in_connectors[node_id]);
         this.removeConnectors(ids);
     };
 
-    LGraph.prototype.clearOutConnectorsOfNode = function(node_id) {
+    Graph.prototype.clearOutConnectorsOfNode = function(node_id) {
         const ids = Object.values(this.out_connectors[node_id]);
         this.removeConnectors(ids);
     };
 
-    LGraph.prototype.clearConnectorsOfNode = function(node_id) {
+    Graph.prototype.clearConnectorsOfNode = function(node_id) {
         this.clearInConnectorsOfNode(node_id);
         this.clearOutConnectorsOfNode(node_id);
     };
@@ -569,7 +567,7 @@
      * @method remove
      * @param {String} node_id
      */
-    LGraph.prototype.remove = function(node_id) {
+    Graph.prototype.remove = function(node_id) {
         const node = this.nodes[node_id]
         if (!node) return;
 
@@ -589,21 +587,21 @@
      * @method getNodeById
      * @param {Number} id
      */
-    LGraph.prototype.getNodeById = function(id) {
+    Graph.prototype.getNodeById = function(id) {
         if (!id) return null;
         return this.nodes[id];
     };
 
-    LGraph.prototype.addSubGraph = function(name, subgraph) {
+    Graph.prototype.addSubGraph = function(name, subgraph) {
         makeSureNameUniqueIn(name, this.subgraphs);
         this.subgraphs[name] = subgraph;
     };
 
-    LGraph.prototype.removeSubGraph = function(name) {
+    Graph.prototype.removeSubGraph = function(name) {
         delete this.subgraphs[name];
     };
 
-    LGraph.prototype.getSubGraph = function(name) {
+    Graph.prototype.getSubGraph = function(name) {
         return this.subgraphs[name];
     };
 
@@ -613,7 +611,7 @@
      * @param {String} type
      * @param {*} value [optional]
      */
-    LGraph.prototype.addVarTo = function(name, type, value, obj, callback) {
+    Graph.prototype.addVarTo = function(name, type, value, obj, callback) {
         makeSureNameUniqueIn(name, Object.keys(this.inputs));
         makeSureNameUniqueIn(name, Object.keys(this.outputs));
         makeSureNameUniqueIn(name, Object.keys(this.local_vars));
@@ -625,15 +623,15 @@
         }
     };
 
-    LGraph.prototype.addInput = function(name, type, value) {
+    Graph.prototype.addInput = function(name, type, value) {
         this.addVarTo(name, type, value, this.inputs, this.onInputAdded);
     };
 
-    LGraph.prototype.addOutput = function(name, type, value) {
+    Graph.prototype.addOutput = function(name, type, value) {
         this.addVarTo(name, type, value, this.outputs, this.onOutputAdded);
     };
 
-    LGraph.prototype.addLocalVar = function(name, type, value) {
+    Graph.prototype.addLocalVar = function(name, type, value) {
         this.addVarTo(name, type, value, this.local_vars);
     };
 
@@ -642,21 +640,21 @@
      * @param {String} name
      * @return {*} the value
      */
-    LGraph.prototype.getVarValueFrom = function(name, obj) {
+    Graph.prototype.getVarValueFrom = function(name, obj) {
         let v = obj[name];
         if (!v) return null;
         return v.getValue();
     };
 
-    LGraph.prototype.getInputValue = function(name) {
+    Graph.prototype.getInputValue = function(name) {
         this.getVarValueFrom(name, this.inputs)
     };
 
-    LGraph.prototype.getOutputValue = function(name) {
+    Graph.prototype.getOutputValue = function(name) {
         this.getVarValueFrom(name, this.outputs)
     };
 
-    LGraph.prototype.getLocalVarValue = function(name) {
+    Graph.prototype.getLocalVarValue = function(name) {
         this.getVarValueFrom(name, this.local_vars)
     };
 
@@ -666,21 +664,21 @@
      * @param {String} name
      * @param {*} data
      */
-    LGraph.prototype.setVarValueOf = function(name, new_value, obj) {
+    Graph.prototype.setVarValueOf = function(name, new_value, obj) {
         let v = obj[name];
         if (!v) return;
         v.updateValue(new_value);
     };
 
-    LGraph.prototype.setInputVarValue = function(name, new_value) {
+    Graph.prototype.setInputVarValue = function(name, new_value) {
        this.setVarValueOf(name, new_value, this.inputs)
     };
 
-    LGraph.prototype.setOutputVarValue = function(name, new_value) {
+    Graph.prototype.setOutputVarValue = function(name, new_value) {
        this.setVarValueOf(name, new_value, this.outputs)
     };
 
-    LGraph.prototype.setLocalVarValue = function(name, new_value) {
+    Graph.prototype.setLocalVarValue = function(name, new_value) {
        this.setVarValueOf(name, new_value, this.local_vars)
     };
 
@@ -689,7 +687,7 @@
      * @param {String} name
      * @param {String} new_name
      */
-    LGraph.prototype.renameVarOf = function(name, new_name, obj, callback) {
+    Graph.prototype.renameVarOf = function(name, new_name, obj, callback) {
         if (name == new_name) return;
 
         let v = obj[name];
@@ -706,15 +704,15 @@
         }
     };
 
-    LGraph.prototype.renameInputVar = function(name, new_name) {
+    Graph.prototype.renameInputVar = function(name, new_name) {
         this.renameVarOf(name, new_name, this.inputs);
     };
 
-    LGraph.prototype.renameOutputVar = function(name, new_name) {
+    Graph.prototype.renameOutputVar = function(name, new_name) {
         this.renameVarOf(name, new_name, this.outputs);
     };
 
-    LGraph.prototype.renameLocalVarVar = function(name, new_name) {
+    Graph.prototype.renameLocalVarVar = function(name, new_name) {
         this.renameVarOf(name, new_name, this.local_vars);
     };
 
@@ -724,21 +722,21 @@
      * @param {String} name
      * @param {String} type
      */
-    LGraph.prototype.changeVarTypeOf = function(name, new_type, obj) {
+    Graph.prototype.changeVarTypeOf = function(name, new_type, obj) {
         let v = obj[name];
         if (!v) return;
         v.updateType(new_type);
     };
 
-    LGraph.prototype.changeInputVarType = function(name, new_type) {
+    Graph.prototype.changeInputVarType = function(name, new_type) {
       this.changeVarTypeOf(name, new_type, this.inputs)
     };
 
-    LGraph.prototype.changeOutputVarType = function(name, new_type) {
+    Graph.prototype.changeOutputVarType = function(name, new_type) {
       this.changeVarTypeOf(name, new_type, this.outputs)
     };
 
-    LGraph.prototype.changeLocalVarType = function(name, new_type) {
+    Graph.prototype.changeLocalVarType = function(name, new_type) {
       this.changeVarTypeOf(name, new_type, this.local_vars)
     };
 
@@ -748,21 +746,21 @@
      * @param {String} name
      * @param {String} type
      */
-    LGraph.prototype.removeVarOf = function(name, obj) {
+    Graph.prototype.removeVarOf = function(name, obj) {
         let v = obj[name];
         if (!v) return;
         delete obj[name];
     };
 
-    LGraph.prototype.removeInputVar = function(name) {
+    Graph.prototype.removeInputVar = function(name) {
        this.removeVarOf(name, this.inputs);
     };
 
-    LGraph.prototype.removeOutputVar = function(name) {
+    Graph.prototype.removeOutputVar = function(name) {
        this.removeVarOf(name, this.outputs);
     };
 
-    LGraph.prototype.removeLocalVar = function(name) {
+    Graph.prototype.removeLocalVar = function(name) {
        this.removeVarOf(name, this.local_vars);
     };
 
@@ -774,9 +772,9 @@
      * Connector links the the output node and input node
      * @method node slot class
      * @param {Number} id the unique id of this connector
-     * @param {LGraphNode} out_node
+     * @param {Node} out_node
      * @param {String} out_slot_name
-     * @param {LGraphNode} in_node
+     * @param {Node} in_node
      * @param {String} in_slot_name
      */
     function Connector(id, out_node, out_slot_name, in_node, in_slot_name) {
@@ -1073,36 +1071,34 @@
 
     /**
      * Base Class for all the node type classes
-     * @class LGraphNode
+     * @class Node
      * @param {String} name a name for the node
      */
 
-    function LGraphNode() {
+    function Node() {
     }
 
-    global.LGraphNode = LiteGraph.LGraphNode = LGraphNode;
-
-    LGraphNode.prototype.id = undefined;
-    LGraphNode.prototype.title = undefined;
-    LGraphNode.prototype.type = "*";
-    LGraphNode.prototype.desc = "";
-    LGraphNode.prototype.inputs = {};
-    LGraphNode.prototype.outputs = {};
-    LGraphNode.prototype.flags = {};
-    LGraphNode.prototype.translate = new Point(0, 0);
-    LGraphNode.prototype.scale = new Point(1, 1);
-    LGraphNode.prototype.collidable_components = {};
-    LGraphNode.prototype.current_state = NodeState.normal;
+    Node.prototype.id = undefined;
+    Node.prototype.title = undefined;
+    Node.prototype.type = "*";
+    Node.prototype.desc = "";
+    Node.prototype.inputs = {};
+    Node.prototype.outputs = {};
+    Node.prototype.flags = {};
+    Node.prototype.translate = new Point(0, 0);
+    Node.prototype.scale = new Point(1, 1);
+    Node.prototype.collidable_components = {};
+    Node.prototype.current_state = NodeState.normal;
 
     /**
      * get the title string
      * @method getTitle
      */
-    LGraphNode.prototype.getTitle = function() {
+    Node.prototype.getTitle = function() {
         return this.title || this.constructor.title;
     };
 
-    LGraphNode.prototype.getConnectedAnchorPosInScene = function(slot_name) {
+    Node.prototype.getConnectedAnchorPosInScene = function(slot_name) {
         const slot = this.inputs[slot_name] || this.outputs[slot_name];
         if (!slot) return undefined;
         let local_pos = slot.getConnectedAnchorPos();
@@ -1119,7 +1115,7 @@
      * @param {Object} extra_info this can be used to have special properties
      * @param {Array} slots
      */
-    LGraphNode.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots, call_back) {
+    Node.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots, call_back) {
         makeSureNameUniqueIn(slot_name, Object.keys(this.inputs));
         makeSureNameUniqueIn(slot_name, Object.keys(this.outputs));
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
@@ -1139,7 +1135,7 @@
      * @param {string} default_value
      * @param {Object} extra_info this can be used to have special properties of an input (label, color, position, etc)
      */
-    LGraphNode.prototype.addInput = function(slot_name, type, default_value, extra_info) {
+    Node.prototype.addInput = function(slot_name, type, default_value, extra_info) {
         const slot_type = type === SlotType.Exec? SlotPos.exec_in : SlotPos.data_in;
         this.addSlotTo(slot_name, slot_type, type, default_value, extra_info, this.inputs, this.onInputAdded);
     };
@@ -1151,7 +1147,7 @@
      * @param {string} type string defining the output type ("vec3","number",...)
      * @param {Object} extra_info this can be used to have special properties of an output (label, special color, position, etc)
      */
-     LGraphNode.prototype.addOutput = function(slot_name, type, extra_info) {
+     Node.prototype.addOutput = function(slot_name, type, extra_info) {
          const slot_type = type === SlotType.Exec? SlotPos.exec_out : SlotPos.data_out;
          this.addSlotTo(slot_name, slot_type, type, undefined, extra_info, this.outputs, this.onOutputAdded);
      };
@@ -1161,7 +1157,7 @@
      * @method addInputs
      * @param {Array} inputs array of triplets like [[name, type, default_value, extra_info],[...]]
      */
-     LGraphNode.prototype.addInputs = function(inputs) {
+     Node.prototype.addInputs = function(inputs) {
         for (const input of inputs){
             this.addInput(input.name, input.type, default_value, input.extra_info)
         }
@@ -1172,7 +1168,7 @@
       * @method addOutputs
       * @param {Array} outputs array of triplets like [[name, type, extra_info],[...]]
       */
-     LGraphNode.prototype.addOutputs = function(outputs) {
+     Node.prototype.addOutputs = function(outputs) {
         for (const output of outputs){
             this.addOutput(output.name, output.type, output.extra_info)
         }
@@ -1184,7 +1180,7 @@
       * @param {String} slot_name the name of the slot to be removed
       * @param {Arrary}  slots intput or outputs slots
       */
-     LGraphNode.prototype.removeSlotFrom = function(slot_name, slots, call_back) {
+     Node.prototype.removeSlotFrom = function(slot_name, slots, call_back) {
         delete slots[slot_name];
 
         if (call_back) {
@@ -1197,7 +1193,7 @@
       * @method removeInput
       * @param {String} slot_name
       */
-     LGraphNode.prototype.removeInput = function(slot_name) {
+     Node.prototype.removeInput = function(slot_name) {
         this.removeSlotFrom(slot_name, this.inputs, this.onInputRemoved);
      };
 
@@ -1206,7 +1202,7 @@
       * @method removeOutput
       * @param {String} slot_name
       */
-     LGraphNode.prototype.removeOutput = function(slot_name) {
+     Node.prototype.removeOutput = function(slot_name) {
          this.removeSlotFrom(slot_name, this.outputs, this.onOutputRemoved);
      };
 
@@ -1217,7 +1213,7 @@
      * @param {boolean} returnObj if the obj itself wanted
      * @return {undefined_or_object} the slot (undefined if not found)
      */
-    LGraphNode.prototype.findInput = function(slot_name) {
+    Node.prototype.findInput = function(slot_name) {
        return this.inputs[slot_name]
     };
 
@@ -1227,12 +1223,12 @@
      * @param {string} slot_name the name of the slot
      * @return {undefined_or_object} the slot (undefined if not found)
      */
-    LGraphNode.prototype.findOutput = function(slot_name) {
+    Node.prototype.findOutput = function(slot_name) {
         return this.outputs[slot_name]
     };
 
     // *********************** node manipulation **************************************
-    LGraphNode.prototype.allowConnectTo = function(slot, to_node, to_slot) {
+    Node.prototype.allowConnectTo = function(slot, to_node, to_slot) {
         if (!slot || !to_node || !to_slot) {
             return new SlotConnection(SlotConnectionMethod.null, 'Some input parameters are undefined.');
         }
@@ -1248,10 +1244,10 @@
      * Check if the input slot of this node can be connected to the output slot of other node
      * @method connect
      * @param {String} input_slot_name
-     * @param {LGraphNode} to_node
+     * @param {Node} to_node
      * @param {NodeSlot} to_slot
      */
-    LGraphNode.prototype.allowInputConnectTo = function(input_slot_name, to_node, to_slot) {
+    Node.prototype.allowInputConnectTo = function(input_slot_name, to_node, to_slot) {
         this.allowConnectTo(this.inputs[input_slot_name], to_node, to_slot);
     };
 
@@ -1259,10 +1255,10 @@
      * Check if the output slot of this node can be connected to the input slot of other node
      * @method connect
      * @param {String} output_slot_name
-     * @param {LGraphNode} to_node
+     * @param {Node} to_node
      * @param {NodeSlot} to_slot
      */
-    LGraphNode.prototype.allowOutputConnectTo = function(output_slot_name, to_node, to_slot) {
+    Node.prototype.allowOutputConnectTo = function(output_slot_name, to_node, to_slot) {
         this.allowConnectTo(this.outputs[output_slot_name], to_node, to_slot);
     };
     /**
@@ -1271,7 +1267,7 @@
      * @method connect
      * @param {String} slot_name
      */
-    LGraphNode.prototype.addConnectionOf = function(slot) {
+    Node.prototype.addConnectionOf = function(slot) {
         if (!slot) {
             return ;
         }
@@ -1282,15 +1278,15 @@
         }
     };
 
-    LGraphNode.prototype.addConnectionOfInput = function(slot_name) {
+    Node.prototype.addConnectionOfInput = function(slot_name) {
         this.addConnectionOf(this.inputs[slot_name])
     };
 
-    LGraphNode.prototype.addConnectionOfOutput = function(slot_name) {
+    Node.prototype.addConnectionOfOutput = function(slot_name) {
         this.addConnectionOf(this.outputs[slot_name])
     };
 
-    LGraphNode.prototype.breakConnectionOf= function(slot) {
+    Node.prototype.breakConnectionOf= function(slot) {
         if (!slot) {
             return ;
         }
@@ -1301,11 +1297,11 @@
         }
     };
 
-    LGraphNode.prototype.breakConnectionOfOutput = function(slot_name) {
+    Node.prototype.breakConnectionOfOutput = function(slot_name) {
         this.breakConnectionOf(this.outputs[slot_name])
     };
 
-    LGraphNode.prototype.breakConnectionOfInput = function(slot_name) {
+    Node.prototype.breakConnectionOfInput = function(slot_name) {
         this.breakConnectionOf(this.inputs[slot_name])
     };
 
@@ -1314,7 +1310,7 @@
      * @method disconnectOutput
      * @param {String} slot_name
      */
-    LGraphNode.prototype.clearConnectionsOf = function(slot) {
+    Node.prototype.clearConnectionsOf = function(slot) {
         if (!slot) {
             return ;
         }
@@ -1325,36 +1321,36 @@
         }
     };
 
-    LGraphNode.prototype.clearInConnections= function() {
+    Node.prototype.clearInConnections= function() {
         for (let slot of this.inputs){
             this.clearConnectionsOf(slot)
         }
     };
 
-    LGraphNode.prototype.clearOutConnections= function() {
+    Node.prototype.clearOutConnections= function() {
         for (let slot of this.outputs){
             this.clearConnectionsOf(slot)
         }
     };
 
-    LGraphNode.prototype.clearNodeConnections= function() {
+    Node.prototype.clearNodeConnections= function() {
         this.clearInConnections();
         this.clearOutConnections();
     };
 
-    LGraphNode.prototype.move= function(delta_x, delta_y) {
+    Node.prototype.move= function(delta_x, delta_y) {
         this.translate.add(delta_x, delta_y);
         if(this.onMove){
             this.onMove(delta_x, delta_y);
         }
     };
 
-    LGraphNode.prototype.boundingRect = function() {
+    Node.prototype.boundingRect = function() {
         const size = this.size();
         return new Rect(size[0], size[1], size[2], size[3]);
     };
 
-    LGraphNode.prototype.draw = function(ctx, lod){
+    Node.prototype.draw = function(ctx, lod){
         if(!style) return;
         let state_draw_method = this.style[this.current_state];
         if (state_draw_method)
@@ -2100,7 +2096,7 @@
      * @class Scene
      * @constructor
      * @param {HTMLCanvas} canvas the canvas where you want to render
-     * @param {LGraph} graph, the content to display
+     * @param {Graph} graph, the content to display
      * @param {Object} options [optional] { viewport, drawing_context, rendering_template}
      */
     function Scene(canvas, graph, options){
