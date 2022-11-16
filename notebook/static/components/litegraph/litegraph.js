@@ -822,14 +822,6 @@
         ];
     };
 
-    Connector.prototype.configRendering = function(config) {
-        for (const [name, value] of config) {
-            if (name instanceof String)
-                this.prototype[name] = value;
-            this.prototype.name = value;
-        }
-    };
-
     Connector.prototype.boundingRect = function() {
        return new Rect(0, 0, this.width(), this.height());
     };
@@ -846,15 +838,13 @@
         draw_method(this.style, ctx, lod);
     }
 
-    LiteGraph.Connector = Connector;
-
     const SlotType = {
         Exec: "Exec",
         number: "number",
         string: "string",
         boolean: "boolean"
     }
-    
+
     // *************************************************************
     //   Slot CLASS                                          *******
     // *************************************************************
