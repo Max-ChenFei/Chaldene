@@ -1467,6 +1467,12 @@
         return new Point(p.x / this.scale - this.translate.x, p.y / this.scale - this.translate.y);
     };
 
+    //converts client coordinates from canvas2D to graph coordinates
+    View.prototype.mapClientToScene = function(e) {
+        const rect = this.scene.canvas.getBoundingClientRect();
+        return this.mapToScene(new Point(e.clientX - rect.left, e.clientY - rect.top));
+    };
+
     View.prototype.mapRectToScene = function(rect) {
         let left_top_p = this.mapToScene(new Point(rect.x_1, rect.y_1));
         let right_bottom_p = this.mapToScene(new Point(rect.x_2, rect.y_2));
