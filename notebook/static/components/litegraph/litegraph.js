@@ -376,7 +376,7 @@
 
     let makeSureNameUniqueIn = function (name, obj) {
         if (!name in obj) {
-            throw "Name is already in use";
+            throw "Conflicts with another local variable or function parameters";
         }
     };
 
@@ -614,7 +614,9 @@
      * @param {*} value [optional]
      */
     LGraph.prototype.addVarTo = function(name, type, value, obj, callback) {
-        makeSureNameUniqueIn(name, Object.keys(obj));
+        makeSureNameUniqueIn(name, Object.keys(this.inputs));
+        makeSureNameUniqueIn(name, Object.keys(this.outputs));
+        makeSureNameUniqueIn(name, Object.keys(this.local_vars));
         let v = new Variable(name, type, value);
         obj[name] = v;
 
@@ -1080,7 +1082,8 @@
      * @param {Array} slots
      */
     LGraphNode.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots, call_back) {
-        makeSureNameUniqueIn(slot_name, slots);
+        makeSureNameUniqueIn(slot_name, Object.keys(this.inputs));
+        makeSureNameUniqueIn(slot_name, Object.keys(this.outputs));
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
