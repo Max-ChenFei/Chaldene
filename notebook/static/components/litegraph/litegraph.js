@@ -139,76 +139,6 @@
 
     var LiteGraph = (global.LiteGraph = {
 
-        NODE_TITLE_HEIGHT: 30,
-        NODE_TITLE_TEXT_Y: 20,
-        NODE_SLOT_HEIGHT: 20,
-        NODE_WIDGET_HEIGHT: 20,
-        NODE_WIDTH: 140,
-        NODE_MIN_WIDTH: 50,
-        NODE_COLLAPSED_RADIUS: 10,
-        NODE_COLLAPSED_WIDTH: 80,
-        NODE_TITLE_COLOR: "#999",
-        NODE_SELECTED_TITLE_COLOR: "#FFF",
-        NODE_TEXT_SIZE: 14,
-        NODE_TEXT_COLOR: "#AAA",
-        NODE_SUBTEXT_SIZE: 12,
-        NODE_DEFAULT_COLOR: "#333",
-        NODE_DEFAULT_BGCOLOR: "#353535",
-        NODE_DEFAULT_BOXCOLOR: "#666",
-        NODE_DEFAULT_SHAPE: "box",
-        NODE_BOX_OUTLINE_COLOR: "#FFBF00",
-        DEFAULT_SHADOW_COLOR: "rgba(0,0,0,0.5)",
-        DEFAULT_GROUP_FONT: 24,
-
-        WIDGET_BGCOLOR: "#222",
-        WIDGET_OUTLINE_COLOR: "#666",
-        WIDGET_TEXT_COLOR: "#DDD",
-        WIDGET_SECONDARY_TEXT_COLOR: "#999",
-
-        LINK_COLOR: "#9A9",
-        EVENT_LINK_COLOR: "#AFA",
-        CONNECTING_LINK_COLOR: "#AFA",
-
-        DEFAULT_POSITION: [100, 100], //default node position
-        VALID_SHAPES: ["default", "box", "round", "card"],
-
-        //shapes are used for nodes but also for slots
-        BOX_SHAPE: 1,
-        ROUND_SHAPE: 2,
-        CIRCLE_SHAPE: 3,
-        CARD_SHAPE: 4,
-        ARROW_SHAPE: 5,
-        GRID_SHAPE: 6, // intended for slot arrays
-
-        UP: 1,
-        DOWN: 2,
-        LEFT: 3,
-        RIGHT: 4,
-        CENTER: 5,
-
-        LINK_RENDER_MODES: ["Straight", "Linear", "Spline"], // helper
-        STRAIGHT_LINK: 0,
-        LINEAR_LINK: 1,
-        SPLINE_LINK: 2,
-
-        NO_TITLE: 1,
-        TRANSPARENT_TITLE: 2,
-        AUTOHIDE_TITLE: 3,
-        VERTICAL_LAYOUT: "vertical", // arrange nodes vertically
-
-        proxy: null, //used to redirect calls
-
-        debug: false,
-        catch_exceptions: true,
-        throw_errors: true,
-
-		Globals: {}, //used to store vars between graphs
-
-        searchbox_extras: {}, //used to add extra features to the search box
-
-		node_box_coloured_when_on: false, // [true!] this make the nodes box (top left circle) coloured when triggered (execute/action), visual feedback
-        node_box_coloured_by_mode: false, // [true!] nodebox based on node mode, visual feedback
-
         dialog_close_on_mouse_leave: true, // [false on mobile] better true if not touch device, TODO add an helper/listener to close if false
         dialog_close_on_mouse_leave_delay: 500,
 
@@ -1434,7 +1364,7 @@
         // different LOD of shape
         Nodeslot: {
             icon_width:10,
-            icon_height:10,
+            icon_height: 20,
             line_width:2,
             to_render_text: true,
             font_size: 12,
@@ -1609,13 +1539,10 @@
             title_bar: {
                 to_render: true,
                 color: "#999",
-                height: 5,
+                height: 30,
                 font_size: 14,
                 font: this.font_size.title_bar.font_size.toString() + "px Arial",
                 font_fill_color: "FFFFFFFF"
-            },
-            get: function() {
-                return this._size;
             },
             slot_to_top_border: 3,
             slot_to_side_border: 3,
