@@ -706,7 +706,7 @@
         ];
     };
 
-    Connector.prototype.boundingRect = function() {
+    Connector.prototype.getBoundingBox = function() {
        return new Rect(0, 0, this.width(), this.height());
     };
 
@@ -936,6 +936,11 @@
         let draw_method = type_style[connected_state][this.current_state].draw;
         draw_method(type_style, ctx, lod);
     }
+
+    NodeSlot.prototype.getBoundingBox = function() {
+        const size = this.size();
+        return new Rect(size[0], size[1], size[2], size[3]);
+    };
 
     const VisualState = {
         normal: "normal",
@@ -1259,7 +1264,7 @@
         }
     };
 
-    Node.prototype.boundingRect = function() {
+    Node.prototype.getBoundingBox = function() {
         const size = this.size();
         return new Rect(size[0], size[1], size[2], size[3]);
     };
@@ -2013,14 +2018,23 @@
     };
 
     Rect.prototype.isValid = function() {
-        return this.x_1 <= this.x_2 && this.y_1 <= this.y_2;
+        return this.x_1 < this.x_2 && this.y_1 < this.y_2;
     };
 
     Rect.prototype.isIntersectWith = function(rect) {
-        if (!rect) return false;
+        if (!this.isValid() || !rect || !rect.isValid()) return false;
         return !(this.x_1 > rect.x_2 || rect.x_1 > this.x_2 ||
             this.y_1 > rect.y_2 || rect.y_1 > this.y_2)
     };
+
+    Rect.prototype.isInside = function(x, y) {
+       return inClosedInterval(x, this.x_1, this.x_2) && inClosedInterval(y, this.y_1, this.y_2);
+    };
+
+    function inClosedInterval(v, min, max){
+        return x >= min && x <= max;
+    }
+
 
     function isImageValid(img) {
         return img &&　img.width > 0 && img.height > 0;
@@ -2087,7 +2101,7 @@
         let sceneRect = this.sceneRect();
         let nodes = [];
         for (const node of this.nodes()) {
-            if (sceneRect.isIntersectWith(node.boundingRect()))
+            if (sceneRect.isIntersectWith(node.getBoundingBox()))
                 nodes.push(node);
         };
         return nodes;
@@ -2102,7 +2116,7 @@
         let sceneRect = this.sceneRect();
         let connectors = [];
         for (const connector of this.connectors()) {
-            if (sceneRect.isIntersectWith(connector.boundingRect()))
+            if (sceneRect.isIntersectWith(connector.getBoundingBox()))
                 connectors.push(connector);
         };
         return connectors;
@@ -2213,34 +2227,6 @@
         return this.mapRectToScene(this.viewport);
     };
 
-    function inClosedInterval(v, min, max){
-        return x >= min && x <= max;
-    }
-
-    function RectBBox() {
-        this.min_x = 0;
-        this.max_x = 0;
-        this.min_y = 0;
-        this.max_y = 0;
-    };
-
-    RectBBox.prototype.isInside = function (x, y){
-        return inClosedInterval(x, this.min_x, this.max_x) && inClosedInterval(y, this.min_y, this.max_y);
-    }
-
-    RectBBox.prototype.isZeroArea = function (){
-        return this.min_x == this.max_x || this.min_y == this.max_y
-    }
-
-    AreTwoRectBboxOverlap = function (rect_a, rect_b){
-        if (!rect_a || !rect_b) return false;
-        if (rect_a.isZeroArea() || rect_b.isZeroArea()) return false;
-        const oneNodeOnLeft = rect_a.min_x > rect_b.max_x || rect_b.min_x > rect_a.max_x;
-        if (oneNodeOnLeft) return false;
-        const oneNodeOnTop = rect_a.min_y > rect_b.max_y || rect_b.min_y > rect_a.max_y;
-        if (oneNodeOnTop) return false;
-        return true;
-    }
 
     function SceneCoordToObjCoord(scene_x, scene_y, obj){
         if (!obj.pos) return [undefined, undefined];
@@ -2292,7 +2278,7 @@
     CollisionDetector.prototype.add = function(obj) {
         if (!obj) return;
         const bbox = obj.getBoundingBox();
-        if (!bbox && bbox.isZeroArea()) return;
+        if (!bbox && bbox.isValid()) return;
         obj['bbox_id'] = this.getUniqueID();
         if (obj.onOverlapped) this.addToChannel(obj, CollisionChannel.overlap);
         this.addToChannel(obj, CollisionChannel.hover);
@@ -2343,7 +2329,7 @@
         channel = channel || CollisionChannel.press;
         let objs = this._collidableObjs[channel];
         for (const obj of Object.values(objs)) {
-            if(AreTwoRectBboxOverlap(bbox, obj.getBoundingBox())) {
+            if(bbox.isIntersectWith(obj.getBoundingBox())) {
                 overlapped.push(obj);
             }
         }
