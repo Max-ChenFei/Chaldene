@@ -62,15 +62,13 @@
         }
         Object.setPrototypeOf(node_class.prototype, Node.prototype);
 
-				//used to know which nodes create when dragging files to the canvas
-				if (base_class.supported_extensions) {
-					for (var i in base_class.supported_extensions) {
-						var ext = base_class.supported_extensions[i];
-						if(ext && ext.constructor === String)
-							this.node_types_by_file_extension[ ext.toLowerCase() ] = base_class;
-					}
-				}
-			}
+        if (!node_class.title) {
+            node_class.title = node_class.name;
+        }
+        let type = node_class.type;
+        let already_registered = this.registered_node_types[type];
+        if(already_registered) console.warn("replacing node type: " + type);
+        this.registered_node_types[type] = node_class;
 
         let pos = type.lastIndexOf(".");
         node_class.category = type.substr(0, pos);
