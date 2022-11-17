@@ -12,7 +12,6 @@
 define([
     'jquery',
     'components/litegraph/litegraph.js',
-    'components/draggable-resizable-dialog/draggable-resizable-dialog.js',
     'base/js/namespace',
     'base/js/utils',
     'base/js/i18n',
@@ -28,7 +27,6 @@ define([
 ], function(
     $,
     lg,
-    dialog,
     IPython,
     utils,
     i18n,
