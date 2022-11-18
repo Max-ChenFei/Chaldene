@@ -1905,7 +1905,7 @@
     }
 
     Renderer.prototype._render = function(){
-        if(!this.canvasIsValid()) return;
+        if(this.isCanvasZeroSize()) throw "Canvas is zero size.";
         const re_render_any_layer = this._render_each_layer();
         if (!re_render_any_layer) return;
         this._compositeLayers();
