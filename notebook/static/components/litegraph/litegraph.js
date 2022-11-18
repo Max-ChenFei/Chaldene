@@ -723,6 +723,22 @@
         draw_method(this.style, ctx, lod);
     }
 
+    Connector.prototype.width = function() {
+        return Math.abs(this.fromPos().x - this.toPos().x);
+    }
+
+    Connector.prototype.height = function() {
+        return Math.abs(this.fromPos().y - this.toPos().y);
+    }
+
+    Connector.prototype.getBoundingRect = function() {
+        const from = this.fromPos();
+        const to = this.toPos();
+        let x = Math.min(from.x, to.x);
+        let y = Math.min(from.y, to.y);
+        return new Rect(x, y, this.width(), this.height());
+    }
+
     Connector.prototype.mouseEnter = function() {
         this.current_state = VisualState.hovered;
     };
@@ -929,6 +945,11 @@
         }
     };
 
+    NodeSlot.prototype.getBoundingRect = function (){
+        const size = this.size();
+        return new Rect(this.translate.x + size.x, this.translate.y + size.y, size.width, size.height);
+    };
+
     NodeSlot.prototype.draw = function (ctx, lod) {
         if(!this.style) return;
         let type_style = this.style[this.data_type];
@@ -1000,7 +1021,7 @@
     Node.prototype.flags = {};
     Node.prototype.translate = new Point(0, 0);
     Node.prototype.scale = new Point(1, 1);
-    Node.prototype.collidable_components = {};
+    Node.prototype.collidable_components = [];
     Node.prototype.current_state = VisualState.normal;
 
     /**
@@ -1034,7 +1055,7 @@
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
-
+        this.collidable_components.append(slot);
         if (call_back) {
             call_back(slot);
 		}
@@ -1256,6 +1277,11 @@
         if(this.onMove){
             this.onMove(delta_x, delta_y);
         }
+    };
+
+    Node.prototype.getBoundingRect = function (){
+        const size = this.size();
+        return new Rect(this.translate.x + size.x, this.translate.y + size.y, size.width, size.height);
     };
 
     Node.prototype.draw = function (ctx, lod){
@@ -1761,9 +1787,6 @@
                 ctx.stroke();
                 ctx.restore();
             },
-            Size: function() {
-                return {x:0, y:0, width: this.width(), height: this.height()}
-            }
         }
     }
 
@@ -2029,6 +2052,10 @@
             this.y_1 > rect.y_2 || rect.y_1 > this.y_2)
     };
 
+    Rect.prototype.isRectInside = function(rect) {
+        return this.isInside(rect.x_1, rect.y1) && this.isInside(rect.x_2, rect.y2)
+    }
+
     Rect.prototype.isInside = function(x, y) {
        return inClosedInterval(x, this.x_1, this.x_2) && inClosedInterval(y, this.y_1, this.y_2);
     };
@@ -2231,113 +2258,96 @@
         return this.mapRectToScene(this.viewport);
     };
 
-
-    function SceneCoordToObjCoord(scene_x, scene_y, obj){
-        if (!obj.pos) return [undefined, undefined];
-        return [scene_x - obj.pos.x, scene_y - obj.pos.y];
-    }
-
-    function HitResult(is_hitted, hit_obj, hit_local_x, hit_local_y, hit_component) {
+    function HitResult(is_hitted, hit_obj_id, hit_local_x, hit_local_y, hit_component) {
         this.is_hitted = is_hitted;
-        this.hit_obj = hit_obj;
+        this.hit_obj_id = hit_obj_id;
         this.hit_local_x = hit_local_x;
         this.hit_local_y = hit_local_y;
         this.hit_component = hit_component;
     };
 
-    const CollisionChannel = {
-        overlap: "overlap", // bbox is overlap with
-        hover: "hover", // bbox that can be hovered by the mouse cursor
-        press: "press", // bbox that can be pressed by the pointer (mouse, touch)
-    };
-
+    /**
+     * The collision detector will be a part of scene, so all are in scene coordinate.
+     * class CollisionDetector
+     * @constructor
+     */
     function CollisionDetector(){
-        this._collidableObjs = {}; // bbox stands for bounding box
-        this._next_unique_id = 0;
-        this.initBboxForEachChannel();
-    };
-
-    CollisionDetector.prototype.initBboxForEachChannel = function() {
-        for (const channel of Object.values(CollisionChannel)) {
-            this._collidableObjs[channel] = {}
-        }
+        this._boundingRects = {};
     };
 
     CollisionDetector.prototype.clear = function() {
-        this._collidableObjs = {};
-        this._next_unique_id = 0;
-        this.initBboxForEachChannel();
+        this._boundingRects = {};
     };
 
-    CollisionDetector.prototype.getUniqueId = function() {
-        return this._next_unique_id++;
-    };
-
-    CollisionDetector.prototype.addToChannel = function(obj, channel) {
-        if (!this._collidableObjs[channel]) return;
-        if (!obj.bbox_id) obj['bbox_id'] = this.getUniqueID();
-        this._collidableObjs[channel][obj.bbox_id] = obj;
-    };
-
-    CollisionDetector.prototype.add = function(obj) {
-        if (!obj) return;
-        const bbox = obj.getBoundingBox();
-        if (!bbox && bbox.isValid()) return;
-        obj['bbox_id'] = this.getUniqueID();
-        if (obj.onOverlapped) this.addToChannel(obj, CollisionChannel.overlap);
-        this.addToChannel(obj, CollisionChannel.hover);
-        this.addToChannel(obj, CollisionChannel.press);
-    };
-
-    CollisionDetector.prototype.remove = function(bbox_id) {
-        for (const obj_in_channel of Object.values(this._collidableObjs)) {
-            delete obj_in_channel[bbox_id];
+    CollisionDetector.prototype.addBoundingRect = function(item) {
+        if (!item)
+        {
+            console.warn("None object will not added for collision detection");
+            return;
         }
+        let rect = item.getBoundingRect();
+        if (!rect)
+        {
+            console.warn("The ${item} do not have bounding rectangle for collision detection");
+            return;
+        }
+        if(!rect.isValid()) {
+            console.warn("The ${item} has invalid bounding rectangle for collision detection");
+            return;
+        }
+        rect.owner = item;
+        if(Object.keys(this._boundingRects).includes(rect.owner.id))
+            throw "The id of bounding rect already in used."
+        this._boundingRects[rect.owner.id] = rect;
     };
 
-     /**
-     * get hitted obj that the (x, y) in, used for selection
-     * @method getColliableAtPos
-     * @param {Number} scene_x
-     * @param {Number} scene_y
-     * @return {HitResult} returns hit result of input x, and y*/
-    CollisionDetector.prototype.getHitResultAtPos = function(scene_x, scene_y) {
-        let objs = this._collidableObjs[CollisionChannel.press];
-        for (const obj of Object.values(objs)) {
-            if (obj.getBoundingBox().isInside(scene_x, scene_y)){
-                const local_pos = SceneCoordToObjCoord(scene_x, scene_y, obj);
-                const hit_component = this.getHitComponentAtPos(local_pos[0], local_pos[1], obj);
-                return new HitResult(true, obj, local_pos[0], local_pos[1], hit_component);
+    CollisionDetector.prototype.removeBoundingRect = function(owner_id) {
+        delete this._boundingRects[owner_id];
+    };
+
+    CollisionDetector.prototype.updateBoundingRect = function(item) {
+        this.removeBoundingRect(item.id);
+        this.addBoundingRect(item)
+    };
+
+    CollisionDetector.prototype.getHitResultAtPos = function(x, y) {
+        for (const rect of Object.values(this._boundingRects)) {
+            if (rect.isInside(x, y)){
+                const local_pos = new Point(x - rect.x, y - rect.y);
+                const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
+                return new HitResult(true, rect.owner, local_pos[0], local_pos[1], hit_component);
             }
         }
         return new HitResult(false);
     }
 
-    CollisionDetector.prototype.getHitComponentAtPos = function(local_x, local_y, obj) {
-        for (const comp of Object.values(obj.collidable_components)) {
-            if (comp.getBoundingBox().isInside(local_x, local_y)){
+    CollisionDetector.prototype.getHitComponentAtPos = function(x, y, item) {
+        for (const comp of item.collidable_components) {
+            if (comp.getBoundingRect().isInside(x, y)){
                 return comp;
             }
         }
-        return undefined;
+        return null;
     };
 
-    /**
-     * get overlapping colliables in the channel, used for marquee selection, comment node
-     * @method getOverlappingColliablesIn
-     * @param {RectBBox} bbox
-     * @param {CollisionChannel} channel
-     * @return {Array} returns the objects in the collision channel that overlap with the bounding box*/
-    CollisionDetector.prototype.getOverlappingObjsInChannel = function(bbox, channel) {
-        let overlapped = [];
-        channel = channel || CollisionChannel.press;
-        let objs = this._collidableObjs[channel];
-        for (const obj of Object.values(objs)) {
-            if(bbox.isIntersectWith(obj.getBoundingBox())) {
-                overlapped.push(obj);
+    CollisionDetector.prototype.getItemsOverlapWith = function(rect) {
+        let intersections = [];
+        for (const r of Object.values(this._boundingRects)) {
+            if(rect.isIntersectWith(r.getBoundingRect())) {
+                intersections.push(r.owner);
             }
         }
-        return overlapped;
+        return intersections;
+    }
+
+    CollisionDetector.prototype.getItemsInside = function(rect) {
+        let insides = [];
+        for (const r of Object.values(this._boundingRects)) {
+            if(rect.isRectInside(r.getBoundingRect())) {
+                insides.push(r.owner);
+            }
+        }
+        return insides;
     }
 
 
