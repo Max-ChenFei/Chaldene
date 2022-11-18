@@ -372,6 +372,10 @@
         this.next_unique_id = 0;
     };
 
+    Graph.prototype.getItems = function() {
+        return Object.values(this.nodes).concat(Object.values(this.connectors))
+    };
+
     Graph.prototype.getUniqueId = function() {
         return this.next_unique_id++;
     };
@@ -2086,9 +2090,11 @@
         this.rendering_template = options.rendering_template || RenderingTemplate;
         this.renderer = new Renderer(this);
         this.view = new View(this);
+        this.collision_detector = new CollisionDetector();
         this.selected_nodes = {};
         this.command_in_process = undefined;
         this.pluginSceneRenderingConfig();
+        this.updateBoundingRectInGraph();
         this.setStartRenderWhenCanvasOnFocus();
         this.setStopRenderWhenCanvasOnBlur();
     };
@@ -2111,6 +2117,14 @@
        this.style = this.rendering_template.scene.style;
     }
 
+    Scene.prototype.updateBoundingRectInGraph = function(){
+       if(!this.graph)
+           return;
+        for (const item of this.graph.getItems()) {
+            this.collision_detector.addBoundingRect(item);
+        }
+    }
+
     Scene.prototype.setStartRenderWhenCanvasOnFocus = function(){
         this.canvas.addEventListener("focus", this.renderer.startRender());
     };
@@ -2130,12 +2144,7 @@
 
     Scene.prototype.visibleNodes = function(){
         let sceneRect = this.sceneRect();
-        let nodes = [];
-        for (const node of this.nodes()) {
-            if (sceneRect.isIntersectWith(node.getBoundingBox()))
-                nodes.push(node);
-        };
-        return nodes;
+        return this.collision_detector.getItemsOverlapWith(sceneRect, Node)
     };
 
     Scene.prototype.connectors = function(){
@@ -2145,12 +2154,7 @@
 
     Scene.prototype.visibleConnectors = function(){
         let sceneRect = this.sceneRect();
-        let connectors = [];
-        for (const connector of this.connectors()) {
-            if (sceneRect.isIntersectWith(connector.getBoundingBox()))
-                connectors.push(connector);
-        };
-        return connectors;
+        return this.collision_detector.getItemsOverlapWith(sceneRect, Connector)
     };
 
     Scene.prototype.draw = function (ctx, lod) {
