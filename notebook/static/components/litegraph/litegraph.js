@@ -1,5 +1,10 @@
 //packer version
 
+//*********************************************************************************
+// Renderer: multiple layers rendering using offscreen canvans
+//*********************************************************************************
+
+
 (function(global) {
 	var globalsRegistered = false;
     function ensureGlobalHandlers() {
