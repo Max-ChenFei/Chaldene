@@ -1563,7 +1563,7 @@
                 for (const input of Object.values(this.inputs)) {
                     left_side += input.height();
                 }
-                left_side += this.horizonetal_padding_between_slots * Math.max((Object.values(this.inputs).length - 1), 0);
+                left_side += this.horizontal_padding_between_slots * Math.max((Object.values(this.inputs).length - 1), 0);
                 let right_side = this.slot_to_side_border * 2;
                 for (const output of Object.values(this.outputs)) {
                     right_side += output.height();
