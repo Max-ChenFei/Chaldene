@@ -2225,7 +2225,7 @@
 
     function SceneCoordToObjCoord(scene_x, scene_y, obj){
         if (!obj.pos) return [undefined, undefined];
-        return [scene_x - obj.pos.x, scene_y - obj.pox.y];
+        return [scene_x - obj.pos.x, scene_y - obj.pos.y];
     }
 
     function HitResult(is_hitted, hit_obj, hit_local_x, hit_local_y, hit_component) {
