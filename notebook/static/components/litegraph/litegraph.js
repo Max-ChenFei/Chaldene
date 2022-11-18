@@ -1731,14 +1731,14 @@
                     ctx_style: {stroke_style: "#fffdfd", line_width: 2, line_join: "round", alpha: 1},
                     draw: function(this_style, ctx, lod){
                         const ctx_style = this_style.normal.ctx_style;
-                        this_style.draw(this_style, ctx, ctx_style, lod);
+                        this.draw(this_style, ctx, ctx_style, lod);
                     }
                 },
                 hovered: {
                     ctx_style: {stroke_style: "#f7bebe", line_width: 2, line_join: "round", alpha: 1},
                     draw: function(this_style, ctx, lod){
                         const ctx_style = this_style.hovered.ctx_style;
-                        this_style.draw(this_style, ctx, ctx_style, lod);
+                        this.draw(this_style, ctx, ctx_style, lod);
                     }
                 }
             },
