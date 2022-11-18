@@ -1791,13 +1791,11 @@
      * @class Renderer
      * @constructor
      * @param {Scene} scene
-     * @param {String} drawing_context "2d" for canvas api
      */
     function Renderer(scene){
         this.scene = scene;
         this.layers = {};
         this.is_rendering = false;
-        // multiple layer render for optimization
         this.render_method_for_layer = {
             "action": this._renderActions.bind(this),
             "nodes":this._renderNodes.bind(this),
@@ -1812,7 +1810,6 @@
 
     Renderer.prototype.createNewCanvas = function(){
         let canvas = document.createElement('canvas');
-        if (!canvas) return this.getCanvas();
         canvas.width = this.getCanvas().width;
         canvas.height = this.getCanvas().height;
         return canvas;
@@ -1849,9 +1846,6 @@
      * @return {window} returns the window where the canvas is attached (the DOM root node)
      */
     Renderer.prototype.getRenderWindow = function() {
-        if (!this.getCanvas()) {
-            return Window;
-        }
         let doc = this.getCanvas().ownerDocument;
         return doc.defaultView || doc.parentWindow;
     };
@@ -1965,7 +1959,6 @@
     };
 
     Renderer.prototype.startRender = function(){
-        if(!this.canvasIsValid()) return;
         if (this.is_rendering) return;
         this.is_rendering = true;
         renderFrame.call(this);
