@@ -949,8 +949,6 @@
 
     /*
 	title: string
-	pos: Point
-	size: Size
 
 	node operations callbacks:
 		+ onAdded: when added to graph (warning: this is called BEFORE the node is configured when loading)
