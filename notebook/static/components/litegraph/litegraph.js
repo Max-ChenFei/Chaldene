@@ -1781,7 +1781,7 @@
         this.render_method = render_method;
     };
 
-    RenderedLayer.prototype.updateCanvasSize = function(width, height){
+    RenderedLayer.prototype.updateLayerSize = function(width, height){
       this.canvas.width = width;
       this.canvas.height = height;
     };
@@ -1829,15 +1829,15 @@
      *
      * @param changed_obj "background" "connectors" "nodes" "action"
      */
-    RenderedLayer.prototype.notifyWhichChange = function(changed_obj){
-        if(this.layers[changed_obj]){
-            this.layers[changed_obj].to_render = true;
+    RenderedLayer.prototype.setToRender = function(which_layer){
+        if(this.layers[which_layer]){
+            this.layers[which_layer].re_render = true;
         }
     };
 
-    Renderer.prototype.updateRenderLayerSize = function(width, height){
+    Renderer.prototype.updateAllLayersSize = function(width, heigth){
         for (const layer of Object.values(this.layers)) {
-            layer.updateRenderLayerSize(width, heigth);
+            layer.updateLayerSize(width, heigth);
         }
     };
 
@@ -1850,11 +1850,11 @@
         return doc.defaultView || doc.parentWindow;
     };
 
-    Renderer.prototype.canvasIsValid = function(){
-        if (!this.getCanvas() || this.getCanvas().width == 0 || this.getCanvas().height == 0) {
-            return false;
+    Renderer.prototype.isCanvasZeroSize = function(){
+        if (this.getCanvas().width == 0 || this.getCanvas().height == 0) {
+            return true;
         }
-        return true;
+        return false;
     };
 
     Renderer.prototype.getDrawingContextFrom = function(canvas){
@@ -2036,12 +2036,12 @@
      *
      * @class Scene
      * @constructor
-     * @param {HTMLCanvas} canvas the canvas where you want to render
+     * @param {HTMLCanvas} canvas required. the canvas where you want to render, if canvas is undefined, then fail.
      * @param {Graph} graph, the content to display
      * @param {Object} options [optional] { viewport, drawing_context, rendering_template}
      */
     function Scene(canvas, graph, options){
-        this.makeSureCanvasValid(canvas);
+        this.assertCanvasValid(canvas);
         this.canvas = canvas;
         canvas.owner = this;
         this.graph = graph;
@@ -2062,11 +2062,13 @@
         writable: false
     })
 
-    Scene.prototype.makeSureCanvasValid = function(canvas){
-        if (!canvas ||　canvas.localName != "canvas") throw "The canvas is invalided."
-        if (!canvas.getContext) {
+    Scene.prototype.assertCanvasValid = function(canvas){
+        if (!canvas)
+            throw "None object passed as the canvas argument."
+        if (canvas.localName != "canvas")
+            throw "No-canvas object passed as the canvas argument."
+        if (!canvas.getContext)
             throw "This browser doesn't support Canvas";
-        }
     }
 
     Scene.prototype.pluginSceneRenderingConfig = function(){
