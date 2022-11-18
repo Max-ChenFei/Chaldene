@@ -361,7 +361,7 @@
     }
 
     Graph.prototype.init = function() {
-        this.nodes = {}; // for better collision detection
+        this.nodes = {};
         this.connectors = {};
         this.out_connector_ids = {}; // {out_node: {out_slot: connector_ids,... }}
         this.in_connectors_ids = {}; // {in_node: {in_slot: connector_ids,... }}
