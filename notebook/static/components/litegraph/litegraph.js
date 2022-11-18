@@ -307,7 +307,7 @@
         };
     }
 
-    let makeSureNameUniqueIn = function (name, obj) {
+    let assertNameUniqueIn = function (name, obj) {
         if (!name in obj) {
             throw "Conflicts with another local variable or function parameters";
         }
@@ -482,7 +482,7 @@
     };
 
     Graph.prototype.addSubGraph = function(name, subgraph) {
-        makeSureNameUniqueIn(name, this.subgraphs);
+        assertNameUniqueIn(name, this.subgraphs);
         this.subgraphs[name] = subgraph;
     };
 
@@ -501,9 +501,9 @@
      * @param {*} value [optional]
      */
     Graph.prototype.addVarTo = function(name, type, value, obj, callback) {
-        makeSureNameUniqueIn(name, Object.keys(this.inputs));
-        makeSureNameUniqueIn(name, Object.keys(this.outputs));
-        makeSureNameUniqueIn(name, Object.keys(this.local_vars));
+        assertNameUniqueIn(name, Object.keys(this.inputs));
+        assertNameUniqueIn(name, Object.keys(this.outputs));
+        assertNameUniqueIn(name, Object.keys(this.local_vars));
         let v = new Variable(name, type, value);
         obj[name] = v;
 
@@ -582,7 +582,7 @@
         let v = obj[name];
         if (!v) return;
 
-        makeSureNameUniqueIn(new_name, Object.keys(this.inputs));
+        assertNameUniqueIn(new_name, Object.keys(this.inputs));
         v.updateName(new_name);
 
         obj[new_name] = obj[name];
@@ -1029,8 +1029,8 @@
      * @param {Array} slots
      */
     Node.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots, call_back) {
-        makeSureNameUniqueIn(slot_name, Object.keys(this.inputs));
-        makeSureNameUniqueIn(slot_name, Object.keys(this.outputs));
+        assertNameUniqueIn(slot_name, Object.keys(this.inputs));
+        assertNameUniqueIn(slot_name, Object.keys(this.outputs));
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
