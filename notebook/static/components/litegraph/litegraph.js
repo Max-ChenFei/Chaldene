@@ -711,10 +711,6 @@
         ];
     };
 
-    Connector.prototype.getBoundingBox = function() {
-       return new Rect(0, 0, this.width(), this.height());
-    };
-
     Connector.prototype.pluginRenderingTemplate = function(template){
         for (const [name, value] of Object.entities(template)) {
             this[name] = value;
@@ -941,11 +937,6 @@
         let draw_method = type_style[connected_state][this.current_state].draw;
         draw_method(type_style, ctx, lod);
     }
-
-    NodeSlot.prototype.getBoundingBox = function() {
-        const size = this.size();
-        return new Rect(size[0], size[1], size[2], size[3]);
-    };
 
     const VisualState = {
         normal: "normal",
@@ -1269,11 +1260,6 @@
         }
     };
 
-    Node.prototype.getBoundingBox = function() {
-        const size = this.size();
-        return new Rect(size[0], size[1], size[2], size[3]);
-    };
-
     Node.prototype.draw = function (ctx, lod){
         if(!this.style) return;
         let state_draw_method = this.style[this.current_state];
@@ -1393,7 +1379,10 @@
                     pos.x *= -1;
                 return pos;
             },
-
+            size: function(){
+                let x =  this.isInput()? 0 : -this.width();
+                return {x:x, y:0, width: this.width(), height: this.height()};
+            },
             style: {
                 "default":{
                     unconnected: {
@@ -1558,7 +1547,7 @@
             slot_to_side_border: 3,
             horizontal_padding_between_slots: 5,
             vertical_padding_between_slots: 5,
-            node_width: function (){
+            width: function (){
                 let max_width = this.slot_to_side_border * 2 + this.vertical_padding_between_slots;
                 const input_slots = Object.values(this.inputs);
                 const output_slots = Object.values(this.outputs);
@@ -1571,12 +1560,12 @@
                     max_width += this.central_text.width;
                 return max_width;
             },
-            node_height: function (){
+            height: function (){
                 let left_side = this.slot_to_side_border * 2;
                 for (const input of Object.values(this.inputs)) {
                     left_side += input.height();
                 }
-                left_side += this.horizontal_padding_between_slots * Math.max((Object.values(this.inputs).length - 1), 0);
+                left_side += this.horizonetal_padding_between_slots * Math.max((Object.values(this.inputs).length - 1), 0);
                 let right_side = this.slot_to_side_border * 2;
                 for (const output of Object.values(this.outputs)) {
                     right_side += output.height();
@@ -1587,7 +1576,7 @@
             },
             size: function(){
                 let y = this.title_bar.to_render ? - this.title_bar.height : 0;
-                return [0, y, this.node_width(), this.node_height()];
+                return {x:0, y:y, width: this.width(), height: this.height()}
             },
 
             style: {
@@ -1704,10 +1693,16 @@
         },
         CommentNode: {
             alpha : 0.5,
-            width: 20,
-            height: 20,
+            _width: 20,
+            _height: 20,
+            width: function (){
+                return this._width;
+            },
+            height:function (){
+                return this._height;
+            },
             size: function(){
-                return [0, 0, this.width, this.height];
+                return {x:0, y:0, width: this.width(), height: this.height()}
             },
 
             style: {
@@ -1767,6 +1762,9 @@
                 );
                 ctx.stroke();
                 ctx.restore();
+            },
+            Size: function() {
+                return {x:0, y:0, width: this.width(), height: this.height()}
             }
         }
     }
