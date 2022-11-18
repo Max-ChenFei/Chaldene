@@ -2330,20 +2330,22 @@
         return null;
     };
 
-    CollisionDetector.prototype.getItemsOverlapWith = function(rect) {
+    CollisionDetector.prototype.getItemsOverlapWith = function(rect, type) {
         let intersections = [];
         for (const r of Object.values(this._boundingRects)) {
-            if(rect.isIntersectWith(r.getBoundingRect())) {
+            let is_this_type = type? r.owner instanceof type : true;
+            if(is_this_type && rect.isIntersectWith(r.getBoundingRect())) {
                 intersections.push(r.owner);
             }
         }
         return intersections;
     }
 
-    CollisionDetector.prototype.getItemsInside = function(rect) {
+    CollisionDetector.prototype.getItemsInside = function(rect, type) {
         let insides = [];
         for (const r of Object.values(this._boundingRects)) {
-            if(rect.isRectInside(r.getBoundingRect())) {
+            let is_this_type = type? r.owner instanceof type : true;
+            if(is_this_type && rect.isRectInside(r.getBoundingRect())) {
                 insides.push(r.owner);
             }
         }
