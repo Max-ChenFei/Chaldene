@@ -691,16 +691,6 @@
         }
     };
 
-    Connector.prototype.fromPos = function() {
-       if(!this.out_node) return new Point(0, 0);
-       return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name);
-    };
-
-    Connector.prototype.toPos = function() {
-       if(!this.in_node) return new Point(0, 0);
-       return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name);
-    };
-
     Connector.prototype.serialize = function() {
         return [
             this.id,
@@ -722,6 +712,16 @@
         let draw_method = this.style[this.current_state].draw;
         draw_method(this.style, ctx, lod);
     }
+
+    Connector.prototype.fromPos = function() {
+       if(!this.out_node) return new Point(0, 0);
+       return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name);
+    };
+
+    Connector.prototype.toPos = function() {
+       if(!this.in_node) return new Point(0, 0);
+       return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name);
+    };
 
     Connector.prototype.width = function() {
         return Math.abs(this.fromPos().x - this.toPos().x);
