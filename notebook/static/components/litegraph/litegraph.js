@@ -2000,6 +2000,14 @@
                 get() { return this.y_1;},
                 set(y) { this.y_1 = y}
             },
+            "left": {
+                get() { return this.x_1;},
+                set(x) { this.x_1 = x}
+            },
+            "top": {
+                get() { return this.y_1;},
+                set(y) { this.y_1 = y}
+            },
             "width": {
                 get() { return this.x_2 - this.x_1 + 1;},
                 set(w) { this.x_2 = this.x_1 + w - 1}
