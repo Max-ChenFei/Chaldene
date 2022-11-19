@@ -1318,6 +1318,35 @@
         this.current_state = VisualState.normal;
     };
 
+    Node.prototype.isSelected = function() {
+        return this.current_state == VisualState.pressed;
+    }
+
+    Node.prototype.selected = function() {
+        if(this.isSelected())
+            return;
+        this.current_state = VisualState.pressed;
+        if(this.onSelected){
+            this.onSelected();
+        }
+    }
+
+    Node.prototype.deselected = function() {
+        if(!this.isSelected())
+            return;
+        this.current_state = VisualState.normal;
+        if(this.onDeselected){
+            this.onDeselected();
+        }
+    }
+
+    Node.prototype.toggleSelection = function() {
+        if(this.isSelected())
+            this.current_state = VisualState.normal;
+        else
+            this.current_state = VisualState.pressed;
+    }
+
     Node.prototype.pressed = function() {
         this.current_state = VisualState.pressed;
     };
@@ -2142,6 +2171,76 @@
         let sceneRect = this.sceneRect();
         return this.collision_detector.getItemsOverlapWith(sceneRect, Node)
     };
+
+    Scene.prototype.deselectNode = function(node, not_to_redraw){
+        if(!this.assertNodeValid(node))
+            return;
+        node.deselected();
+        delete this.selected_nodes[node.id];
+        if(!not_to_redraw)
+            this.renderer.setToRender("nodes");
+    };
+
+    Scene.prototype.deselectNodes = function(nodes, not_to_redraw){
+        for (let node of nodes) {
+            this.deselectNode(node, true);
+        }
+        if(!not_to_redraw)
+            this.renderer.setToRender("nodes");
+    };
+
+    Scene.prototype.deselectSelectedNodes = function(not_to_redraw){
+        for (const node of Object.values(this.selected_nodes)) {
+            node.deselected();
+        }
+        this.selected_nodes = {};
+        if(!not_to_redraw)
+            this.renderer.setToRender("nodes");
+    };
+
+    Scene.prototype.assertNodeValid = function(node){
+        if(!node) {
+            console.warn("The node to be selected is null");
+            return false;
+        }
+        if(!(node instanceof Node)) {
+            console.warn("The node to be selected is not the instance of the Node");
+            return false;
+        }
+        return true;
+    }
+
+    Scene.prototype.selectNode = function(node, append_to_selections, not_to_redraw){
+        if(!this.assertNodeValid(node))
+            return;
+        if(!append_to_selections)
+            this.deselectSelectedNodes(true);
+        node.selected();
+        this.selected_nodes[node.id] = node;
+        if(!not_to_redraw)
+            this.renderer.setToRender("nodes");
+    };
+
+    Scene.prototype.selectNodes = function(nodes, append_to_selections, not_to_redraw){
+        for (let node of nodes) {
+            this.selectNode(node, append_to_selections, true);
+        }
+        if(!not_to_redraw)
+            this.renderer.setToRender("nodes");
+    };
+
+    Scene.prototype.selectAllNodes = function(not_to_redraw){
+       this.selectNodes(Object.values(this.graph.nodes), not_to_redraw);
+    };
+
+    Scene.prototype.toggleNodeSelection = function(node, not_to_redraw){
+        if(!this.assertNodeValid(node))
+            return;
+        node.toggleSelection();
+        if(!not_to_redraw)
+            this.renderer.setToRender("nodes");
+    };
+
 
     Scene.prototype.connectors = function(){
         return Object.values(this.graph.connectors);
