@@ -1065,6 +1065,7 @@
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
+        slot.pluginRenderingTemplate(template['NodeSlot']);
         this.collidable_components.append(slot);
         if (call_back) {
             call_back(slot);
