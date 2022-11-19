@@ -425,6 +425,13 @@
         }
     };
 
+    Graph.prototype.addConnector = function(out_node, out_slot_name, in_node, in_slot_name){
+        let connector = new Connector(this.getUniqueId(), out_node, out_slot_name, in_node, in_slot_name);
+        this.connectors[connector.id] = connector;
+        this.out_connector_ids[out_node.id][out_slot_name] = in_node;
+        this.in_connectors_ids[in_node.id][in_slot_name] = out_node;
+    };
+
     /**
      * remove a connector
      * @method removeConnector
@@ -432,7 +439,10 @@
      */
     Graph.prototype.removeConnector = function(connector_id) {
         const connector = this.connectors[connector_id];
-        if(!connector) return;
+        if(!connector) {
+            console.warn("The connector is not existed");
+            return;
+        }
 
         let out_node = connector.out_node;
         if (out_node) out_node.breakConnectionOfOutput(connector.out_slot_name);
@@ -440,8 +450,8 @@
         if (in_node) in_node.breakConnectionOfInput(connector.in_slot_name);
         let in_node_id = in_node.id;
         let out_node_id = out_node.id;
-        delete this.in_connectors[in_node_id][connector.in_slot_name];
-        delete this.out_connectors[out_node_id][connector.out_slot_name];
+        delete this.in_connectors_ids[in_node_id][connector.in_slot_name];
+        delete this.out_connector_ids[out_node_id][connector.out_slot_name];
         delete this.connectors[connector_id];
     };
 
