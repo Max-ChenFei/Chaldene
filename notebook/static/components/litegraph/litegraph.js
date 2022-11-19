@@ -397,7 +397,7 @@
      * @method add
      * @param {Node} node the instance of the node
      */
-    Graph.prototype.add = function(node) {
+    Graph.prototype.addNode = function(node) {
         if (!node) return;
 
         node.id =  this.getUniqueId();
@@ -459,7 +459,7 @@
      * @method remove
      * @param {String} node_id
      */
-    Graph.prototype.remove = function(node_id) {
+    Graph.prototype.removeNode = function(node_id) {
         const node = this.nodes[node_id]
         if (!node) return;
 
