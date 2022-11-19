@@ -877,7 +877,6 @@
          this.default_value = default_value;
          this.connections = 0;
          this.extra_info = {};
-         this.is_connected = false;
          this.current_state = VisualState.normal;
          this.translate = new Point(0, 0);
     };
@@ -930,14 +929,11 @@
          } else {
              this.connections = 1;
          }
-         this.is_connected = true;
      };
 
      NodeSlot.prototype.breakConnection = function () {
-         if (this.connections > 0){
+         if (this.connections > 0)
              this.connections = this.connections - 1;
-             this.is_connected = this.connections > 0;
-         }
      };
 
      NodeSlot.prototype.clearConnections = function () {
@@ -966,7 +962,7 @@
         if(!this.style) return;
         let type_style = this.style[this.data_type];
         if (!type_style) type_style = this.style['default'];
-        const connected_state = this.is_connected? "connected" : "unconnected";
+        const connected_state = this.isConnected()? "connected" : "unconnected";
         let draw_method = type_style[connected_state][this.current_state].draw;
         draw_method(type_style, ctx, lod);
     }
