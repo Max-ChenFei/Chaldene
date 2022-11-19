@@ -1329,7 +1329,7 @@
         }
     };
 
-    Node.prototype.clearNodeConnections= function() {
+    Node.prototype.clearAllConnections= function() {
         this.clearInConnections();
         this.clearOutConnections();
     };
