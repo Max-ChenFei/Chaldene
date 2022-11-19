@@ -42,6 +42,10 @@
     }
     ensureGlobalHandlers();
 
+    function deepCopy(obj){
+        if(!obj) return null;
+        return JSON.parse(JSON.stringify(obj));
+    }
     //*********************************************************************************
     // TypeRegistry CLASS
     //*********************************************************************************
