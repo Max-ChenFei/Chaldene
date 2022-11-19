@@ -2248,6 +2248,15 @@
             this.renderer.setToRender("nodes");
     };
 
+    Scene.prototype.deleteSelectedNodes = function(not_to_redraw){
+        for (const node of Object.values(this.selected_nodes)) {
+            this.graph.remove(node)
+        }
+        this.selected_nodes = {};
+        if(!not_to_redraw)
+            this.renderer.setToRender("nodes");
+    };
+
 
     Scene.prototype.connectors = function(){
         return Object.values(this.graph.connectors);
