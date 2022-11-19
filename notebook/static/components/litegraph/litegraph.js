@@ -2267,6 +2267,10 @@
         return this.collision_detector.getItemsOverlapWith(sceneRect, Connector)
     };
 
+    Scene.prototype.zoom = function (v, pivot) {
+        this.view.setScale(v, pivot)
+    };
+
     Scene.prototype.draw = function (ctx, lod) {
       if(this.style)
           this.style.draw(ctx, lod);
