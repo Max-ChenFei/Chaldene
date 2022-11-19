@@ -1073,7 +1073,6 @@
     Node.prototype.desc = "";
     Node.prototype.inputs = {};
     Node.prototype.outputs = {};
-    Node.prototype.flags = {};
     Node.prototype.translate = new Point(0, 0);
     Node.prototype.scale = new Point(1, 1);
     Node.prototype.collidable_components = [];
