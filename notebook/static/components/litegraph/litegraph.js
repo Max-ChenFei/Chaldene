@@ -98,7 +98,10 @@
      */
     TypeRegistry.prototype.createNode = function(type_name) {
         let node_class = this.registered_node_types[type_name];
-        if(!node_class) return undefined;
+        if(!node_class) {
+            console.warn("Can not create node with type ${type_name}");
+            return undefined;
+        };
         let node = new node_class();
         if (node.onNodeCreated ) {
             node.onNodeCreated();
