@@ -353,10 +353,9 @@
      *
      * @class Graph
      * @constructor
-     * @param {Object} o data from previous serialization [optional]
      */
 
-    function Graph(o) {
+    function Graph() {
         this.init();
     }
 
