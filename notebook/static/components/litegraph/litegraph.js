@@ -892,7 +892,6 @@
 
     NodeSlot.prototype.mousePressed = function() {
         this.current_state = VisualState.pressed;
-        this.is_connected = !this.is_connected;
     };
 
      NodeSlot.prototype.isInput = function () {
@@ -931,11 +930,14 @@
          } else {
              this.connections = 1;
          }
+         this.is_connected = true;
      };
 
      NodeSlot.prototype.breakConnection = function () {
-         if (this.connections > 0)
+         if (this.connections > 0){
              this.connections = this.connections - 1;
+             this.is_connected = this.connections > 0;
+         }
      };
 
      NodeSlot.prototype.clearConnections = function () {
