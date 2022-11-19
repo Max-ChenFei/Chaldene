@@ -370,8 +370,8 @@
     Graph.prototype.init = function() {
         this.nodes = {};
         this.connectors = {};
-        this.out_connector_ids = {}; // {out_node: {out_slot: connector_ids,... }}
-        this.in_connectors_ids = {}; // {in_node: {in_slot: connector_ids,... }}
+        this.out_connection_table = {}; // {out_node_id: {out_slot_name: connector_ids,... }}
+        this.in_connection_table = {}; // {in_node: {in_slot: connector_ids,... }}?????????????
         this.local_vars = {};
         this.inputs = {};
         this.outputs = {};
@@ -481,8 +481,6 @@
     Graph.prototype.addConnector = function(out_node, out_slot_name, in_node, in_slot_name){
         let connector = new Connector(this.getUniqueId(), out_node, out_slot_name, in_node, in_slot_name);
         this.connectors[connector.id] = connector;
-        this.out_connector_ids[out_node.id][out_slot_name] = in_node;
-        this.in_connectors_ids[in_node.id][in_slot_name] = out_node;
     };
 
     /**
@@ -501,10 +499,6 @@
         if (out_node) out_node.breakConnectionOfOutput(connector.out_slot_name);
         let in_node = connector.in_node;
         if (in_node) in_node.breakConnectionOfInput(connector.in_slot_name);
-        let in_node_id = in_node.id;
-        let out_node_id = out_node.id;
-        delete this.in_connectors_ids[in_node_id][connector.in_slot_name];
-        delete this.out_connector_ids[out_node_id][connector.out_slot_name];
         delete this.connectors[connector_id];
     };
 
@@ -513,21 +507,6 @@
             for (const id of connector_ids) {
                 this.removeConnector(id);
             }
-    };
-
-    Graph.prototype.clearInConnectorsOfNode = function(node_id) {
-        const ids = Object.values(this.in_connectors[node_id]);
-        this.removeConnectors(ids);
-    };
-
-    Graph.prototype.clearOutConnectorsOfNode = function(node_id) {
-        const ids = Object.values(this.out_connectors[node_id]);
-        this.removeConnectors(ids);
-    };
-
-    Graph.prototype.clearConnectorsOfNode = function(node_id) {
-        this.clearInConnectorsOfNode(node_id);
-        this.clearOutConnectorsOfNode(node_id);
     };
 
     Graph.prototype.removeNode = function(node) {
