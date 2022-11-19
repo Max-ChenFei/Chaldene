@@ -392,14 +392,27 @@
         this.init();
     };
 
+
+    Graph.prototype.isNodeValid = function(node) {
+       if(!node) {
+            console.warn("The node to be added to the graph is null");
+            return false;
+        }
+        if(!(node instanceof Node)) {
+            console.warn("The node to be added to the graph is not the instance of the Node");
+            return false;
+        }
+        return true;
+    };
+
     /**
      * Adds a new node instance to this graph
      * @method add
      * @param {Node} node the instance of the node
      */
     Graph.prototype.addNode = function(node) {
-        if (!node) return;
-
+        if(!this.isNodeValid())
+            return
         node.id =  this.getUniqueId();
         this.nodes[node.id] = node;
 
@@ -454,19 +467,13 @@
         this.clearOutConnectorsOfNode(node_id);
     };
 
-    /**
-     * Removes a node from the graph
-     * @method remove
-     * @param {String} node_id
-     */
-    Graph.prototype.removeNode = function(node_id) {
-        const node = this.nodes[node_id]
-        if (!node) return;
-
+    Graph.prototype.removeNode = function(node) {
+        if(!this.isNodeValid())
+            return
         if (this.onNodeRemoved) {
-            this.onNodeRemoved(node_id);
+            this.onNodeRemoved(node.id);
         }
-        this.clearConnectorsOfNode(node_id);
+        this.clearConnectorsOfNode(node.id);
 
         if (node.onRemoved) {
             node.onRemoved();
