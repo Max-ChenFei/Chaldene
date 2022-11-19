@@ -2180,7 +2180,7 @@
     };
 
     Scene.prototype.deselectNode = function(node, not_to_redraw){
-        if(!this.assertNodeValid(node))
+        if(!this.isNodeValid(node))
             return;
         node.deselected();
         delete this.selected_nodes[node.id];
@@ -2205,7 +2205,7 @@
             this.renderer.setToRender("nodes");
     };
 
-    Scene.prototype.assertNodeValid = function(node){
+    Scene.prototype.isNodeValid = function(node){
         if(!node) {
             console.warn("The node to be selected is null");
             return false;
@@ -2218,7 +2218,7 @@
     }
 
     Scene.prototype.selectNode = function(node, append_to_selections, not_to_redraw){
-        if(!this.assertNodeValid(node))
+        if(!this.isNodeValid(node))
             return;
         if(!append_to_selections)
             this.deselectSelectedNodes(true);
@@ -2241,7 +2241,7 @@
     };
 
     Scene.prototype.toggleNodeSelection = function(node, not_to_redraw){
-        if(!this.assertNodeValid(node))
+        if(!this.isNodeValid(node))
             return;
         node.toggleSelection();
         if(!not_to_redraw)
