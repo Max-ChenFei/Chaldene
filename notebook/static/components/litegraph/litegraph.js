@@ -343,6 +343,11 @@
         this._update('value', new_value);
     };
 
+    Variable.prototype.serialize = function() {
+        return [this.name, this.type, this.value];
+    };
+
+
     //*********************************************************************************
     // LGraph CLASS
     //*********************************************************************************
@@ -368,10 +373,55 @@
         this.out_connector_ids = {}; // {out_node: {out_slot: connector_ids,... }}
         this.in_connectors_ids = {}; // {in_node: {in_slot: connector_ids,... }}
         this.local_vars = {};
-        this.subgraphs = {};
         this.inputs = {};
         this.outputs = {};
+        this.subgraphs = {};
         this.next_unique_id = 0;
+    };
+
+    Graph.prototype.serialize = function() {
+        function serializeEachElementIn (list){
+            let out = [];
+            for (const item of list) {
+                out.push(item.serialize());
+            }
+            return out;
+        }
+
+        const to_serialize = ['nodes', 'connectors', 'local_vars', 'inputs', 'outputs', 'subgraphs'];
+        let out = {};
+        for (const t of to_serialize) {
+            out[t] = serializeEachElementIn(Object.values(this[t]));
+        };
+        return out;
+    };
+
+    Graph.prototype.configure = function(config) {
+        if(!config)
+            return;
+        for (const config of config.nodes) {
+            let node = TypeRegistry.createNode(config.type);
+            if(!node) continue;
+            node.configure(config);
+            this.nodes[node.id] = node;
+        }
+        for (const config of config.connectors) {
+            this.addConnector(config[0], this.nodes[config[1]], config[2], this.nodes[config[3]], config[4]);
+        }
+        for (const v of config.local_vars) {
+            this.addLocalVar(v[0], v[1], v[2]);
+        }
+        for (const v of config.inputs) {
+            this.addInput(v[0], v[1], v[2]);
+        }
+        for (const v of config.outputs) {
+            this.addOutput(v[0], v[1], v[2]);
+        }
+        for (const v of config.subgraphs) {
+            let subgraph = new Graph();
+            subgraph.configure(v);
+            this.addSubGraph(v.name, subgraph);
+        }
     };
 
     Graph.prototype.getItems = function() {
@@ -698,28 +748,12 @@
         this.current_state = VisualState.normal;
     }
 
-    Connector.prototype.configure = function(o) {
-        if (o.constructor === Array) {
-            this.id = o[0];
-            this.out_node = o[1];
-            this.out_slot_name = o[2];
-            this.in_node = o[3];
-            this.in_slot_name = o[4];
-        } else {
-            this.id = o.id;
-            this.out_node_id = o.out_node_id;
-            this.out_slot_name = o.out_slot_name;
-            this.in_node = o.in_node;
-            this.in_slot_name = o.in_slot_name;
-        }
-    };
-
     Connector.prototype.serialize = function() {
         return [
             this.id,
-            this.out_node,
+            this.out_node.id,
             this.out_slot_name,
-            this.in_node,
+            this.in_node.id,
             this.in_slot_name
         ];
     };
@@ -1045,10 +1079,34 @@
     Node.prototype.collidable_components = [];
     Node.prototype.current_state = VisualState.normal;
 
-    /**
-     * get the title string
-     * @method getTitle
-     */
+    Node.prototype.serialize = function() {
+        let o = {
+            id: this.id,
+            type: this.type,
+            translate: [this.translate.x, this.translate.y],
+            scale: [this.scale.x, this.scale.y],
+        };
+        for (const slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+            o["connections"].push(slot.connections)
+        }
+        return o;
+    }
+
+    Node.prototype.configure = function(config) {
+        if(!config)
+           return;
+        this.id = config.id;
+        this.translate.x = config.translate[0];
+        this.translate.y = config.translate[1];
+        this.scale.x = config.scale[0];
+        this.scale.y = config.scale[1];
+        let i = 0;
+        for (const slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+            o["connections"].push(config.connections[i] || 0);
+            i++;
+        }
+    }
+
     Node.prototype.getTitle = function() {
         return this.title || this.constructor.title;
     };
