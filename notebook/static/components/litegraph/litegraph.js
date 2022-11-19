@@ -2084,7 +2084,7 @@
         this.assertCanvasValid(canvas);
         this.canvas = canvas;
         canvas.owner = this;
-        this.graph = graph;
+        this.graph = graph || new Graph();
         this.viewport = options.viewport;
         this.drawing_context = options.drawing_context || '2d';
         this.rendering_template = options.rendering_template || RenderingTemplate;
@@ -2118,8 +2118,6 @@
     }
 
     Scene.prototype.updateBoundingRectInGraph = function(){
-       if(!this.graph)
-           return;
         for (const item of this.graph.getItems()) {
             this.collision_detector.addBoundingRect(item);
         }
@@ -2138,7 +2136,6 @@
     };
 
     Scene.prototype.nodes = function(){
-        if(!this.graph) return [];
         return Object.values(this.graph.nodes);
     };
 
@@ -2148,7 +2145,6 @@
     };
 
     Scene.prototype.connectors = function(){
-        if(!this.graph) return [];
         return Object.values(this.graph.connectors);
     };
 
