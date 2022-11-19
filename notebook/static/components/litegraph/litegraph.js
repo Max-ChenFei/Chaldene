@@ -2339,7 +2339,7 @@
         return new Point((p.x + this.translate.x) * this.scale, (p.y + this.translate.y) * this.scale);
     };
 
-    View.prototype.translate = function(dx_in_scene, dy_in_scene) {
+    View.prototype.addTranslate = function(dx_in_scene, dy_in_scene) {
         this.translate.x += dx_in_scene;
         this.translate.y += dy_in_scene;
     };
@@ -2354,7 +2354,7 @@
         this.translate.x = this.translate.y = 0;
     };
 
-    View.prototype.scale = function(s, pivot_in_view) {
+    View.prototype.setScale = function(s, pivot_in_view) {
         s = Math.max(this.min_scale, s);
         s = Math.min(this.max_scale, s);
         if (s == this.scale)  return;
@@ -2364,7 +2364,7 @@
         this.scale = s;
         if (Math.abs(this.scale - 1) < 0.01) this.scale = 1;
         let pivot_after_scale = this.mapToScene(pivot_in_view);
-        this.translate(pivot_after_scale.x - pivot_before_scale.x, pivot_after_scale.y - pivot_after_scale.y );
+        this.addTranslate(pivot_after_scale.x - pivot_before_scale.x, pivot_after_scale.y - pivot_after_scale.y );
     };
 
     //the area of the scene visualized by this view
