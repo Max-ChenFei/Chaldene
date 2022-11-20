@@ -2354,7 +2354,7 @@
             this.renderer.setToRender("nodes");
     };
 
-    Scene.prototype.copySelectedNode = function(){
+    Scene.prototype.copySelectedNodeToClipboard = function(){
         let clipboard_info = {nodes: {}, connectors: [], min_x_of_nodes:0, min_y_of_nodes:0};
         for (const node of Object.values(this.selected_nodes)) {
             let new_node = TypeRegistry.cloneNode(node);
@@ -2371,7 +2371,7 @@
         localStorage.setItem("visual_programming_env_clipboard", JSON.stringify(clipboard_info));
     };
 
-    Scene.prototype.paste = function(){
+    Scene.prototype.pasteFromClipboard = function(){
         let config = localStorage.getItem("visual_programming_env_clipboard");
         if (!config) {
             return;
