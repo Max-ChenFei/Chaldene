@@ -1823,11 +1823,21 @@
             alpha : 0.5,
             _width: 20,
             _height: 20,
+            _min_width: 2,
+            _min_height:2,
             width: function (){
                 return this._width;
             },
+            setWidth: function (w){
+                this._width = w;
+                this._width = Math.max(this._min_width, this._width);
+            },
             height:function (){
                 return this._height;
+            },
+            setHeight:function (h){
+                this._height = h;
+                this._height = Math.max(this._min_height, this._height);
             },
             size: function(){
                 return {x:0, y:0, width: this.width(), height: this.height()}
@@ -2464,6 +2474,72 @@
 
     Object.setPrototypeOf(MoveCommand.prototype, Command.prototype);
 
+    const NodeBorder = {
+        top: "top",
+        bottom: "bottom",
+        left: "left",
+        right: "right",
+        top_left: "top_left",
+        top_right: "top_right",
+        bottom_left: "bottom_left",
+        bottom_right: "bottom_right",
+    }
+
+    function ResizeCommand(scene, resized_node){
+        this.desc = "Resize Node";
+        this.scene = scene;
+        this.resized_node = resized_node;
+    }
+
+    ResizeCommand.prototype.exec = function(e, node_border){
+        this.node_border = node_border;
+        let mapNodeBorderToCursor = {
+            "top": "ns-resize", "bottom": "ns-resize", "left": "ew-resize", "right": "ew-resize",
+            "top_left": "ne", "top-right": "nw", "bottom_left": "sw", "bottom_right": "se"
+        }
+        let cursor = mapNodeBorderToCursor[this.node_border] || "all-scroll";
+        this.scene.setCursor(cursor);
+    }
+
+    ResizeCommand.prototype.update = function(e){
+        switch (this.node_border) {
+            case NodeBorder.top:
+                this.resized_node.addTranslate(0, e.sceneMovementY);
+                break;
+            case NodeBorder.bottom:
+                this.resized_node.setHeight(this.resized_node.height() + e.sceneMovementY);
+                break;
+            case NodeBorder.left:
+                this.resized_node.setWidth(this.resized_node.width() + e.sceneMovementX);
+                break;
+            case NodeBorder.right:
+                this.resized_node.addTranslate(e.sceneMovementX, 0);
+                break;
+            case NodeBorder.top_left:
+                this.resized_node.addTranslate(0, e.sceneMovementY);
+                this.resized_node.setWidth(this.resized_node.width() + e.sceneMovementX);
+                break;
+            case NodeBorder.top_right:
+                this.resized_node.addTranslate(0, e.sceneMovementY);
+                this.resized_node.setHeight(this.resized_node.height() + e.sceneMovementY);
+                break;
+            case NodeBorder.bottom_left:
+                this.resized_node.addTranslate(e.sceneMovementX, 0);
+                this.resized_node.setWidth(this.resized_node.width() + e.sceneMovementX);
+                break;
+            case NodeBorder.bottom_right:
+                this.resized_node.setWidth(this.resized_node.width() + e.sceneMovementX);
+                this.resized_node.setHeight(this.resized_node.height() + e.sceneMovementY);
+                break;
+        }
+        this.scene.setToRender("nodes");
+    }
+
+    ResizeCommand.prototype.end = function(e){
+        this.update(e);
+    }
+
+    Object.setPrototypeOf(ResizeCommand.prototype, Command.prototype);
     //****************************************
 
     /**
