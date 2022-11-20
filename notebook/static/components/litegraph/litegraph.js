@@ -2396,6 +2396,16 @@
         this.selectNodes(Object.values(new_nodes));
     };
 
+    Scene.prototype.cutSelectedNodes = function() {
+        this.copySelectedNodeToClipboard();
+        this.deleteSelectedNodes();
+    }
+
+    Scene.prototype.duplicateSelectedNodes = function() {
+        this.copySelectedNodeToClipboard();
+        this.pasteFromClipboard();
+    };
+
     Scene.prototype.connectors = function(){
         return Object.values(this.graph.connectors);
     };
