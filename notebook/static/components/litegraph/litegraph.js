@@ -2428,6 +2428,42 @@
           this.style.draw(ctx, lod);
     };
 
+    Scene.prototype.eventCoordinatesMap = function (e) {
+        let new_pos = this.view.mapClientToScene(e.clientX, e.clientY);
+        e.sceneMovementX = new_pos.x - this._pointer_pos_in_scene.x;
+        e.sceneMovementY = new_pos.y - this._pointer_pos_in_scene.y;
+        this._pointer_pos_in_scene = new_pos;
+    }
+
+    function Command () {
+    }
+    Command.prototype.desc = "Abstract command";
+    Command.prototype.exec = function(e){
+    }
+    Command.prototype.update = undefined;
+    Command.prototype.end = function(e) {
+    }
+    Command.prototype.draw = function(ctx) {
+    }
+
+    function MoveCommand(scene){
+        this.desc = "Move Node";
+        this.scene = scene;
+    }
+
+    MoveCommand.prototype.update = function(e){
+        for (const node of Object.values(this.scene.selected_nodes)){
+            node.move(e.sceneMovementX, e.sceneMovementY)
+        }
+        this.scene.setToRender("nodes");
+    }
+
+    MoveCommand.prototype.end = function(e){
+        this.update(e);
+    }
+
+    Object.setPrototypeOf(MoveCommand.prototype, Command.prototype);
+
     //****************************************
 
     /**
