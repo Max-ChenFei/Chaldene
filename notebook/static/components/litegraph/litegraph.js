@@ -2549,14 +2549,22 @@
         this.desc = "Select Nodes";
         this.scene = scene;
         this.support_undo = false;
+        this.select_rect = new Rect(0, 0, 0, 0);
     }
 
     MarqueeSelectionCommand.prototype.exec = function(e){
-        this.start_pos = this.scene.pointer_pos_in_scene;
+        this.select_rect.x = this.scene.pointer_pos_in_scene.x;
+        this.select_rect.y = this.scene.pointer_pos_in_scene.y;
     }
 
     MarqueeSelectionCommand.prototype.update = function(e){
         this.end_pos = this.scene.pointer_pos_in_scene;
+        this.select_rect.width = Math.abs(this.select_rect.x - this.end_pos.x),
+        this.select_rect.height = Math.abs(this.select_rect.y - this.end_pos.y),
+        this.select_rect.x = Math.min(this.select_rect.x - this.end_pos.x);
+        this.select_rect.y = Math.min(this.select_rect.y  - this.end_pos.y);
+        let nodes = this.scene.collision_detector.getItemsOverlapWith(this.select_rect, Node)
+        this.scene.selectNode(nodes, e.shiftKey || e.ctrlKey);
     }
 
     MarqueeSelectionCommand.prototype.end = function(e){
@@ -2566,10 +2574,7 @@
     MarqueeSelectionCommand.prototype.draw = function(ctx){
         ctx.lineWidth = 0.3;
         ctx.setLineDash([0.5, 0.25]);
-        ctx.strokeRect(Math.min(this.start_pos.x - this.end_pos.x),
-            Math.min(this.start_pos.y - this.end_pos.y),
-            Math.abs(this.start_pos.x - this.end_pos.x),
-            Math.abs(this.start_pos.y - this.end_pos.y));
+        ctx.strokeRect(this.select_rect.x, this.select_rect.y, this.select_rect.width, this.select_rect.height);
     }
 
     Object.setPrototypeOf(MarqueeSelectionCommand.prototype, Command.prototype);
