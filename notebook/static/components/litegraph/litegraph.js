@@ -2273,11 +2273,11 @@
 
     Scene.prototype.isNodeValid = function(node){
         if(!node) {
-            console.warn("The node to be selected is null");
+            console.warn("The node is null");
             return false;
         }
         if(!(node instanceof Node)) {
-            console.warn("The node to be selected is not the instance of the Node");
+            console.warn("The ${node} is not the instance of the Node");
             return false;
         }
         return true;
