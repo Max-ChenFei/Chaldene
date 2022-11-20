@@ -416,14 +416,16 @@
     Graph.prototype.configure = function(config) {
         if(!config)
             return;
-        for (const config of config.nodes) {
-            let node = TypeRegistry.createNode(config.type);
+        for (const node_config of config.nodes) {
+            let node = TypeRegistry.createNode(node_config.type);
             if(!node) continue;
             node.configure(config);
             this.nodes[node.id] = node;
         }
-        for (const config of config.connectors) {
-            this.addConnector(config[0], this.nodes[config[1]], config[2], this.nodes[config[3]], config[4]);
+        for (const connector_config of config.connectors) {
+            let connector = new Connector(connector_config[0], this.nodes[connector_config[1]], connector_config[2],
+                this.nodes[connector_config[3]], connector_config[4]);
+            this.connectors[connector.id] = connector;
         }
         for (const v of config.local_vars) {
             this.addLocalVar(v[0], v[1], v[2]);
