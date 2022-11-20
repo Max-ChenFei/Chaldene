@@ -1215,25 +1215,8 @@
          this.removeSlotFrom(slot_name, this.outputs, this.onOutputRemoved);
      };
 
-    /**
-     * returns the input slot with a given name (used for dynamic slots), -1 if not found
-     * @method findInput
-     * @param {string} slot_name the name of the slot
-     * @param {boolean} returnObj if the obj itself wanted
-     * @return {undefined_or_object} the slot (undefined if not found)
-     */
-    Node.prototype.findInput = function(slot_name) {
-       return this.inputs[slot_name]
-    };
-
-    /**
-     * returns the output slot with a given name (used for dynamic slots)
-     * @method findOutput
-     * @param {string} slot_name the name of the slot
-     * @return {undefined_or_object} the slot (undefined if not found)
-     */
-    Node.prototype.findOutput = function(slot_name) {
-        return this.outputs[slot_name]
+    Node.prototype.getSlot = function(slot_name) {
+       return this.inputs[slot_name] || this.outputs[slot_name];
     };
 
     // *********************** node manipulation **************************************
