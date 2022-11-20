@@ -2207,7 +2207,7 @@
         this.updateBoundingRectInGraph();
         this.setStartRenderWhenCanvasOnFocus();
         this.setStopRenderWhenCanvasOnBlur();
-        this._pointer_pos_in_scene = new Point(0,0);
+        this.pointer_pos_in_scene = new Point(0,0);
     };
 
     Object.defineProperty(Scene.prototype, "lod", {
@@ -2397,7 +2397,7 @@
             if(!node) continue;
             node.configure(node_config);
             //paste in last known mouse position
-            node.translate.add(this._pointer_pos_in_scene.x - config.min_x_of_nodes, this._pointer_pos_in_scene.y - config.min_y_of_nodes);
+            node.translate.add(this.pointer_pos_in_scene.x - config.min_x_of_nodes, this.pointer_pos_in_scene.y - config.min_y_of_nodes);
             this.addNode(node);
             new_nodes[old_id] = node;
         }
@@ -2438,11 +2438,10 @@
           this.style.draw(ctx, lod);
     };
 
-    Scene.prototype.eventCoordinatesMap = function (e) {
-        let new_pos = this.view.mapClientToScene(e.clientX, e.clientY);
-        e.sceneMovementX = new_pos.x - this._pointer_pos_in_scene.x;
-        e.sceneMovementY = new_pos.y - this._pointer_pos_in_scene.y;
-        this._pointer_pos_in_scene = new_pos;
+    Scene.prototype.addSceneCoordinateToEvent = function (e) {
+        let new_pos = this.view.mapToScene(e.offsetX, e.offsetY);
+        e.sceneMovementX = new_pos.x - this.pointer_pos_in_scene.x;
+        e.sceneMovementY = new_pos.y - this.pointer_pos_in_scene.y;
     }
 
     function Command () {
@@ -2583,11 +2582,6 @@
      */
     View.prototype.mapToScene = function(p) {
         return new Point(p.x / this.scale - this.translate.x, p.y / this.scale - this.translate.y);
-    };
-
-    View.prototype.mapClientToScene = function(client_x, client_y) {
-        const rect = this.scene.canvas.getBoundingClientRect();
-        return this.mapToScene(new Point(client_x - rect.left, client_y - rect.top));
     };
 
     View.prototype.mapRectToScene = function(rect) {
