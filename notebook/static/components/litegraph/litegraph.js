@@ -113,6 +113,19 @@
         return node;
     };
 
+    TypeRegistry.prototype.cloneNode = function(node) {
+        if(!node)
+            return;
+        let cloned_node = this.createNode(node.type);
+        let config = deepCopy(node.serialize());
+        if(!cloned_node)
+            return;
+        cloned_node.configure(config);
+        cloned_node.id = undefined;
+        cloned_node.clearAllConnections();
+        return cloned_node;
+    };
+
     /**
       * Returns a registered node type with a given name
       * @method getNodeType
@@ -482,11 +495,23 @@
         }
     };
 
-    Graph.prototype.addConnector = function(out_node, out_slot_name, in_node, in_slot_name){
-        let connector = new Connector(this.getUniqueId(), out_node, out_slot_name, in_node, in_slot_name);
+    Graph.prototype.addConnector = function(connector){
+        if(!connector){
+            console.warn("None is passed as the connector parameter");
+            return;
+        }
+        connector.id =  this.getUniqueId();
         this.connectors[connector.id] = connector;
     };
 
+    Graph.prototype.allOutConnectorsOf = function (node_id){
+        let out = [];
+        for (const connector of Object.values(this.connectors)) {
+            if(connector.out_node.id = node_id)
+                out.append(connector);
+        }
+        return out;
+    };
     /**
      * remove a connector
      * @method removeConnector
@@ -2184,6 +2209,7 @@
         this.updateBoundingRectInGraph();
         this.setStartRenderWhenCanvasOnFocus();
         this.setStopRenderWhenCanvasOnBlur();
+        this._pointer_pos = new Point(0,0);
     };
 
     Object.defineProperty(Scene.prototype, "lod", {
@@ -2269,6 +2295,18 @@
         return true;
     }
 
+    Scene.prototype.isConnectorValid = function(connector){
+        if(!connector) {
+            console.warn("The connector is null");
+            return false;
+        }
+        if(!(connector instanceof Connector)) {
+            console.warn("The ${node} is not the instance of the Connector");
+            return false;
+        }
+        return true;
+    }
+
     Scene.prototype.selectNode = function(node, append_to_selections, not_to_redraw){
         if(!this.isNodeValid(node))
             return;
@@ -2309,6 +2347,66 @@
             this.renderer.setToRender("nodes");
     };
 
+    Scene.prototype.addNode = function(node, not_to_redraw){
+        if(!this.isNodeValid(node))
+            return
+        node.pluginRenderingTemplate(this.rendering_template);
+        this.graph.addNode(node);
+        this.selectNode(node);
+        if(!not_to_redraw)
+            this.renderer.setToRender("nodes");
+    };
+
+    Scene.prototype.addConnector = function(connector, not_to_redraw){
+        if(!this.isConnectorValid(connector))
+            return
+        connector.pluginRenderingTemplate(this.rendering_template);
+        this.graph.addConnector(connector);
+        if(!not_to_redraw)
+            this.renderer.setToRender("nodes");
+    };
+
+    Scene.prototype.copySelectedNode = function(){
+        let clipboard_info = {nodes: {}, connectors: [], min_x_of_nodes:0, min_y_of_nodes:0};
+        for (const node of Object.values(this.selected_nodes)) {
+            let new_node = TypeRegistry.cloneNode(node);
+            clipboard_info.nodes[node.id] = new_node.serialize();
+            clipboard_info.min_x_of_nodes = Math.min(clipboard_info.min_x_of_nodes, new_node.translate.x);
+            clipboard_info.min_y_of_nodes = Math.min(clipboard_info.min_y_of_nodes, new_node.translate.y);
+            //if the connected nodes of this node are also selected, then copy the connector between them
+            let connectors = this.graph.allOutConnectorsOf(node.id);
+            for (const connector of connectors) {
+                if(this.selected_nodes[connector.in_node.id])
+                   clipboard_info.connectors.push(connector.serialize());
+            }
+        };
+        localStorage.setItem("visual_programming_env_clipboard", JSON.stringify(clipboard_info));
+    };
+
+    Scene.prototype.paste = function(){
+        let config = localStorage.getItem("visual_programming_env_clipboard");
+        if (!config) {
+            return;
+        }
+        let clipboard_info = JSON.parse(config);
+        let new_nodes = {};
+        for (const [old_id, node_config] of Object.entities(clipboard_info.nodes)) {
+            let node = TypeRegistry.createNode(node_config.type);
+            if(!node) continue;
+            node.configure(node_config);
+            //paste in last known mouse position
+            node.translate.add(this._pointer_pos.x - config.min_x_of_nodes, this._pointer_pos.y - config.min_y_of_nodes);
+            this.addNode(node);
+            new_nodes[old_id] = node;
+        }
+        for (const connector_config of clipboard_info.connectors) {
+            if(!new_nodes[connector_config[1]] || !new_nodes[connector_config[3]]) continue;
+            let connector = new Connector(connector_config[0], new_nodes[connector_config[1]], connector_config[2],
+                new_nodes[connector_config[3]], connector_config[4]);
+            this.addConnector(connector);
+        }
+        this.selectNodes(Object.values(new_nodes));
+    };
 
     Scene.prototype.connectors = function(){
         return Object.values(this.graph.connectors);
