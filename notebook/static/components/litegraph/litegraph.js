@@ -2251,7 +2251,7 @@
         node.deselected();
         delete this.selected_nodes[node.id];
         if(!not_to_redraw)
-            this.renderer.setToRender("nodes");
+            this.setToRender("nodes");
     };
 
     Scene.prototype.deselectNodes = function(nodes, not_to_redraw){
@@ -2259,7 +2259,7 @@
             this.deselectNode(node, true);
         }
         if(!not_to_redraw)
-            this.renderer.setToRender("nodes");
+            this.setToRender("nodes");
     };
 
     Scene.prototype.deselectSelectedNodes = function(not_to_redraw){
@@ -2268,7 +2268,7 @@
         }
         this.selected_nodes = {};
         if(!not_to_redraw)
-            this.renderer.setToRender("nodes");
+            this.setToRender("nodes");
     };
 
     Scene.prototype.isNodeValid = function(node){
@@ -2295,6 +2295,10 @@
         return true;
     }
 
+    Scene.prototype.setToRender = function (changes){
+        this.renderer.setToRender(changes);
+    };
+
     Scene.prototype.selectNode = function(node, append_to_selections, not_to_redraw){
         if(!this.isNodeValid(node))
             return;
@@ -2303,7 +2307,7 @@
         node.selected();
         this.selected_nodes[node.id] = node;
         if(!not_to_redraw)
-            this.renderer.setToRender("nodes");
+            this.setToRender("nodes");
     };
 
     Scene.prototype.selectNodes = function(nodes, append_to_selections, not_to_redraw){
@@ -2311,7 +2315,7 @@
             this.selectNode(node, append_to_selections, true);
         }
         if(!not_to_redraw)
-            this.renderer.setToRender("nodes");
+            this.setToRender("nodes");
     };
 
     Scene.prototype.selectAllNodes = function(not_to_redraw){
@@ -2323,7 +2327,7 @@
             return;
         node.toggleSelection();
         if(!not_to_redraw)
-            this.renderer.setToRender("nodes");
+            this.setToRender("nodes");
     };
 
     Scene.prototype.deleteSelectedNodes = function(not_to_redraw){
@@ -2332,7 +2336,7 @@
         }
         this.selected_nodes = {};
         if(!not_to_redraw)
-            this.renderer.setToRender("nodes");
+            this.setToRender("nodes");
     };
 
     Scene.prototype.addNode = function(node, not_to_redraw){
@@ -2342,7 +2346,7 @@
         this.graph.addNode(node);
         this.selectNode(node);
         if(!not_to_redraw)
-            this.renderer.setToRender("nodes");
+            this.setToRender("nodes");
     };
 
     Scene.prototype.addConnector = function(connector, not_to_redraw){
@@ -2351,7 +2355,7 @@
         connector.pluginRenderingTemplate(this.rendering_template);
         this.graph.addConnector(connector);
         if(!not_to_redraw)
-            this.renderer.setToRender("nodes");
+            this.setToRender("nodes");
     };
 
     Scene.prototype.copySelectedNodeToClipboard = function(){
