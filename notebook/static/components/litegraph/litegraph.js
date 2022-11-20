@@ -1347,7 +1347,7 @@
         this.clearOutConnections();
     };
 
-    Node.prototype.move= function(delta_x, delta_y) {
+    Node.prototype.addTranslate= function(delta_x, delta_y) {
         this.translate.add(delta_x, delta_y);
         if(this.onMove){
             this.onMove(delta_x, delta_y);
@@ -1435,7 +1435,7 @@
 
     LGraphComment.prototype.move = function(delta_x, delta_y) {
         for (const node of this.nodes_inside) {
-            node.move(delta_x, delta_y)
+            node.addTranslate(delta_x, delta_y)
         }
         if(this.onMove){
             this.onMove(delta_x, delta_y);
@@ -2453,7 +2453,7 @@
 
     MoveCommand.prototype.update = function(e){
         for (const node of Object.values(this.scene.selected_nodes)){
-            node.move(e.sceneMovementX, e.sceneMovementY)
+            node.addTranslate(e.sceneMovementX, e.sceneMovementY)
         }
         this.scene.setToRender("nodes");
     }
