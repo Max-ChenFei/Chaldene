@@ -2197,7 +2197,7 @@
         this.updateBoundingRectInGraph();
         this.setStartRenderWhenCanvasOnFocus();
         this.setStopRenderWhenCanvasOnBlur();
-        this._pointer_pos = new Point(0,0);
+        this._pointer_pos_in_scene = new Point(0,0);
     };
 
     Object.defineProperty(Scene.prototype, "lod", {
@@ -2387,7 +2387,7 @@
             if(!node) continue;
             node.configure(node_config);
             //paste in last known mouse position
-            node.translate.add(this._pointer_pos.x - config.min_x_of_nodes, this._pointer_pos.y - config.min_y_of_nodes);
+            node.translate.add(this._pointer_pos_in_scene.x - config.min_x_of_nodes, this._pointer_pos_in_scene.y - config.min_y_of_nodes);
             this.addNode(node);
             new_nodes[old_id] = node;
         }
@@ -2473,10 +2473,9 @@
         return new Point(p.x / this.scale - this.translate.x, p.y / this.scale - this.translate.y);
     };
 
-    //converts client coordinates from canvas2D to graph coordinates
-    View.prototype.mapClientToScene = function(e) {
+    View.prototype.mapClientToScene = function(client_x, client_y) {
         const rect = this.scene.canvas.getBoundingClientRect();
-        return this.mapToScene(new Point(e.clientX - rect.left, e.clientY - rect.top));
+        return this.mapToScene(new Point(client_x - rect.left, client_y - rect.top));
     };
 
     View.prototype.mapRectToScene = function(rect) {
