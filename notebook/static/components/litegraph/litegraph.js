@@ -928,6 +928,10 @@
         this.current_state = VisualState.hovered;
     };
 
+    NodeSlot.prototype.resetState = function() {
+        this.current_state = VisualState.normal;
+    };
+
     NodeSlot.prototype.mouseLeave = function() {
         this.current_state = VisualState.normal;
     };
@@ -2561,6 +2565,55 @@
     }
 
     Object.setPrototypeOf(MarqueeSelectionCommand.prototype, Command.prototype);
+
+    function ConnectCommand(scene){
+        this.desc = "Create Connector";
+        this.scene = scene;
+        this.target_node = {
+            pos: new Point(0, 0),
+            getConnectedAnchorPosInScene: function() {return this.pos}
+        };
+        this.from_slot = null;
+        this.connector = null;
+    }
+
+    ConnectCommand.prototype.exec = function(e, node, slot_name){
+        this.from_slot = node.getSlot(slot_name);
+        this.from_slot.mousePressed();
+        this.target_node.pos = this.scene.pointer_pos_in_scene;
+        if(this.from_slot.isInput())
+            this.connector = new Connector(null, this.target_node, null, node, slot_name);
+        else
+            this.connector = new Connector(null, node, slot_name, this.target_node, null);
+        this.connector.pluginRenderingTemplate(this.scene.rendering_template);
+    }
+
+    ConnectCommand.prototype.update = function(e){
+        this.target_node.resetState();
+        this.target_node.pos = this.scene.pointer_pos_in_scene;
+    }
+
+    ConnectCommand.prototype.end = function(e, target_node, target_slot_name){
+        this.update(e);
+        if(target_node && target_node.getSlot(target_slot_name)){
+            if(this.from_slot.isInput())
+            {
+                this.connector.out_node = target_node;
+                this.connector.out_slot_name = target_slot_name;
+            } else{
+                this.connector.in_node = target_node;
+                this.connector.in_slot_name = target_slot_name;
+            }
+            this.scene.addConnector(this.connector);
+        }
+    }
+
+    ConnectCommand.prototype.draw = function(ctx, lod){
+        if(this.connector)
+           this.connector.draw(ctx, lod);
+    }
+
+    Object.setPrototypeOf(ConnectCommand.prototype, Command.prototype);
     //****************************************
 
     /**
