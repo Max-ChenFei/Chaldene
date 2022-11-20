@@ -905,20 +905,6 @@
         return Math.sqrt(Math.pow(p.x - this.x, 2) + Math.pow(p.y - this.y, 2));
     };
 
-    function Size(size_x, size_y){
-        if (Array.isArray(size_x)){
-            if(size_x.length === 0)
-                this.size_x = this.size_y = 0;
-            else {
-                this.size_x = size_x[0];
-                this.size_y = size_x[1 % x.length];
-            }
-        } else {
-            this.size_x = size_x || 0;
-            this.size_y = size_y || 0;
-        }
-    }
-
     /**
      * Node slot
      * @method node slot class
