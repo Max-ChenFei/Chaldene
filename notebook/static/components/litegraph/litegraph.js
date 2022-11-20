@@ -2444,9 +2444,14 @@
         e.sceneMovementY = new_pos.y - this.pointer_pos_in_scene.y;
     }
 
+    Scene.prototype.setCurrentMousePosInScene = function(pos){
+        this.pointer_pos_in_scene = pos;
+    }
+
     function Command () {
     }
     Command.prototype.desc = "Abstract command";
+    Command.prototype.support_undo = true;
     Command.prototype.exec = function(e){
     }
     Command.prototype.update = undefined;
@@ -2539,6 +2544,35 @@
     }
 
     Object.setPrototypeOf(ResizeCommand.prototype, Command.prototype);
+
+    function MarqueeSelectionCommand(scene){
+        this.desc = "Select Nodes";
+        this.scene = scene;
+        this.support_undo = false;
+    }
+
+    MarqueeSelectionCommand.prototype.exec = function(e){
+        this.start_pos = this.scene.pointer_pos_in_scene;
+    }
+
+    MarqueeSelectionCommand.prototype.update = function(e){
+        this.end_pos = this.scene.pointer_pos_in_scene;
+    }
+
+    MarqueeSelectionCommand.prototype.end = function(e){
+        this.update(e);
+    }
+
+    MarqueeSelectionCommand.prototype.draw = function(ctx){
+        ctx.lineWidth = 0.3;
+        ctx.setLineDash([0.5, 0.25]);
+        ctx.strokeRect(Math.min(this.start_pos.x - this.end_pos.x),
+            Math.min(this.start_pos.y - this.end_pos.y),
+            Math.abs(this.start_pos.x - this.end_pos.x),
+            Math.abs(this.start_pos.y - this.end_pos.y));
+    }
+
+    Object.setPrototypeOf(MarqueeSelectionCommand.prototype, Command.prototype);
     //****************************************
 
     /**
