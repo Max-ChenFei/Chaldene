@@ -1952,7 +1952,7 @@
      *
      * @param changed_obj "background" "connectors" "nodes" "action"
      */
-    RenderedLayer.prototype.setToRender = function(which_layer){
+    Renderer.prototype.setToRender = function(which_layer){
         if(this.layers[which_layer]){
             this.layers[which_layer].re_render = true;
         }
