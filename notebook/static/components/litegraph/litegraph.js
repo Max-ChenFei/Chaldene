@@ -1228,7 +1228,8 @@
     };
 
     // *********************** node manipulation **************************************
-    Node.prototype.allowConnectTo = function(slot, to_node, to_slot) {
+    Node.prototype.allowConnectTo = function(slot_name, to_node, to_slot) {
+        let slot = this.inputs[slot_name] || this.outputs[slot_name];
         if (!slot || !to_node || !to_slot) {
             return new SlotConnection(SlotConnectionMethod.null, 'Some input parameters are undefined.');
         }
@@ -1240,27 +1241,6 @@
         return slot.allowConnectTo(to_slot)
     };
 
-    /**
-     * Check if the input slot of this node can be connected to the output slot of other node
-     * @method connect
-     * @param {String} input_slot_name
-     * @param {Node} to_node
-     * @param {NodeSlot} to_slot
-     */
-    Node.prototype.allowInputConnectTo = function(input_slot_name, to_node, to_slot) {
-        this.allowConnectTo(this.inputs[input_slot_name], to_node, to_slot);
-    };
-
-    /**
-     * Check if the output slot of this node can be connected to the input slot of other node
-     * @method connect
-     * @param {String} output_slot_name
-     * @param {Node} to_node
-     * @param {NodeSlot} to_slot
-     */
-    Node.prototype.allowOutputConnectTo = function(output_slot_name, to_node, to_slot) {
-        this.allowConnectTo(this.outputs[output_slot_name], to_node, to_slot);
-    };
     /**
      * add a connection to the slot. The connector is not recored because the slot can be connected only when the node is added to the graph that will
      * manage how to connect, access to the connectors and nodes.
