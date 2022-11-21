@@ -504,6 +504,10 @@
         }
         connector.id =  this.getUniqueId();
         this.connectors[connector.id] = connector;
+        let out_node = connector.out_node;
+        if (out_node) out_node.addConnectionOfOutput(connector.out_slot_name);
+        let in_node = connector.in_node;
+        if (in_node) in_node.addConnectionOfInput(connector.in_slot_name);
     };
 
     Graph.prototype.allOutConnectorsOf = function (node_id){
