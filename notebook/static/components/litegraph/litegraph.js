@@ -2327,7 +2327,7 @@
             this.setToRender("nodes");
     };
 
-    Scene.prototype.deleteSelectedNodes = function(not_to_redraw){
+    Scene.prototype.removeSelectedNodes = function(not_to_redraw){
         for (const node of Object.values(this.selected_nodes)) {
             this.graph.remove(node)
         }
