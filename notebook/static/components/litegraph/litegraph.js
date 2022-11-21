@@ -2352,13 +2352,13 @@
         connector.pluginRenderingTemplate(this.rendering_template);
         this.graph.addConnector(connector);
         if(!not_to_redraw)
-            this.setToRender("nodes");
+            this.setToRender("connectors");
     };
 
     Scene.prototype.removeConnector = function(connector_id, not_to_redraw){
         this.graph.removeConnector(connector_id);
         if(!not_to_redraw)
-            this.setToRender("nodes");
+            this.setToRender("connectors");
     };
 
     Scene.prototype.copySelectedNodeToClipboard = function(){
@@ -2405,7 +2405,7 @@
 
     Scene.prototype.cutSelectedNodes = function() {
         this.copySelectedNodeToClipboard();
-        this.deleteSelectedNodes();
+        this.removeSelectedNodes();
     }
 
     Scene.prototype.duplicateSelectedNodes = function() {
