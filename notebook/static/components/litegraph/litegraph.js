@@ -446,6 +446,29 @@
     Graph.prototype.getItems = function() {
         return Object.values(this.nodes).concat(Object.values(this.connectors))
     };
+    function swap(a, b){
+        let tmp = a;
+        a = b;
+        b = tmp;
+    }
+
+    Graph.prototype.getConnector = function(from_node, from_slot_name, to_node, to_slot_name) {
+        if(!from_node || !from_slot_name || !to_node || !to_slot_name){
+            console.warn("Can not get the connector of null");
+        }
+        if(from_slot_name.isInput()){
+            [from_node, to_node] = swap(from_node, to_node);
+            [from_slot_name, to_slot_name] = swap(from_slot_name, to_slot_name);
+        }
+        for (const connector of Object.values(this.connectors)) {
+            if(connector.out_node == from_node && connector.out_slot_name == from_slot_name &&
+            connector.in_node == to_node && connector.in_slot_name == to_slot_name){
+                return connector;
+            }
+        }
+        console.warn("Can find a connector");
+        return null;
+    }
 
     Graph.prototype.getUniqueId = function() {
         return this.next_unique_id++;
@@ -2339,6 +2362,12 @@
             this.setToRender("nodes");
     };
 
+    Scene.prototype.removeConnector = function(connector_id, not_to_redraw){
+        this.graph.removeConnector(connector_id);
+        if(!not_to_redraw)
+            this.setToRender("nodes");
+    };
+
     Scene.prototype.copySelectedNodeToClipboard = function(){
         let clipboard_info = {nodes: {}, connectors: [], min_x_of_nodes:0, min_y_of_nodes:0};
         for (const node of Object.values(this.selected_nodes)) {
@@ -2561,39 +2590,63 @@
             pos: new Point(0, 0),
             getConnectedAnchorPosInScene: function() {return this.pos}
         };
+        this.from_node = null;
         this.from_slot = null;
         this.connector = null;
     }
 
     ConnectCommand.prototype.exec = function(e, node, slot_name){
+        this.from_node = node;
         this.from_slot = node.getSlot(slot_name);
         this.from_slot.mousePressed();
         this.target_node.pos = this.scene.pointer_pos_in_scene;
         if(this.from_slot.isInput())
-            this.connector = new Connector(null, this.target_node, null, node, slot_name);
+            this.connector = new Connector(null, this.target_node, null, this.from_node, slot_name);
         else
-            this.connector = new Connector(null, node, slot_name, this.target_node, null);
+            this.connector = new Connector(null, this.from_node, slot_name, this.target_node, null);
         this.connector.pluginRenderingTemplate(this.scene.rendering_template);
     }
 
     ConnectCommand.prototype.update = function(e){
         this.target_node.resetState();
         this.target_node.pos = this.scene.pointer_pos_in_scene;
+        let hit_result = this.scene.collision_detector.getHitResultAtPos(this.target_node.pos);
+        let target_slot = hit_result.hit_component;
+        if(target_slot instanceof NodeSlot){
+            let connection = this.from_node.allowConnectTo(this.from_slot.name, hit_result.hit_node, target_slot);
+            console.log(connection.desc);
+        }
     }
 
-    ConnectCommand.prototype.end = function(e, target_node, target_slot_name){
-        this.update(e);
-        if(target_node && target_node.getSlot(target_slot_name)){
-            if(this.from_slot.isInput())
-            {
-                this.connector.out_node = target_node;
-                this.connector.out_slot_name = target_slot_name;
-            } else{
-                this.connector.in_node = target_node;
-                this.connector.in_slot_name = target_slot_name;
-            }
-            this.scene.addConnector(this.connector);
+    ConnectCommand.prototype._addConnector = function(target_node, target_slot_name, connection) {
+        if(connection.method == SlotConnection.null){
+            console.warn(connection.desc);
+            return;
         }
+        if(connection.method == SlotConnection.replace){
+            let connector = this.scene.getConnector(this.from_node, this.from_slot.name, target_node, target_slot_name);
+            this.scene.removeConnector(connector.id);
+        }
+        if(this.from_slot.isInput())
+        {
+            this.connector.out_node = target_node;
+            this.connector.out_slot_name = target_slot_name;
+        } else{
+            this.connector.in_node = target_node;
+            this.connector.in_slot_name = target_slot_name;
+        }
+        this.scene.addConnector(this.connector);
+        console.log(connection.desc);
+    }
+
+    ConnectCommand.prototype.end = function(e){
+        this.target_node.pos = this.scene.pointer_pos_in_scene;
+        let hit_result = this.scene.collision_detector.getHitResultAtPos(this.target_node.pos);
+        let target_slot = hit_result.hit_component;
+        if(target_slot instanceof NodeSlot){
+            let connection = this.from_node.allowConnectTo(this.from_slot.name, hit_result.hit_node, target_slot);
+            this._addConnector(hit_result.hit_node, target_slot.name, connection);
+        };
     }
 
     ConnectCommand.prototype.draw = function(ctx, lod){
