@@ -2306,8 +2306,10 @@
     };
 
     Scene.prototype.selectNodes = function(nodes, append_to_selections, not_to_redraw){
+        if(!append_to_selections)
+            this.deselectSelectedNodes(true);
         for (let node of nodes) {
-            this.selectNode(node, append_to_selections, true);
+            this.selectNode(node, true, true);
         }
         if(!not_to_redraw)
             this.setToRender("nodes");
