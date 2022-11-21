@@ -2420,6 +2420,10 @@
         this.view.setScale(v, pivot)
     };
 
+    Scene.prototype.pan = function (delta_x, delta_y) {
+        this.view.addTranslate(delta_x, delta_y);
+    };
+
     Scene.prototype.draw = function (ctx, lod) {
       if(this.style)
           this.style.draw(ctx, lod);
