@@ -2555,12 +2555,13 @@
         this.pointer_pos_in_scene = pos;
     }
 
-    Scene.prototype.execCommand = function(command){
+    Scene.prototype.execCommand = function(command, e){
         this.command_in_process = command;
-        this.undo_history.addCommand(command);
+        this.command_in_process.exec(e);
     }
 
     Scene.prototype.endCommand = function(){
+        this.undo_history.addCommand(this.command_in_process);
         this.command_in_process = null;
     }
 
