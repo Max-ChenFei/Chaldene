@@ -387,8 +387,6 @@
     Graph.prototype.init = function() {
         this.nodes = {};
         this.connectors = {};
-        this.out_connection_table = {}; // {out_node_id: {out_slot_name: connector_ids,... }}
-        this.in_connection_table = {}; // {in_node: {in_slot: connector_ids,... }}?????????????
         this.local_vars = {};
         this.inputs = {};
         this.outputs = {};
