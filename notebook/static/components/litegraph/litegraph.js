@@ -2749,9 +2749,9 @@
         return this.mapRectToScene(this.viewport);
     };
 
-    function HitResult(is_hitted, hit_obj_id, hit_local_x, hit_local_y, hit_component) {
+    function HitResult(is_hitted, hit_node, hit_local_x, hit_local_y, hit_component) {
         this.is_hitted = is_hitted;
-        this.hit_obj_id = hit_obj_id;
+        this.hit_node = hit_node;
         this.hit_local_x = hit_local_x;
         this.hit_local_y = hit_local_y;
         this.hit_component = hit_component;
