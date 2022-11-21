@@ -539,29 +539,23 @@
         }
         return out;
     };
-    /**
-     * remove a connector
-     * @method removeConnector
-     * @param {Number} connector_id
-     */
-    Graph.prototype.removeConnector = function(connector_id) {
-        const connector = this.connectors[connector_id];
+
+    Graph.prototype.removeConnector = function(connector) {
         if(!connector) {
             console.warn("The connector is not existed");
             return;
         }
-
         let out_node = connector.out_node;
         if (out_node) out_node.breakConnectionOfOutput(connector.out_slot_name);
         let in_node = connector.in_node;
         if (in_node) in_node.breakConnectionOfInput(connector.in_slot_name);
-        delete this.connectors[connector_id];
+        delete this.connectors[connector.id];
     };
 
-    Graph.prototype.removeConnectors = function(connector_ids) {
-        if (connector_ids.constructor === Array)
-            for (const id of connector_ids) {
-                this.removeConnector(id);
+    Graph.prototype.removeConnectors = function(connectors) {
+        if (connectors.constructor === Array)
+            for (const connector of connectors) {
+                this.removeConnector(connector);
             }
     };
 
@@ -571,8 +565,7 @@
         if (this.onNodeRemoved) {
             this.onNodeRemoved(node.id);
         }
-        this.clearConnectorsOfNode(node.id);
-
+        this.clearConnectorsOfNode(node);
         if (node.onRemoved) {
             node.onRemoved();
         }
