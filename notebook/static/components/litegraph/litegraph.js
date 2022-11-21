@@ -2573,6 +2573,40 @@
        this.undo_history.redo();
     }
 
+    Scene.prototype.onKeyDown = function(e){
+        if (e.type == "keydown") {
+            if (e.code == 'Escape') {
+                this.deselectSelectedNodes();
+            }
+            if (e.code == 'Delete') {
+                let command = new RemoveSelectedNodesCommand(this);
+                this.execCommand(command, e);
+                this.endCommand();
+            }
+            if (e.code == "KeyA" && e.ctrlKey) {
+                this.selectAllNodes();
+            }
+            if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                this.copySelectedNodeToClipboard();
+            }
+            if (e.code == "KeyV" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                let command = new PasteFromClipboardCommand(this);
+                this.execCommand(command, e);
+                this.endCommand();
+            }
+            if (e.code == "KeyX" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                let command = new CutSlectedNodesCommand(this);
+                this.execCommand(command, e);
+                this.endCommand();
+            }
+            if (e.code == "KeyD" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                let command = new DuplicateNodeCommand(this);
+                this.execCommand(command, e);
+                this.endCommand();
+            }
+        }
+    }
+
     function Command () {
     }
     Command.prototype.desc = "Abstract command";
