@@ -2964,26 +2964,26 @@
 
     Object.setPrototypeOf(PasteFromClipboardCommand.prototype, Command.prototype);
 
-    function CutNodeCommand(scene){
+    function CutSlectedNodesCommand(scene){
         this.scene = scene;
         this.delete_command = new RemoveSelectedNodesCommand(this.scene);
         this.desc = this.delete_command.desc;
     }
 
-    CutNodeCommand.prototype.exec = function(e){
-        this.scene.copyToClipboard();
+    CutSlectedNodesCommand.prototype.exec = function(e){
+        this.scene.copySelectedNodeToClipboard();
         this.delete_command.exec(e);
     }
 
-    CutNodeCommand.prototype.undo = function(){
+    CutSlectedNodesCommand.prototype.undo = function(){
         this.delete_command.undo();
     }
 
-    CutNodeCommand.prototype.redo = function(){
+    CutSlectedNodesCommand.prototype.redo = function(){
         this.delete_command.redo();
     }
 
-    Object.setPrototypeOf(CutNodeCommand.prototype, Command.prototype);
+    Object.setPrototypeOf(CutSlectedNodesCommand.prototype, Command.prototype);
 
     function DuplicateNodeCommand(scene){
         this.scene = scene;
@@ -2992,7 +2992,7 @@
     }
 
     DuplicateNodeCommand.prototype.exec = function(e){
-        this.scene.copyToClipboard();
+        this.scene.copySelectedNodeToClipboard();
         this.paste_command.exec(e);
     }
 
