@@ -559,6 +559,26 @@
             }
     };
 
+    Graph.prototype.getConnectorsLinkedToNodes = function(nodes){
+        let connectors = [];
+        let nodes_id = [];
+        for (const node of nodes) {
+            nodes_id.append(node.id);
+        }
+        for (const connector of Object.values(this.connectors)) {
+            if(nodes_id.includes(connector.out_node.id) ||nodes_id.includes(connector.in_node.id)){
+                connectors.append(connector);
+            }
+        }
+        return connectors;
+    }
+
+    Graph.prototype.clearConnectorsOfNode = function(node) {
+        let connectors = this.getConnectorsLinkedToNodes([node]);
+        this.removeConnectors(connectors);
+        node.clearAllConnections();
+    };
+
     Graph.prototype.removeNode = function(node) {
         if(!this.isNodeValid())
             return
@@ -2167,6 +2187,49 @@
     function isImageValid(img) {
         return img &&　img.width > 0 && img.height > 0;
     };
+
+    function UndoHistory () {
+        this.reverse_index = 0;
+        this.undo_history = [];
+        this.undo_desc = "Nothing to undo"
+        this.redo_desc = "Nothing to redo";
+    }
+
+    UndoHistory.prototype.updateDesc = function() {
+        let this_command = this.undo_history[length - this.reverse_index - 1];
+        this.undo_desc = this_command? this_command.desc : "Nothing to undo";
+        let next_command = this.undo_history[length - this.reverse_index - 1];
+        this.redo_desc = next_command? next_command.desc : "Nothing to redo";
+    }
+
+    UndoHistory.prototype.undo = function() {
+        let length = this.undo_history.length;
+        if(this.reverse_index > length - 1){
+            return;
+        }
+        let command = this.undo_history[length - this.reverse_index - 1];
+        command.undo();
+        this.reverse_index++;
+        this.updateDesc();
+    }
+
+    UndoHistory.prototype.redo = function() {
+        if(this.reverse_index == 0){
+            return null;
+        }
+        let command = this.undo_history[length - this.reverse_index];
+        command.redo();
+        this.reverse_index--;
+        this.updateDesc();
+        return command;
+    }
+
+    UndoHistory.prototype.addCommand = function(command) {
+        this.undo_history.splice(this.undo_history.length - this.reverse_index, this.reverse_index)
+        this.undo_history.append(command);
+        this.reverse_index = 0;
+        this.updateDesc();
+    }
     /**
      *
      * @class Scene
@@ -2188,6 +2251,7 @@
         this.collision_detector = new CollisionDetector();
         this.selected_nodes = {};
         this.command_in_process = undefined;
+        this.undo_history = new UndoHistory();
         this.pluginSceneRenderingConfig();
         this.updateBoundingRectInGraph();
         this.setStartRenderWhenCanvasOnFocus();
@@ -2294,6 +2358,10 @@
         this.renderer.setToRender(changes);
     };
 
+    Scene.prototype.getSelectedNodes = function(){
+        return Object.values(this.selected_nodes);
+    }
+
     Scene.prototype.selectNode = function(node, append_to_selections, not_to_redraw){
         if(!this.isNodeValid(node))
             return;
@@ -2336,12 +2404,30 @@
             this.setToRender("nodes");
     };
 
+    Scene.prototype.removeNodes = function(nodes, not_to_redraw){
+        for (const node of nodes) {
+            this.deselectNode(node, true);
+            this.graph.removeNode(node)
+        }
+        if(!not_to_redraw)
+            this.setToRender("nodes");
+    };
+
     Scene.prototype.addNode = function(node, not_to_redraw){
         if(!this.isNodeValid(node))
             return
         node.pluginRenderingTemplate(this.rendering_template);
         this.graph.addNode(node);
         this.selectNode(node);
+        if(!not_to_redraw)
+            this.setToRender("nodes");
+    };
+
+    Scene.prototype.addNodes = function(nodes, not_to_redraw){
+        for (const node of nodes) {
+            this.addNode(node, true);
+        }
+        this.selectNodes(nodes)
         if(!not_to_redraw)
             this.setToRender("nodes");
     };
@@ -2355,8 +2441,24 @@
             this.setToRender("connectors");
     };
 
-    Scene.prototype.removeConnector = function(connector_id, not_to_redraw){
-        this.graph.removeConnector(connector_id);
+    Scene.prototype.addConnectors = function(connectors, not_to_redraw){
+         for (const connector of connectors) {
+            this.addConnector(connectors, true);
+        }
+        if(!not_to_redraw)
+            this.setToRender("connectors");
+    };
+
+    Scene.prototype.removeConnector = function(connector, not_to_redraw){
+        this.graph.removeConnector(connector);
+        if(!not_to_redraw)
+            this.setToRender("connectors");
+    };
+
+    Scene.prototype.removeConnectors = function(connectors, not_to_redraw){
+        for (const connector of connectors) {
+            this.removeConnector(connector, true);
+        }
         if(!not_to_redraw)
             this.setToRender("connectors");
     };
@@ -2378,10 +2480,11 @@
         localStorage.setItem("visual_programming_env_clipboard", JSON.stringify(clipboard_info));
     };
 
-    Scene.prototype.pasteFromClipboard = function(){
-        let config = localStorage.getItem("visual_programming_env_clipboard");
+    Scene.prototype.pasteFromClipboard = function(config){
+        let created = {"nodes": [], "connectors": []};
+        config = config || localStorage.getItem("visual_programming_env_clipboard");
         if (!config) {
-            return;
+            return created;
         }
         let clipboard_info = JSON.parse(config);
         let new_nodes = {};
@@ -2392,6 +2495,7 @@
             //paste in last known mouse position
             node.translate.add(this.pointer_pos_in_scene.x - config.min_x_of_nodes, this.pointer_pos_in_scene.y - config.min_y_of_nodes);
             this.addNode(node);
+            created.nodes.append(node);
             new_nodes[old_id] = node;
         }
         for (const connector_config of clipboard_info.connectors) {
@@ -2399,8 +2503,10 @@
             let connector = new Connector(connector_config[0], new_nodes[connector_config[1]], connector_config[2],
                 new_nodes[connector_config[3]], connector_config[4]);
             this.addConnector(connector);
+            created.connectors.append(connector);
         }
         this.selectNodes(Object.values(new_nodes));
+        return created;
     };
 
     Scene.prototype.cutSelectedNodes = function() {
@@ -2415,6 +2521,10 @@
 
     Scene.prototype.connectors = function(){
         return Object.values(this.graph.connectors);
+    };
+
+    Scene.prototype.getConnectorsLinkedToNodes = function(nodes){
+        this.graph.getConnectorsLinkedToNodes(nodes);
     };
 
     Scene.prototype.visibleConnectors = function(){
@@ -2445,10 +2555,29 @@
         this.pointer_pos_in_scene = pos;
     }
 
+    Scene.prototype.execCommand = function(command){
+        this.command_in_process = command;
+        this.undo_history.addCommand(command);
+    }
+
+    Scene.prototype.endCommand = function(){
+        this.command_in_process = null;
+    }
+
+    Scene.prototype.undo = function(){
+        this.undo_history.undo();
+    }
+
+    Scene.prototype.redo = function(){
+       this.undo_history.redo();
+    }
+
     function Command () {
     }
     Command.prototype.desc = "Abstract command";
     Command.prototype.support_undo = true;
+    Command.prototype.start_state = null;
+    Command.prototype.end_state = null;
     Command.prototype.exec = function(e){
     }
     Command.prototype.update = undefined;
@@ -2456,12 +2585,21 @@
     }
     Command.prototype.draw = function(ctx) {
     }
+    Command.prototype.undo = function() {
+    }
+    Command.prototype.redo = function() {
+    }
 
     function MoveCommand(scene){
         this.desc = "Move Node";
         this.scene = scene;
     }
-
+    MoveCommand.prototype.exec = function(e){
+        this.start_state = [];
+        for (const node of Object.values(this.scene.selected_nodes)){
+            this.start_state.append(node.translate);
+        }
+    }
     MoveCommand.prototype.update = function(e){
         for (const node of Object.values(this.scene.selected_nodes)){
             node.addTranslate(e.sceneMovementX, e.sceneMovementY)
@@ -2471,6 +2609,24 @@
 
     MoveCommand.prototype.end = function(e){
         this.update(e);
+        this.end_state = [];
+        for (const node of Object.values(this.scene.selected_nodes)){
+            this.end_state.append(node.translate);
+        }
+    }
+    MoveCommand.prototype.undo = function() {
+        let index = 0;
+        for (const node of Object.values(this.scene.selected_nodes)){
+            node.translate = this.start_state[index];
+            index++;
+        }
+    }
+    MoveCommand.prototype.redo = function() {
+        let index = 0;
+        for (const node of Object.values(this.scene.selected_nodes)){
+            node.translate = this.end_state[index];
+            index++;
+        }
     }
 
     Object.setPrototypeOf(MoveCommand.prototype, Command.prototype);
@@ -2500,6 +2656,7 @@
         }
         let cursor = mapNodeBorderToCursor[this.node_border] || "all-scroll";
         this.scene.setCursor(cursor);
+        this.start_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
     }
 
     ResizeCommand.prototype.update = function(e){
@@ -2538,6 +2695,19 @@
 
     ResizeCommand.prototype.end = function(e){
         this.update(e);
+        this.end_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
+    }
+
+    ResizeCommand.prototype.undo = function(){
+        this.resized_node.translate = this.start_state[0];
+        this.resized_node.setWidth(this.start_state[1]);
+        this.resized_node.setHeight(this.start_state[2]);
+    }
+
+    ResizeCommand.prototype.redo = function(){
+        this.resized_node.translate = this.end_state[0];
+        this.resized_node.setWidth(this.end_state[1]);
+        this.resized_node.setHeight(this.end_state[2]);
     }
 
     Object.setPrototypeOf(ResizeCommand.prototype, Command.prototype);
@@ -2614,11 +2784,16 @@
     ConnectCommand.prototype._addConnector = function(target_node, target_slot_name, connection) {
         if(connection.method == SlotConnection.null){
             console.warn(connection.desc);
+            this.support_undo = false;
             return;
         }
+        this.end_state = {};
         if(connection.method == SlotConnection.replace){
             let connector = this.scene.getConnector(this.from_node, this.from_slot.name, target_node, target_slot_name);
-            this.scene.removeConnector(connector.id);
+            this.scene.removeConnector(connector);
+            this.end_state['removed_connector'] = [
+                this.connector.out_node, this.connector.out_slot_name,
+                this.connector.in_node, this.connector.in_slot_name];
         }
         if(this.from_slot.isInput())
         {
@@ -2629,6 +2804,9 @@
             this.connector.in_slot_name = target_slot_name;
         }
         this.scene.addConnector(this.connector);
+        this.end_state['added_connector'] = [
+            this.connector.out_node, this.connector.out_slot_name,
+            this.connector.in_node, this.connector.in_slot_name];
         console.log(connection.desc);
     }
 
@@ -2647,7 +2825,186 @@
            this.connector.draw(ctx, lod);
     }
 
+    ConnectCommand.prototype.undo = function(){
+        let removed = this.end_state['removed_connector'];
+        if(removed)
+            this.scene.addConnector(new Connector(null, removed[0], removed[1], removed[2], removed[3]));
+        this.scene.removeConnector(this.connector);
+    }
+
+    ConnectCommand.prototype.redo = function(){
+        let removed = this.end_state['removed_connector'];
+        if(removed){
+            let connector = this.scene.getConnector(removed[0], removed[1], removed[2], removed[3]);
+            this.scene.removeConnector(connector);
+        }
+        this.scene.addConnector(this.connector);
+    }
+
     Object.setPrototypeOf(ConnectCommand.prototype, Command.prototype);
+
+    function AddNodeCommand(scene){
+        this.desc = "Add Node";
+        this.scene = scene;
+    }
+
+    /**
+     *
+     * @param e
+     * @param node
+     * @param connector the connector will also be created when drag the connector and create node from context menu
+     */
+    AddNodeCommand.prototype.exec = function(e, node, connector){
+        this.scene.addNode(node);
+        if(connector)
+            this.scene.addConnector(connector);
+        this.end_state = {'node': node, 'connector': connector};
+    }
+
+    AddNodeCommand.prototype.undo = function(){
+        this.scene.removeNode(this.end_state['node']);
+        if(this.end_state['connector'])
+            this.scene.removeConnector(this.end_state['connector']);
+    }
+
+    AddNodeCommand.prototype.redo = function(){
+        this.exec(null, this.end_state['node'], this.end_state['connector']);
+    }
+
+    Object.setPrototypeOf(AddNodeCommand.prototype, Command.prototype);
+
+    function AddConnectorCommand(scene){
+        this.desc = "Add Connector";
+        this.scene = scene;
+    }
+
+    AddConnectorCommand.prototype.exec = function(e, connector){
+        this.scene.addConnector(connector);
+        this.end_state = connector;
+    }
+
+    AddConnectorCommand.prototype.undo = function(){
+        this.scene.removeConnector(this.end_state);
+    }
+
+    AddConnectorCommand.prototype.redo = function(){
+        this.exec(null, this.end_state);
+    }
+
+    Object.setPrototypeOf(AddConnectorCommand.prototype, Command.prototype);
+
+    function RemoveSelectedNodesCommand(scene){
+        this.desc = "Delete current selections";
+        this.scene = scene;
+    }
+
+    RemoveSelectedNodesCommand.prototype.exec = function(e){
+        this.end_state = {
+            "nodes": this.scene.getSelectedNodes(),
+            "connectors": this.scene.getConnectorsLinkedToNodes(this.scene.getSelectedNodes())
+        }
+        this.scene.removeSelectedNodes();
+    }
+
+    RemoveSelectedNodesCommand.prototype.undo = function(){
+        this.scene.addNodes(this.end_state.nodes);
+        this.scene.addConnectors(this.end_state.connectors)
+    }
+
+    RemoveSelectedNodesCommand.prototype.redo = function(){
+        this.scene.removeNodes(this.end_state.nodes);
+        this.scene.removeConnectors(this.end_state.connectors);
+    }
+
+    function RemoveConnectorCommand(scene){
+        this.desc = "Delete connector";
+        this.scene = scene;
+    }
+
+    RemoveConnectorCommand.prototype.exec = function(e, connector){
+        this.end_state = connector;
+        this.scene.removeConnector(connector);
+    }
+
+    RemoveConnectorCommand.prototype.undo = function(){
+        this.scene.addConnector(this.end_state)
+    }
+
+    RemoveConnectorCommand.prototype.redo = function(){
+        this.exec(null, this.end_state);
+    }
+
+    Object.setPrototypeOf(RemoveConnectorCommand.prototype, Command.prototype);
+
+    function PasteFromClipboardCommand(scene){
+        this.desc = "Paste clipboard contents";
+        this.scene = scene;
+    }
+
+    PasteFromClipboardCommand.prototype.exec = function(e){
+        this.end_state = {"config": localStorage.getItem("visual_programming_env_clipboard")};
+        if(!this.end_state.config){
+            this.support_undo = false;
+            return;
+        }
+        let created = this.scene.pasteFromClipboard();
+        this.end_state.nodes = created.nodes;
+        this.end_state.connectors = created.connectors;
+    }
+
+    PasteFromClipboardCommand.prototype.undo = function(){
+        this.scene.removeNodes(this.end_state.nodes);
+        this.scene.removeConnector(this.end_state.connectors);
+    }
+
+    PasteFromClipboardCommand.prototype.redo = function(){
+        this.scene.pasteFromClipboard(this.end_state.config);
+    }
+
+    Object.setPrototypeOf(PasteFromClipboardCommand.prototype, Command.prototype);
+
+    function CutNodeCommand(scene){
+        this.scene = scene;
+        this.delete_command = new RemoveSelectedNodesCommand(this.scene);
+        this.desc = this.delete_command.desc;
+    }
+
+    CutNodeCommand.prototype.exec = function(e){
+        this.scene.copyToClipboard();
+        this.delete_command.exec(e);
+    }
+
+    CutNodeCommand.prototype.undo = function(){
+        this.delete_command.undo();
+    }
+
+    CutNodeCommand.prototype.redo = function(){
+        this.delete_command.redo();
+    }
+
+    Object.setPrototypeOf(CutNodeCommand.prototype, Command.prototype);
+
+    function DuplicateNodeCommand(scene){
+        this.scene = scene;
+        this.paste_command = new PasteFromClipboardCommand(this.scene);
+        this.desc = this.paste_command.desc;
+    }
+
+    DuplicateNodeCommand.prototype.exec = function(e){
+        this.scene.copyToClipboard();
+        this.paste_command.exec(e);
+    }
+
+    DuplicateNodeCommand.prototype.undo = function(){
+        this.paste_command.undo();
+    }
+
+    DuplicateNodeCommand.prototype.redo = function(){
+        this.paste_command.redo();
+    }
+
+    Object.setPrototypeOf(DuplicateNodeCommand.prototype, Command.prototype);
+
     //****************************************
 
     /**
