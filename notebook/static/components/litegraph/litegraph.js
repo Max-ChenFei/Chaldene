@@ -2243,7 +2243,7 @@
         this.canvas = canvas;
         canvas.owner = this;
         this.graph = graph || new Graph();
-        this.viewport = options.viewport;
+        this.viewport = options.viewport || new Rect(0, 0, this.canvas.width, this.canvas.height);;
         this.drawing_context = options.drawing_context || '2d';
         this.rendering_template = options.rendering_template || RenderingTemplate;
         this.renderer = new Renderer(this);
@@ -3088,7 +3088,7 @@
                 writable: false
             },
             "viewport": {
-                get() { return this.scene.viewport || new Rect(0, 0, this.scene.canvas.width, this.scene.canvas.height);},
+                get() { return this.scene.viewport},
                 writable: false
             },
             "scale_pivot": {
