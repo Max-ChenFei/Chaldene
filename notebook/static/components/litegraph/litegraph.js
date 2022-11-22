@@ -2624,7 +2624,7 @@
                 this.execCommand(command, [e]);
             }
             if (e.code == "KeyX" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-                let command = new CutSlectedNodesCommand(this);
+                let command = new CutSelectedNodesCommand(this);
                 this.execCommand(command, [e]);
             }
             if (e.code == "KeyD" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
@@ -3047,26 +3047,26 @@
 
     Object.setPrototypeOf(PasteFromClipboardCommand.prototype, Command.prototype);
 
-    function CutSlectedNodesCommand(scene){
+    function CutSelectedNodesCommand(scene){
         this.scene = scene;
         this.delete_command = new RemoveSelectedNodesCommand(this.scene);
         this.desc = this.delete_command.desc;
     }
 
-    CutSlectedNodesCommand.prototype.exec = function(e){
+    CutSelectedNodesCommand.prototype.exec = function(e){
         this.scene.copySelectedNodeToClipboard();
         this.delete_command.exec(e);
     }
 
-    CutSlectedNodesCommand.prototype.undo = function(){
+    CutSelectedNodesCommand.prototype.undo = function(){
         this.delete_command.undo();
     }
 
-    CutSlectedNodesCommand.prototype.redo = function(){
+    CutSelectedNodesCommand.prototype.redo = function(){
         this.delete_command.redo();
     }
 
-    Object.setPrototypeOf(CutSlectedNodesCommand.prototype, Command.prototype);
+    Object.setPrototypeOf(CutSelectedNodesCommand.prototype, Command.prototype);
 
     function DuplicateNodeCommand(scene){
         this.scene = scene;
