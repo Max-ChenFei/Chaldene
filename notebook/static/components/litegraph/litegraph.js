@@ -2256,7 +2256,7 @@
         this.updateBoundingRectInGraph();
         this.setStartRenderWhenCanvasOnFocus();
         this.setStopRenderWhenCanvasOnBlur();
-        this.pointer_pos_in_scene = new Point(0,0);
+        this.pointer_pos = new Point(0,0);
     };
 
     Object.defineProperty(Scene.prototype, "lod", {
@@ -2493,7 +2493,7 @@
             if(!node) continue;
             node.configure(node_config);
             //paste in last known mouse position
-            node.translate.add(this.pointer_pos_in_scene.x - config.min_x_of_nodes, this.pointer_pos_in_scene.y - config.min_y_of_nodes);
+            node.translate.add(this.pointer_pos.x - config.min_x_of_nodes, this.pointer_pos.y - config.min_y_of_nodes);
             this.addNode(node);
             created.nodes.append(node);
             new_nodes[old_id] = node;
@@ -2547,13 +2547,13 @@
     };
 
     Scene.prototype.addSceneCoordinateToEvent = function (e) {
-        let new_pos = this.view.mapToScene(e.offsetX, e.offsetY);
-        e.sceneMovementX = new_pos.x - this.pointer_pos_in_scene.x;
-        e.sceneMovementY = new_pos.y - this.pointer_pos_in_scene.y;
-    }
-
-    Scene.prototype.setCurrentMousePosInScene = function(pos){
-        this.pointer_pos_in_scene = pos;
+        let pos = this.view.mapToScene(e.offsetX, e.offsetY);
+        e.sceneX = pos.x;
+        e.sceneY = pos.y;
+        e.sceneMovementX = e.sceneX - this.pointer_pos.x;
+        e.sceneMovementY = e.sceneY - this.pointer_pos.y;
+        this.pointer_pos.x = e.sceneX;
+        this.pointer_pos.y = e.sceneY;
     }
 
     Scene.prototype.execCommand = function(command, e){
@@ -2781,12 +2781,12 @@
     }
 
     MarqueeSelectionCommand.prototype.exec = function(e){
-        this.select_rect.x = this.scene.pointer_pos_in_scene.x;
-        this.select_rect.y = this.scene.pointer_pos_in_scene.y;
+        this.select_rect.x = e.sceneX;
+        this.select_rect.y = e.sceneY;
     }
 
     MarqueeSelectionCommand.prototype.update = function(e){
-        this.end_pos = this.scene.pointer_pos_in_scene;
+        this.end_pos = new Point(e.sceneX, e.sceneY);
         this.select_rect.width = Math.abs(this.select_rect.x - this.end_pos.x),
         this.select_rect.height = Math.abs(this.select_rect.y - this.end_pos.y),
         this.select_rect.x = Math.min(this.select_rect.x - this.end_pos.x);
@@ -2823,7 +2823,7 @@
         this.from_node = node;
         this.from_slot = node.getSlot(slot_name);
         this.from_slot.mousePressed();
-        this.target_node.pos = this.scene.pointer_pos_in_scene;
+        this.target_node.pos = new Point(e.sceneX, e.sceneY);
         if(this.from_slot.isInput())
             this.connector = new Connector(null, this.target_node, null, this.from_node, slot_name);
         else
@@ -2833,7 +2833,7 @@
 
     ConnectCommand.prototype.update = function(e){
         this.target_node.resetState();
-        this.target_node.pos = this.scene.pointer_pos_in_scene;
+        this.target_node.pos = new Point(e.sceneX, e.sceneY);
         let hit_result = this.scene.collision_detector.getHitResultAtPos(this.target_node.pos);
         let target_slot = hit_result.hit_component;
         if(target_slot instanceof NodeSlot){
@@ -2872,7 +2872,7 @@
     }
 
     ConnectCommand.prototype.end = function(e){
-        this.target_node.pos = this.scene.pointer_pos_in_scene;
+        this.target_node.pos = new Point(e.sceneX, e.sceneY);
         let hit_result = this.scene.collision_detector.getHitResultAtPos(this.target_node.pos);
         let target_slot = hit_result.hit_component;
         if(target_slot instanceof NodeSlot){
