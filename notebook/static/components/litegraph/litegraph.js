@@ -2579,12 +2579,15 @@
         this.pointer_pos.y = e.sceneY;
     }
 
-    Scene.prototype.execCommand = function(command, e){
+    Scene.prototype.execCommand = function(command, args){
         this.command_in_process = command;
-        this.command_in_process.exec(e);
+        this.command_in_process.exec.apply(args);
+        if(!command.update)
+            this.endCommand(args);
     }
 
-    Scene.prototype.endCommand = function(){
+    Scene.prototype.endCommand = function(args){
+        this.command_in_process.end.apply(args);
         this.undo_history.addCommand(this.command_in_process);
         this.command_in_process = null;
     }
@@ -2608,8 +2611,7 @@
             }
             if (e.code == 'Delete') {
                 let command = new RemoveSelectedNodesCommand(this);
-                this.execCommand(command, e);
-                this.endCommand();
+                this.execCommand(command, [e]);
             }
             if (e.code == "KeyA" && e.ctrlKey) {
                 this.selectAllNodes();
@@ -2619,41 +2621,37 @@
             }
             if (e.code == "KeyV" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new PasteFromClipboardCommand(this);
-                this.execCommand(command, e);
-                this.endCommand();
+                this.execCommand(command, [e]);
             }
             if (e.code == "KeyX" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new CutSlectedNodesCommand(this);
-                this.execCommand(command, e);
-                this.endCommand();
+                this.execCommand(command, [e]);
             }
             if (e.code == "KeyD" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new DuplicateNodeCommand(this);
-                this.execCommand(command, e);
-                this.endCommand();
+                this.execCommand(command, [e]);
             }
             if (e.code == "ArrowUp" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
-                NudgetNode(1, 0, this);
+                NudgetNode(1, 0, this, e);
             }
             if (e.code == "ArrowDown" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
-                NudgetNode(-1, 0, this);
+                NudgetNode(-1, 0, this, e);
             }
             if (e.code == "ArrowLeft" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
-                NudgetNode(0, -1, this);
+                NudgetNode(0, -1, this, e);
             }
             if (e.code == "ArrowShift" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
-                NudgetNode(0, 1, this);
+                NudgetNode(0, 1, this, e);
             }
         }
     }
 
-    function NudgetNode(delta_x, delta_y, scene){
+    function NudgetNode(delta_x, delta_y, scene, e){
           let command = new MoveCommand(this);
           command.desc = 'Nudge Node';
           e.sceneMovementX = 1;
           e.sceneMovementY = 0;
-          scene.execCommand(command, e);
-          scene.endCommand();
+          scene.execCommand(command, [e]);
     }
 
     function Command () {
