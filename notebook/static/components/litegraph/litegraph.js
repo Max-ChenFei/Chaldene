@@ -2245,7 +2245,7 @@
         this.canvas = canvas;
         canvas.owner = this;
         this.graph = graph || new Graph();
-        this.viewport = options.viewport || new Rect(0, 0, this.canvas.width, this.canvas.height);;
+        this.viewport = this.setViewport(options.viewport);
         this.drawing_context = options.drawing_context || '2d';
         this.rendering_template = options.rendering_template || RenderingTemplate;
         this.renderer = new Renderer(this);
@@ -2265,6 +2265,13 @@
         get() { return this.view? this.view.lod : 0;},
         writable: false
     })
+
+    Scene.prototype.setViewport = function(viewport){
+        if(viewport)
+            this.viewport = new Rect(viewport[0], viewport[1], viewport[2], viewport[3]);
+        else
+            this.viewport = new Rect(0, 0, this.canvas.width, this.canvas.height);
+    }
 
     Scene.prototype.assertCanvasValid = function(canvas){
         if (!canvas)
