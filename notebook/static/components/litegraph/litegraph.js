@@ -2609,7 +2609,28 @@
                 this.execCommand(command, e);
                 this.endCommand();
             }
+            if (e.code == "ArrowUp" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                NudgetNode(1, 0, this);
+            }
+            if (e.code == "ArrowDown" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                NudgetNode(-1, 0, this);
+            }
+            if (e.code == "ArrowLeft" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                NudgetNode(0, -1, this);
+            }
+            if (e.code == "ArrowShift" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                NudgetNode(0, 1, this);
+            }
         }
+    }
+
+    function NudgetNode(delta_x, delta_y, scene){
+          let command = new MoveCommand(this);
+          command.desc = 'Nudge Node';
+          e.sceneMovementX = 1;
+          e.sceneMovementY = 0;
+          scene.execCommand(command, e);
+          scene.endCommand();
     }
 
     function Command () {
