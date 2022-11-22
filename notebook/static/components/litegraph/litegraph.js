@@ -2376,6 +2376,8 @@
             return;
         if(!append_to_selections)
             this.deselectSelectedNodes(true);
+        if(this.selected_nodes[node.id] == node)
+            return;
         node.selected();
         this.selected_nodes[node.id] = node;
         if(!not_to_redraw)
@@ -2400,6 +2402,18 @@
         if(!this.isNodeValid(node))
             return;
         node.toggleSelection();
+        if(this.selected_nodes[node.id])
+            delete this.selected_nodes[node.id];
+        else
+            this.selected_nodes[node.id] = node;
+        if(!not_to_redraw)
+            this.setToRender("nodes");
+    };
+
+    Scene.prototype.toggleNodesSelection = function(nodes, not_to_redraw){
+        for (let node of nodes) {
+            this.toggleNodeSelection(node, true);
+        }
         if(!not_to_redraw)
             this.setToRender("nodes");
     };
@@ -2801,7 +2815,9 @@
         this.select_rect.x = Math.min(this.select_rect.x - this.end_pos.x);
         this.select_rect.y = Math.min(this.select_rect.y  - this.end_pos.y);
         let nodes = this.scene.collision_detector.getItemsOverlapWith(this.select_rect, Node)
-        this.scene.selectNode(nodes, e.shiftKey || e.ctrlKey);
+        if(e.ctrlKey && !e.shiftKey)
+            this.scene.toggleNodesSelection(nodes);
+        this.scene.selectNodes(nodes, e.shiftKey);
     }
 
     MarqueeSelectionCommand.prototype.end = function(e){
