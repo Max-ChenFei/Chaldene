@@ -1111,6 +1111,7 @@
     Node.prototype.desc = "";
     Node.prototype.inputs = {};
     Node.prototype.outputs = {};
+    Node.prototype.allow_resize = false;
     Node.prototype.translate = new Point(0, 0);
     Node.prototype.scale = new Point(1, 1);
     Node.prototype.collidable_components = [];
@@ -1431,6 +1432,7 @@
 
     function LGraphComment() {
         this.nodes_inside = {};
+        this.allow_resize = true;
     }
 
     LGraphComment.title = "Comment";
