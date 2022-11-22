@@ -573,6 +573,24 @@
         return connectors;
     }
 
+    Graph.prototype.getConnectorsLinkedToSlot = function(node, slot){
+        let connectors = [];
+        for (const connector of Object.values(this.connectors)) {
+            let target_node_id = null;
+            let target_slot_name = "";
+            if(slot.isInput()) {
+                target_node_id = connector.in_node.id;
+                target_slot_name = connector.in_slot_name;
+            } else {
+                target_node_id = connector.out_node.id;
+                target_slot_name = connector.out_slot_name;
+            }
+            if(node.id == target_node_id && slot.name == target_slot_name)
+                connectors.append(connector);
+        }
+        return connectors;
+    }
+
     Graph.prototype.clearConnectorsOfNode = function(node) {
         let connectors = this.getConnectorsLinkedToNodes([node]);
         this.removeConnectors(connectors);
@@ -2259,6 +2277,7 @@
         this.setStartRenderWhenCanvasOnFocus();
         this.setStopRenderWhenCanvasOnBlur();
         this.pointer_pos = new Point(0,0);
+        this.pointer_down = null; //pointer means any input devices like mouse, pen, touch surfaces
     };
 
     Object.defineProperty(Scene.prototype, "lod", {
@@ -2550,6 +2569,10 @@
         this.graph.getConnectorsLinkedToNodes(nodes);
     };
 
+    Scene.prototype.getConnectorsLinkedToSlot = function(node, slot){
+        this.graph.getConnectorsLinkedToSlot = function(node, slot){
+    };
+
     Scene.prototype.visibleConnectors = function(){
         let sceneRect = this.sceneRect();
         return this.collision_detector.getItemsOverlapWith(sceneRect, Connector)
@@ -2557,6 +2580,10 @@
 
     Scene.prototype.zoom = function (v, pivot) {
         this.view.setScale(v, pivot)
+    };
+
+    Scene.prototype.viewScale = function () {
+        return this.view.scale;
     };
 
     Scene.prototype.pan = function (delta_x, delta_y) {
@@ -2604,6 +2631,46 @@
         this.canvas.style.cursor = cursor;
     }
 
+    Scene.prototype.inView = function(x, y){
+        return this.viewport.isInside(x, y);
+    }
+    /**
+     * When left mouse button press on the canvas without hit the widgets, context, just bind event to Scene
+     * If hit others, just bind unbind event to the scene and bind event to other items
+     * Add bindevent to scene callback for other items
+     */
+    Scene.prototype.bindEventToScene = function(){
+        if(this._events_binded)
+            return;
+        this._keyDown_callback = this.onKeyDown.bind(this);
+        this.canvas.addEventListener("keydown", this._keyDown_callback, true);
+        this._whell_callback = this.onWheel.bind(this);
+        this.canvas.addEventListener("wheel", this._whell_callback, true);
+        this._mouseDown_callback = this.onMouseDown.bind(this);
+        this.canvas.addEventListener("mousedown", this._mouseDown_callback, true);
+        this._mouseMove_callback = this.onMouseMove.bind(this);
+        this.canvas.addEventListener("mousemove", this._mouseMove_callback, true);
+        this._mouseUp_callback = this.onMouseUp.bind(this);
+        this.canvas.addEventListener("mouseup", this._mouseUp_callback, true);
+        this._events_binded = true;
+    }
+
+    Scene.prototype.unbindEvenToScene = function(){
+        if(!this._events_binded)
+            return;
+        this.canvas.removeEventListener("keydown", this._keyDown_callback);
+        this._keyDown_callback = null;
+        this.canvas.removeEventListener("wheel", this._whell_callback);
+        this._whell_callback = null;
+        this.canvas.removeEventListener("mousedown", this._mouseDown_callback);
+        this._mouseDown_callback = null;
+        this.canvas.removeEventListener("mousemove", this._mouseMove_callback);
+        this._mouseMove_callback = null;
+        this.canvas.removeEventListener("mouseup", this._mouseUp_callback);
+        this._mouseUp_callback = null;
+        this._events_binded = false;
+    }
+
     Scene.prototype.onKeyDown = function(e){
         if (e.type == "keydown") {
             if (e.code == 'Escape') {
@@ -2645,6 +2712,146 @@
             }
         }
     }
+
+    Scene.prototype.addSceneCoordinateIfHandleMouseEvent = function(e){
+        if(!this.inView(e.offsetX, e.offsetY)){
+            return false;
+        }
+        this.addSceneCoordinateToEvent(e);
+        return true;
+    }
+
+    Scene.prototype.leftMouseDownOnSlot = function(e, hit){
+        let connectors = this.getConnectorsLinkedToSlot(hit.hit_node, hit.hit_component);
+        if (connectors.length == 0) {
+            if (!e.altKey || !e.shiftKey)
+                this.execCommand(new ConnectCommand(this), [e, hit.hit_node, hit.hit_component.name]);
+            else if (!e.shiftKey) {
+                if (e.altKey) {
+                    this.execCommand(new RemoveConnectorCommand(this), [e, connectors]);
+                    return;
+                }
+                if (e.ctrlKey) {
+                    this.execCommand(new ReconnectCommand(this), [e, connectors, hit.hit_component.isInput()]);
+                }
+            }
+        }
+    }
+
+    Scene.prototype.leftMouseDownOnNode = function(e, hit){
+        let border = whichBorder(hit.hit_local_x, hit.hit_local_y, hit.hit_node);
+        if(hit.hit_node.allow_resize && border)
+            this.execCommand(new ResizeCommand(this, hit.hit_node), [e, border]);
+        else if(hit.hit_component instanceof Node) {
+            this.leftMouseDownOnSlot(e, hit);
+        }
+    }
+
+    Scene.prototype.leftMouseDownOnScene = function(e){
+        this.execCommand(new MarqueeSelectionCommand(this), [e])
+        this.bindEventToScene();
+    }
+
+    Scene.prototype.leftMouseUp = function(e, hit){
+        if(hit.is_hitted){
+            if(hit.hit_component)
+                console.log('hit on slot');
+            if(e.ctrlKey && !e.shiftKey)
+                this.toggleNodeSelection(hit.hit_node);
+            this.selectNode(hit.hit_node, e.shiftKey);
+        }
+        this.deselectSelectedNodes();
+    }
+
+    Scene.prototype.rightMouseUp = function(e, hit){
+        //todo context menu
+    }
+
+    Scene.prototype.onWheel = function(e){
+        if(!this.addSceneCoordinateIfHandleMouseEvent(e))
+            return;
+        let delta = e.deltaY * -0.01;
+        this.zoom(this.viewScale() + delta, new Point(e.sceneX, e.sceneY));
+    }
+
+    Scene.prototype.moveAndUpEventsToDocument = function(){
+        //move mouse move event to the window in case it drags outside of the canvas
+        this.canvas.removeEventListener("mousemove", this._mouseMove_callback);
+        this.getDocument().addEventListener("mousemove", this._mouseMove_callback, true);
+        this.getDocument().addEventListener("mouseup", this._mouseUp_callback, true);
+    }
+
+    Scene.prototype.moveAndUpEventsToScene = function(){
+        //restore the mousemove event back to the canvas
+        this.canvas.addEventListener("mousemove", this._mouseMove_callback, true);
+        this.getDocument().removeEventListener("mousemove", this._mouseMove_callback);
+        this.getDocument().removeEventListener("mouseup", this._mouseMove_callback);
+    }
+
+    Scene.prototype.onMouseDown = function(e){
+        if(!this.addSceneCoordinateIfHandleMouseEvent(e))
+            return;
+        this.moveAndUpEventsToDocument();
+        this.pointer_down = e.button;
+        if (!this.hit_result)
+            this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+        if (e.button == 0){
+            if(!this.hit_result.is_hitted || !this.hit_result.hit_node)
+                this.leftMouseDownOnScene(e);
+            else
+                this.leftMouseDownOnNode(e, this.hit_result);
+        }
+        e.preventDefault();
+    }
+
+    Scene.prototype.mouseHover = function(e){
+         this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+         if(this.hit_result.is_hitted){
+             this.hit_result.hit_node.mouseEnter();
+             if(this.hit_result.hit_component) {
+                 this.hit_result.hit_component.mouseEnter();
+                 return;
+             }
+             let border = whichBorder(this.hit_result.hit_local_x, this.hit_result.hit_local_y, this.hit_result.hit_node);
+             if(this.hit_result.hit_node.allow_resize && border) {
+                 let cursor = mapNodeBorderToCursor[border] || "all-scroll";
+                 this.setCursor(cursor);
+             }
+         }
+    }
+
+    Scene.prototype.onMouseMove = function(e){
+        this.addSceneCoordinateToEvent(e);
+        if(this.command_in_process)
+            this.command_in_process.update(e);
+        else if(!this.pointer_down)
+            this.mouseHover(e);
+        else if(this.pointer_down == 0)
+            this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_node]);
+        else if(this.pointer_down == 2)
+            this.pan(e.sceneMovementX, e.sceneMovementY);
+        e.preventDefault();
+    }
+
+    Scene.prototype.onMouseUp = function(e){
+        this.focus_node = this.pointer_down = null;
+        this.moveAndUpEventsToScene();
+        if(this.command_in_process) {
+            this.endCommand([e]);
+            return;
+        }
+         if (!this.hit_result)
+            this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+        if(e.button == 0)
+            this.leftMouseUp(e, this.hit_result);
+        else if(e.button == 2)
+            this.rightMouseUp(e, this.hit_result);
+        e.preventDefault();
+    }
+
+    Scene.prototype.getDocument = function() {
+        return this.canvas.ownerDocument;
+    };
 
     function NudgetNode(delta_x, delta_y, scene, e){
           let command = new MoveCommand(this);
@@ -2724,6 +2931,18 @@
         bottom_right: "bottom_right",
     }
 
+    function whichBorder(x, y, node){
+        let vertical = x < 1? "left": x > node.width -1? "right": null;
+        let horizontal = y < 1? "top": y > node.height - 1? "bottom": null;
+        let border_name = (horizontal? "" : horizontal + "_") + (vertical? "" : vertical);
+        return NodeBorder[border_name];
+    }
+
+    let mapNodeBorderToCursor = {
+            "top": "ns-resize", "bottom": "ns-resize", "left": "ew-resize", "right": "ew-resize",
+            "top_left": "ne", "top-right": "nw", "bottom_left": "sw", "bottom_right": "se"
+    }
+
     function ResizeCommand(scene, resized_node){
         this.desc = "Resize Node";
         this.scene = scene;
@@ -2732,16 +2951,13 @@
 
     ResizeCommand.prototype.exec = function(e, node_border){
         this.node_border = node_border;
-        let mapNodeBorderToCursor = {
-            "top": "ns-resize", "bottom": "ns-resize", "left": "ew-resize", "right": "ew-resize",
-            "top_left": "ne", "top-right": "nw", "bottom_left": "sw", "bottom_right": "se"
-        }
         let cursor = mapNodeBorderToCursor[this.node_border] || "all-scroll";
         this.scene.setCursor(cursor);
         this.start_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
     }
 
     ResizeCommand.prototype.update = function(e){
+        e.sceneMovementX = e.sceneMovementY = 1;
         switch (this.node_border) {
             case NodeBorder.top:
                 this.resized_node.addTranslate(0, e.sceneMovementY);
@@ -2778,6 +2994,7 @@
     ResizeCommand.prototype.end = function(e){
         this.update(e);
         this.end_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
+        this.scene.setCursor('default');
     }
 
     ResizeCommand.prototype.undo = function(){
@@ -2835,22 +3052,22 @@
         this.scene = scene;
         this.target_node = {
             pos: new Point(0, 0),
-            getConnectedAnchorPosInScene: function() {return this.pos}
+            getConnectedAnchorPosInScene: function() {return this.target_node.pos}
         };
         this.from_node = null;
         this.from_slot = null;
         this.connector = null;
     }
 
-    ConnectCommand.prototype.exec = function(e, node, slot_name){
-        this.from_node = node;
-        this.from_slot = node.getSlot(slot_name);
+    ConnectCommand.prototype.exec = function(e, from_node, from_slot_name){
+        this.from_node = from_node;
+        this.from_slot = from_node.getSlot(from_slot_name);
         this.from_slot.mousePressed();
         this.target_node.pos = new Point(e.sceneX, e.sceneY);
         if(this.from_slot.isInput())
-            this.connector = new Connector(null, this.target_node, null, this.from_node, slot_name);
+            this.connector = new Connector(null, this.target_node, null, this.from_node, from_slot_name);
         else
-            this.connector = new Connector(null, this.from_node, slot_name, this.target_node, null);
+            this.connector = new Connector(null, this.from_node, from_slot_name, this.target_node, null);
         this.connector.pluginRenderingTemplate(this.scene.rendering_template);
     }
 
@@ -2901,7 +3118,9 @@
         if(target_slot instanceof NodeSlot){
             let connection = this.from_node.allowConnectTo(this.from_slot.name, hit_result.hit_node, target_slot);
             this._addConnector(hit_result.hit_node, target_slot.name, connection);
-        };
+        } else{
+            //todo search menu
+        }
     }
 
     ConnectCommand.prototype.draw = function(ctx, lod){
@@ -2926,6 +3145,52 @@
     }
 
     Object.setPrototypeOf(ConnectCommand.prototype, Command.prototype);
+
+    function ReconnectCommand(scene){
+        this.desc = "Create Connector";
+        this.scene = scene;
+        this.remove_connectors_command = new RemoveConnectorsCommand(this.scene);
+        this.add_connector_commands = [];
+    }
+
+    ReconnectCommand.prototype.exec = function(e, connectors, change_in_slot){
+        this.remove_connectors_command.exec(e, connectors);
+        for (const connector of connectors) {
+            let command = new ConnectCommand(this.scene);
+            command.exec(e,
+                change_in_slot? connector.out_node: connector.in_node,
+                change_in_slot? connector.out_slot_name: connector.in_slot_name);
+            this.add_connector_commands.append(command);
+        }
+    }
+
+    ReconnectCommand.prototype.update = function(e){
+         for (const command of this.add_connector_commands) {
+             command.update(e)
+         }
+    }
+
+    ReconnectCommand.prototype.end = function(e){
+         for (const command of this.add_connector_commands) {
+             command.end(e)
+         }
+    }
+
+    ReconnectCommand.prototype.undo = function(){
+        for (const command of this.add_connector_commands) {
+             command.undo()
+        }
+        this.remove_connectors_command.undo();
+    }
+
+    ReconnectCommand.prototype.redo = function(){
+        for (const command of this.add_connector_commands) {
+             command.redo()
+        }
+        this.remove_connectors_command.redo();
+    }
+
+    Object.setPrototypeOf(ReconnectCommand.prototype, Command.prototype);
 
     function AddNodeCommand(scene){
         this.desc = "Add Node";
@@ -2977,6 +3242,26 @@
 
     Object.setPrototypeOf(AddConnectorCommand.prototype, Command.prototype);
 
+    function RemoveConnectorCommand(scene){
+        this.desc = "Remove Connector";
+        this.scene = scene;
+    }
+
+    RemoveConnectorCommand.prototype.exec = function(e, connector){
+        this.scene.removeConnector(connector);
+        this.end_state = connector;
+    }
+
+    RemoveConnectorCommand.prototype.undo = function(){
+        this.scene.addConnector(this.end_state);
+    }
+
+    RemoveConnectorCommand.prototype.redo = function(){
+        this.exec(null, this.end_state);
+    }
+
+    Object.setPrototypeOf(RemoveConnectorCommand.prototype, Command.prototype);
+
     function RemoveSelectedNodesCommand(scene){
         this.desc = "Delete current selections";
         this.scene = scene;
@@ -3000,25 +3285,25 @@
         this.scene.removeConnectors(this.end_state.connectors);
     }
 
-    function RemoveConnectorCommand(scene){
-        this.desc = "Delete connector";
+    function RemoveConnectorsCommand(scene){
+        this.desc = "Delete connectors";
         this.scene = scene;
     }
 
-    RemoveConnectorCommand.prototype.exec = function(e, connector){
-        this.end_state = connector;
-        this.scene.removeConnector(connector);
+    RemoveConnectorsCommand.prototype.exec = function(e, connectors){
+        this.end_state = connectors;
+        this.scene.removeConnectors(connectors);
     }
 
-    RemoveConnectorCommand.prototype.undo = function(){
-        this.scene.addConnector(this.end_state)
+    RemoveConnectorsCommand.prototype.undo = function(){
+        this.scene.addConnectors(this.end_state)
     }
 
-    RemoveConnectorCommand.prototype.redo = function(){
+    RemoveConnectorsCommand.prototype.redo = function(){
         this.exec(null, this.end_state);
     }
 
-    Object.setPrototypeOf(RemoveConnectorCommand.prototype, Command.prototype);
+    Object.setPrototypeOf(RemoveConnectorsCommand.prototype, Command.prototype);
 
     function PasteFromClipboardCommand(scene){
         this.desc = "Paste clipboard contents";
