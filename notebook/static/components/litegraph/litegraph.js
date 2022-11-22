@@ -2537,6 +2537,7 @@
     };
 
     Scene.prototype.pan = function (delta_x, delta_y) {
+        this.setCursor('Move');
         this.view.addTranslate(delta_x, delta_y);
     };
 
@@ -2571,6 +2572,10 @@
 
     Scene.prototype.redo = function(){
        this.undo_history.redo();
+    }
+
+    Scene.prototype.setCursor = function(cursor){
+        this.canvas.style.cursor = cursor;
     }
 
     Scene.prototype.onKeyDown = function(e){
@@ -3120,6 +3125,10 @@
         s = Math.max(this.min_scale, s);
         s = Math.min(this.max_scale, s);
         if (s == this.scale)  return;
+        if(this.scale < s)
+            this.scene.setCursor('zoom in');
+        else if(this.scale > s)
+            this.scene.setCursor('zoom out');
         // keep the pivot point unchanged after scale
         pivot_in_view = pivot_in_view || this.scale_pivot;
         let pivot_before_scale = this.mapToScene(pivot_in_view);
