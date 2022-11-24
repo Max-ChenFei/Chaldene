@@ -1298,7 +1298,8 @@ if (typeof exports != "undefined") {
                     global_alpha: 1,
                 },
                 "1": {
-                    color: "#FFFFFFFF",
+                    image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
+                    image_repetition: "repeat",
                     global_alpha: 1,
                 },
                 draw: function(ctx, rect, lod) {
@@ -2558,8 +2559,10 @@ if (typeof exports != "undefined") {
         return this.collision_detector.getItemsOverlapWith(sceneRect, Connector)
     };
 
-    Scene.prototype.zoom = function(v, pivot) {
-        this.view.setScale(v, pivot)
+    Scene.prototype.zoom = function(v, pivot_in_view) {
+        let did = this.view.setScale(v, pivot_in_view);
+        if(did)
+            this.renderer.forceRenderLayers();
     };
 
     Scene.prototype.viewScale = function() {
@@ -2751,7 +2754,9 @@ if (typeof exports != "undefined") {
         debug_log('mouse wheel');
         this.addSceneCoordinateToEvent(e);
         let delta = e.deltaY * -0.01;
-        this.zoom(this.viewScale() + delta, new Point(e.sceneX, e.sceneY));
+        this.zoom(this.viewScale() + delta, new Point(e.offsetX, e.offsetY));
+        e.preventDefault();
+        e.stopPropagation();
     }
 
     Scene.prototype.moveAndUpEventsToDocument = function() {
@@ -3380,8 +3385,8 @@ if (typeof exports != "undefined") {
         // (pos_scene + translate) * scale = pos_view
         this.translate = new Point(0, 0);
         this.scale = 1;
-        this.max_scale = 1;
-        this.min_scale = 0.5;
+        this.max_scale = 5;
+        this.min_scale = 0.2;
         Object.defineProperty(this, "lod", {
             get() {return this.scale > (this.max_scale + this.min_scale) / 2.0 ? 0 : 1;}
         })
@@ -3440,18 +3445,15 @@ if (typeof exports != "undefined") {
     View.prototype.setScale = function(s, pivot_in_view) {
         s = Math.max(this.min_scale, s);
         s = Math.min(this.max_scale, s);
-        if (s == this.scale) return;
-        if (this.scale < s)
-            this.scene.setCursor('zoom in');
-        else if (this.scale > s)
-            this.scene.setCursor('zoom out');
+        if (s == this.scale) return false;
         // keep the pivot point unchanged after scale
         pivot_in_view = pivot_in_view || this.scale_pivot();
         let pivot_before_scale = this.mapToScene(pivot_in_view);
         this.scale = s;
         if (Math.abs(this.scale - 1) < 0.01) this.scale = 1;
         let pivot_after_scale = this.mapToScene(pivot_in_view);
-        this.addTranslate(pivot_after_scale.x - pivot_before_scale.x, pivot_after_scale.y - pivot_after_scale.y);
+        this.addTranslate(pivot_after_scale.x - pivot_before_scale.x, pivot_after_scale.y - pivot_before_scale.y);
+        return true;
     };
 
     //the area of the scene visualized by this view
