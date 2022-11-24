@@ -2796,6 +2796,7 @@
     }
 
     Scene.prototype.onMouseMove = function(e) {
+        debug_log('mouse move');
         this.addSceneCoordinateToEvent(e);
         if (this.command_in_process)
             this.command_in_process.update(e);
@@ -2809,6 +2810,7 @@
     }
 
     Scene.prototype.onMouseUp = function(e) {
+        debug_log('mouse up');
         this.focus_node = this.pointer_down = null;
         this.moveAndUpEventsToScene();
         if (this.command_in_process) {
