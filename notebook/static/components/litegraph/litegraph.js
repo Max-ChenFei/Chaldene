@@ -1312,7 +1312,7 @@ if (typeof exports != "undefined") {
                             this.current_bg = new Image();
                             this.current_bg.src = style.image;
                             this.current_bg.onload = () => {
-                                this.owner.renderer.forceRenderLayer(["background"]);
+                                this.owner.renderer.forceRenderLayers(["background"]);
                             }
                         } else{
                             ctx.fillStyle = ctx.createPattern(this.current_bg, style.image_repetition);
@@ -1954,12 +1954,15 @@ if (typeof exports != "undefined") {
         return re_render_any_layer;
     }
 
-    Renderer.prototype.forceRenderLayer = function(names) {
+    Renderer.prototype.forceRenderLayers = function(names) {
+        if (!names)
+            names = Object.keys(this.layers);
         for (let name of names) {
             const layer = this.layers[name];
             layer.re_render = true;
         }
-        this.renderOneFrame()
+        if(!this.is_rendering)
+            this.renderOneFrame();
     }
 
     Renderer.prototype._compositeLayers = function() {
