@@ -639,7 +639,6 @@ function htmlToElement(html) {
         var data = this.scene.graph.sourceCode();
         console.log(data);
         return data;
-        //return ;this.code_mirror.getValue();
     };
 
 
@@ -648,7 +647,6 @@ function htmlToElement(html) {
             return;
         var code_string =  JSON.parse(code);
         return this.scene.graph.configure( code_string );
-        //return ;//this.code_mirror.setValue(code);
     };
 
 
@@ -731,22 +729,6 @@ function htmlToElement(html) {
 
     ImageProcessingCell.prototype.refresh = function ()
     {
-        //this.scene.resize();
-
-
-        // var ref_window = canvas.getCanvasWindow();
-        // var menu = new LiteGraph.ContextMenu(
-        //     ['d'],
-        //     {
-        //        // event: e,
-        //         // callback: inner_clicked,
-        //         // parentMenu: prev_menu,
-        //         // node: node
-        //     },
-        // );
-        // // menu.addItem('D', 'D');
-        // this.graph.start();
-
     };
 
     // Backwards compatibility.
