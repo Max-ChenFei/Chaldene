@@ -1309,7 +1309,7 @@
                             ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
                         }
                     } else {
-                        ctx.fillStyle = this.color;
+                        ctx.fillStyle = style.color;
                         ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
                     }
                 }
