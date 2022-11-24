@@ -3,7 +3,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   lumino_widgets
 ) {
 
-  
+
   const CommandRegistry = lumino_commands.CommandRegistry;
   const BoxPanel = lumino_widgets.BoxPanel;
   const CommandPalette = lumino_widgets.CommandPalette;
@@ -14,32 +14,36 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   const Widget = lumino_widgets.Widget;
 
   const commands = new CommandRegistry();
-  
+
 
   function createBar(){
     let bar = new MenuBar();
-    
+
     let file = new Menu({commands:commands});
+    file.title.label = "File";
     file.addItem({command: "file:new"})
     file.addItem({command: "file:load"})
-    
-    
+    file.title.mnemonic = 0;
+
     let edit = new Menu({commands:commands});
-    
+    edit.addItem({command: "file:load"})
+    edit.title.label = "Edit";
+    edit.title.mnemonic = 0;
+
     bar.addMenu(file);
     bar.addMenu(edit);
     return bar;
   }
 
   function createDock(){
-    
+
     let main = new BoxPanel({ direction: 'left-to-right', spacing: 0 });
     let dock = new DockPanel({tabsConstrained: true});
     //let r1 = createGraphEditor({name:"name"});
     //let r2 = createGraphEditor({name:"name"});
     //dock.addWidget(r1);
     //dock.addWidget(r2);
-    
+
     dock.addWidget(createEditor({name:"main"}))
     dock.addWidget(createEditor({name:"func1"}))
     main.addWidget(dock);
@@ -53,7 +57,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   function createEditor(graph){
     let dock = new DockPanel({tabsConstrained: true});
     dock.id = graph+'dock__';
-    
+
     let r1 = createMembersPanel(graph);
     let r2 = createGraphEditor(graph);
     let r3 = createPropertiesPanel(graph);
@@ -64,7 +68,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     dock.addWidget(r2,{ mode: 'split-right', ref: r1 });
     dock.addWidget(r3,{ mode: 'split-right', ref: r2 });
     dock.addClass('content');
-    
+
     dock.title.label = graph.name;
     dock.title.closable = true;
     dock.title.caption = "'" + graph.name +"'" + " edit window";
@@ -86,10 +90,16 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     commands.addCommand('file:new',{
       label: "New",
       mnemonic: 0,
+      execute: function(){
+        console.log('New file');
+      }
     });
     commands.addCommand('file:load',{
       label: "Load",
       mnemonic: 0,
+      execute: function(){
+        console.log('New file');
+      }
     });
   }
   class PropertiesPanel extends Widget {
@@ -128,7 +138,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   class MembersPanel extends Widget {
     constructor(graph) {
       let node = document.createElement('div');
-      
+
       super({ node: node });
       node.classList.add('membersPanel');
       let input = document.createElement('input');
@@ -187,7 +197,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     }
   }
 
-  
+
   class GraphEditor extends Widget {
     constructor(graph) {
       super({ node: GraphEditor.prototype.createNode() });
@@ -224,6 +234,16 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
   function main(){
     createCommands();
+    let c = new ContextMenu({commands:commands});
+    c.addItem({command:"file:new",selector:".content"});
+    c.addItem({command:"file:load",selector:"*"});
+
+    document.addEventListener('contextmenu', function (event) {
+      if (c.open(event)) {
+        event.preventDefault();
+      }
+    });
+
     let bar = createBar();
     let dock = createDock();
     Widget.attach(bar,document.body);
