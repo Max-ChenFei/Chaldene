@@ -194,8 +194,8 @@ define([
         this.canvas = $("<canvas height='300'></canvas>");
         this.scene = new Scene(this.canvas.get(0));
 
-        // This is because the width of scene parent is zero at this frame
         let fit_to_width_callback = this.scene.fitToParentWidth.bind(this.scene);
+        // The width of scene parent is zero at current frame
         window.requestAnimationFrame(function(){
            fit_to_width_callback();
         });
@@ -571,7 +571,7 @@ function htmlToElement(html) {
     ImageProcessingCell.prototype.edit_mode = function () {
         if (this.mode !== 'edit') {
             this.mode = 'edit';
-            this.scene.bindEventToScene();
+            this.scene.start();
             return true;
         } else {
             return false;
@@ -581,7 +581,7 @@ function htmlToElement(html) {
     ImageProcessingCell.prototype.command_mode = function () {
         if (this.mode !== 'command') {
             this.mode = 'command';
-            this.scene.unbindEventToScene();
+            this.scene.stop();
             return true;
         } else {
             return false;

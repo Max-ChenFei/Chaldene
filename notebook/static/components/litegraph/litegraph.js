@@ -2195,15 +2195,12 @@
         this.undo_history = new UndoHistory();
         this.pluginSceneRenderingConfig();
         this.updateBoundingRectInGraph();
-        this.setStartRenderWhenCanvasOnFocus();
-        this.setStopRenderWhenCanvasOnBlur();
         this.pointer_pos = new Point(0, 0);
         this.pointer_down = null; //pointer means any input devices like mouse, pen, touch surfaces
         this.force_lod = null;
         Object.defineProperty(this, "lod", {
             get() { return this.force_lod != null? this.force_lod:this.view.lod;}
         })
-        this.default_height = this.canvas.height;
     };
 
     Scene.prototype.resize = function(w, h) {
@@ -2220,12 +2217,21 @@
         let parent = this.canvas.parentNode;
         let w = parent.offsetWidth;
         if (w) {
-            this.resize(w, this.default_height);
+            this.resize(w, this.canvas.height);
         }
     }
 
-    Scene.prototype.fitToParentWidthEvent = function(e) {
+    Scene.prototype.fitToParentHeight = function() {
+        let parent = this.canvas.parentNode;
+        let h = parent.offsetHeight;
+        if (h) {
+            this.resize(this.canvas.width, h);
+        }
+    }
+
+    Scene.prototype.fitToParentSize = function() {
         this.fitToParentWidth();
+        this.fitToParentHight();
     }
 
     Scene.prototype.fitToWindowSize = function() {
@@ -2265,12 +2271,14 @@
         }
     }
 
-    Scene.prototype.setStartRenderWhenCanvasOnFocus = function() {
-        this.canvas.addEventListener("focus", this.renderer.startRender());
-    };
+    Scene.prototype.start = function(){
+        this.renderer.startRender();
+        this.bindEventToScene();
+    }
 
-    Scene.prototype.setStopRenderWhenCanvasOnBlur = function() {
-        this.canvas.addEventListener("blur", this.renderer.stopRender());
+    Scene.prototype.stop = function() {
+        this.renderer.stopRender();
+        this.unbindEventToScene();
     };
 
     Scene.prototype.sceneRect = function() {
