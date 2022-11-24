@@ -2571,7 +2571,7 @@
     };
 
     Scene.prototype.addSceneCoordinateToEvent = function(e) {
-        let pos = this.view.mapToScene(e.offsetX, e.offsetY);
+        let pos = this.view.mapToScene(new Point(e.offsetX, e.offsetY));
         e.sceneX = pos.x;
         e.sceneY = pos.y;
         e.sceneMovementX = e.sceneX - this.pointer_pos.x;
