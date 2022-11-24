@@ -2617,15 +2617,15 @@
         if (this._events_binded)
             return;
         this._keyDown_callback = this.onKeyDown.bind(this);
-        this.canvas.addEventListener("keydown", this._keyDown_callback, true);
+        this.canvas.addEventListener("keydown", this._keyDown_callback, false);
         this._whell_callback = this.onWheel.bind(this);
-        this.canvas.addEventListener("wheel", this._whell_callback, true);
+        this.canvas.addEventListener("wheel", this._whell_callback, false);
         this._mouseDown_callback = this.onMouseDown.bind(this);
-        this.canvas.addEventListener("mousedown", this._mouseDown_callback, true);
+        this.canvas.addEventListener("mousedown", this._mouseDown_callback, false);
         this._mouseMove_callback = this.onMouseMove.bind(this);
-        this.canvas.addEventListener("mousemove", this._mouseMove_callback, true);
+        this.canvas.addEventListener("mousemove", this._mouseMove_callback, false);
         this._mouseUp_callback = this.onMouseUp.bind(this);
-        this.canvas.addEventListener("mouseup", this._mouseUp_callback, true);
+        this.canvas.addEventListener("mouseup", this._mouseUp_callback, false);
         this._events_binded = true;
     }
 
@@ -2751,20 +2751,21 @@
     Scene.prototype.moveAndUpEventsToDocument = function() {
         //move mouse move event to the window in case it drags outside of the canvas
         this.canvas.removeEventListener("mousemove", this._mouseMove_callback);
-        this.getDocument().addEventListener("mousemove", this._mouseMove_callback, true);
-        this.getDocument().addEventListener("mouseup", this._mouseUp_callback, true);
+        this.getDocument().addEventListener("mousemove", this._mouseMove_callback, false);
+        this.getDocument().addEventListener("mouseup", this._mouseUp_callback, false);
     }
 
     Scene.prototype.moveAndUpEventsToScene = function() {
         //restore the mousemove event back to the canvas
-        this.canvas.addEventListener("mousemove", this._mouseMove_callback, true);
+        this.canvas.addEventListener("mousemove", this._mouseMove_callback, false);
         this.getDocument().removeEventListener("mousemove", this._mouseMove_callback);
-        this.getDocument().removeEventListener("mouseup", this._mouseMove_callback);
+        this.getDocument().removeEventListener("mouseup", this._mouseUp_callback);
     }
 
     Scene.prototype.onMouseDown = function(e) {
         if (!this.addSceneCoordinateIfHandleMouseEvent(e))
             return;
+        debug_log('mouse move');
         this.moveAndUpEventsToDocument();
         this.pointer_down = e.button;
         if (!this.hit_result)
