@@ -1967,13 +1967,11 @@ if (typeof exports != "undefined") {
 
     Renderer.prototype._compositeLayers = function() {
         let ctx = this.getDrawingContextFrom(this.getCanvas());
-        this._ctxFromViewToScene(ctx);
         const rect = this.scene.sceneRect();
         ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
         for (let layer of Object.values(this.layers)) {
             ctx.drawImage(layer.canvas, 0, 0);
         }
-        this._ctxFromSceneToView(ctx);
     }
 
     Renderer.prototype._render = function() {
