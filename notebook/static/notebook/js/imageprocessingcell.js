@@ -193,15 +193,14 @@ define([
 
         this.canvas = $("<canvas height='300'></canvas>");
         this.scene = new Scene(this.canvas.get(0));
-        window.addEventListener("resize", this.scene.resize_callback);
 
-        // This is because input_area's width is zero at this frame
-        let render_once = this.scene.renderer.renderOneFrame.bind(this.scene.renderer);
-        let resize = this.scene.resize_callback;
+        // This is because the width of scene parent is zero at this frame
+        let fit_to_width_callback = this.scene.fitToParentWidth.bind(this.scene);
         window.requestAnimationFrame(function(){
-           resize();
-           render_once();
+           fit_to_width_callback();
         });
+        window.addEventListener("resize", fit_to_width_callback);
+
 
         input_area.append(this.canvas);
         inner_cell.append(input_area);

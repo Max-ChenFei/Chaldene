@@ -2203,13 +2203,8 @@
         Object.defineProperty(this, "lod", {
             get() { return this.force_lod != null? this.force_lod:this.view.lod;}
         })
-        this.resize_callback = this.resizeEvent.bind(this);
         this.default_height = this.canvas.height;
     };
-
-    Scene.prototype.resizeEvent = function(e) {
-        this.fullOfParent();
-    }
 
     Scene.prototype.resize = function(w, h) {
         if(!w ||!h) return;
@@ -2221,7 +2216,7 @@
         this.renderer.updateAllLayersSize(w, h);
     }
 
-    Scene.prototype.fullOfParent = function() {
+    Scene.prototype.fitToParentWidth = function() {
         let parent = this.canvas.parentNode;
         let w = parent.offsetWidth;
         if (w) {
@@ -2229,7 +2224,11 @@
         }
     }
 
-    Scene.prototype.fullOfScreen = function() {
+    Scene.prototype.fitToParentWidthEvent = function(e) {
+        this.fitToParentWidth();
+    }
+
+    Scene.prototype.fitToWindowSize = function() {
         let w = document.body.clientWidth;
         let h = document.body.clientHeight;
         if (w && h) {
@@ -2239,9 +2238,9 @@
 
     Scene.prototype.toggleFullScreen = function() {
         if(this.fullscreen){
-            this.fullOfParent()
+            this.fitToParentWidth()
         } else{
-            this.fullOfParent();
+            this.fitToWindowSize();
         }
         this.fullscreen = !this.fullscreen ;
     }
