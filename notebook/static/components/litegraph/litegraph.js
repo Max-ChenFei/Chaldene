@@ -4,7 +4,11 @@
 // Renderer: multiple layers rendering using offscreen canvans
 //*********************************************************************************
 (function(global) {
-
+    global.VPE.DEBUG = true;
+    function debug_log(msg) {
+        if(global.VPE.DEBUG)
+            console.log(msg);
+    }
     function deepCopy(obj) {
         if (!obj) return null;
         return JSON.parse(JSON.stringify(obj));
