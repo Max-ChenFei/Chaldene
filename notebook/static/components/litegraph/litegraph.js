@@ -2813,6 +2813,7 @@
         debug_log('mouse up');
         this.focus_node = this.pointer_down = null;
         this.moveAndUpEventsToScene();
+        this.addSceneCoordinateToEvent(e);
         if (this.command_in_process) {
             this.endCommand([e]);
             return;
