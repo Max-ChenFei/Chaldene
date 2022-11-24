@@ -1,5 +1,13 @@
 # Chaldene: Towards Visual Programming Image Processing in Jupyter Notebooks
-# Cite
+## Usage
+```
+let canvas = document.getElementById("canvas");
+let scene = new Scene(canvas);
+canvas.addEventListener("focus", scene.start.bind(scene));
+canvas.addEventListener("blur", scene.stop.bind(scene));
+window.addEventListener("resize", scene.fitToParentSize.bind(scene));
+```
+## Cite
 https://ieeexplore.ieee.org/document/9832910
 ```
 @INPROCEEDINGS{9832910,
