@@ -1301,11 +1301,9 @@ if (typeof exports != "undefined") {
                     color: "#FFFFFFFF",
                     global_alpha: 1,
                 },
-                draw: function(ctx, lod) {
-                    const rect = this.owner.sceneRect();
+                draw: function(ctx, rect, lod) {
                     let style = this[lod];
                     if (!style) style = this[0];
-                    ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
                     if (style.image) {
                         let img_need_loaded = !this.current_bg || this.current_bg.src != style.image;
                         if(img_need_loaded) {
@@ -1987,7 +1985,7 @@ if (typeof exports != "undefined") {
         this._ctxFromViewToScene(ctx);
         const rect = this.scene.sceneRect();
         ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
-        this.scene.draw(ctx, this.scene.lod);
+        this.scene.draw(ctx, rect, this.scene.lod);
         this._ctxFromSceneToView(ctx);
     };
 
@@ -2573,9 +2571,9 @@ if (typeof exports != "undefined") {
         this.view.addTranslate(delta_x, delta_y);
     };
 
-    Scene.prototype.draw = function(ctx, lod) {
+    Scene.prototype.draw = function(ctx, rect, lod) {
         if (this.style)
-            this.style.draw(ctx, lod);
+            this.style.draw(ctx, rect, lod);
     };
 
     Scene.prototype.addSceneCoordinateToEvent = function(e) {
