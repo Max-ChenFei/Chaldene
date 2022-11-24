@@ -2241,7 +2241,7 @@ if (typeof exports != "undefined") {
 
     Scene.prototype.fitToParentSize = function() {
         this.fitToParentWidth();
-        this.fitToParentHight();
+        this.fitToParentHeight();
     }
 
     Scene.prototype.fitToWindowSize = function() {
@@ -2624,8 +2624,8 @@ if (typeof exports != "undefined") {
             return;
         this._keyDown_callback = this.onKeyDown.bind(this);
         this.canvas.addEventListener("keydown", this._keyDown_callback, false);
-        this._whell_callback = this.onWheel.bind(this);
-        this.canvas.addEventListener("wheel", this._whell_callback, false);
+        this._mousewheel_callback = this.onMouseWheel.bind(this);
+        this.canvas.addEventListener("mousewheel", this._mousewheel_callback, false);
         this._mouseDown_callback = this.onMouseDown.bind(this);
         this.canvas.addEventListener("mousedown", this._mouseDown_callback, false);
         this._mouseMove_callback = this.onMouseMove.bind(this);
@@ -2640,8 +2640,8 @@ if (typeof exports != "undefined") {
             return;
         this.canvas.removeEventListener("keydown", this._keyDown_callback);
         this._keyDown_callback = null;
-        this.canvas.removeEventListener("wheel", this._whell_callback);
-        this._whell_callback = null;
+        this.canvas.removeEventListener("mousewheel", this._mousewheel_callback);
+        this._mousewheel_callback = null;
         this.canvas.removeEventListener("mousedown", this._mouseDown_callback);
         this._mouseDown_callback = null;
         this.canvas.removeEventListener("mousemove", this._mouseMove_callback);
@@ -2747,9 +2747,9 @@ if (typeof exports != "undefined") {
         //todo context menu
     }
 
-    Scene.prototype.onWheel = function(e) {
-        if (!this.addSceneCoordinateIfHandleMouseEvent(e))
-            return;
+    Scene.prototype.onMouseWheel = function(e) {
+        debug_log('mouse wheel');
+        this.addSceneCoordinateToEvent(e);
         let delta = e.deltaY * -0.01;
         this.zoom(this.viewScale() + delta, new Point(e.sceneX, e.sceneY));
     }
