@@ -2,9 +2,18 @@
 
 //*********************************************************************************
 // Renderer: multiple layers rendering using offscreen canvans
-//*********************************************************************************
+//*********************************************************************************\
+if (typeof exports != "undefined") {
+    exports.Scene = Scene;
+    exports.TypeRegistry = new TypeRegistry();
+}
+
 (function(global) {
-    global.VPE.DEBUG = true;
+    global.VPE = {
+        DEBUG: true,
+        TypeRegistry: new TypeRegistry(),
+        Scene: Scene,
+    };
     function debug_log(msg) {
         if(global.VPE.DEBUG)
             console.log(msg);
@@ -27,8 +36,6 @@
         this.registered_node_types = {}; // type_name: node_type
     }
 
-    global.TypeRegistry = new TypeRegistry();
-    global.Scene = Scene;
     /**
      * Register a node class so it can be listed when the user wants to create a new one
      * @method registerNodeType
@@ -3636,13 +3643,9 @@
     }
 })(this);
 
-if (typeof exports != "undefined") {
-    exports.Scene = Scene;
-}
-
 //import './nodes/scipy.js'
 (function(global) {
-    let TypeRegistry = global.TypeRegistry;
+    let TypeRegistry = global.VPE.TypeRegistry;
 
     function ImageIOImRead() {
         this.addOutput("image", "numpy.ndarray");

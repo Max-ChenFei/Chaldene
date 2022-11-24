@@ -192,7 +192,7 @@ define([
         var input_area = $('<div/>').addClass('input_area').attr("aria-label", i18n.msg._("Edit code here"));
 
         this.canvas = $("<canvas height='300'></canvas>");
-        this.scene = new Scene(this.canvas.get(0));
+        this.scene = new VPE.Scene(this.canvas.get(0));
 
         let fit_to_width_callback = this.scene.fitToParentWidth.bind(this.scene);
         // The width of scene parent is zero at current frame
