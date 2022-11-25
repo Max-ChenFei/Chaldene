@@ -2818,7 +2818,7 @@ if (typeof exports != "undefined") {
     }
 
     Scene.prototype.moveAndUpEventsToDocument = function() {
-        //move mouse move event to the window in case it drags outside of the canvas
+        //mouse move event to the window in case it drags outside of the canvas
         this.canvas.removeEventListener("mousemove", this._mouseMove_callback);
         this.getDocument().addEventListener("mousemove", this._mouseMove_callback, false);
         this.getDocument().addEventListener("mouseup", this._mouseUp_callback, false);
