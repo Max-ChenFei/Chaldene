@@ -3003,6 +3003,7 @@ if (typeof exports != "undefined") {
         let cursor = mapNodeBorderToCursor[this.node_border] || "all-scroll";
         this.scene.setCursor(cursor);
         this.start_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
+        this.support_undo = false; // no resize now
     }
 
     ResizeCommand.prototype.update = function(e) {
@@ -3038,6 +3039,7 @@ if (typeof exports != "undefined") {
                 break;
         }
         this.scene.setToRender("nodes");
+        this.support_undo = true;
     }
 
     ResizeCommand.prototype.end = function(e) {
