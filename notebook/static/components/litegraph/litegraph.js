@@ -2649,38 +2649,38 @@ if (typeof exports != "undefined") {
             if (e.code == 'Escape') {
                 this.deselectSelectedNodes();
             }
-            if (e.code == 'Delete') {
+            else if (e.code == 'Delete') {
                 let command = new RemoveSelectedNodesCommand(this);
                 this.execCommand(command, [e]);
             }
-            if (e.code == "KeyA" && e.ctrlKey) {
+            else if (e.code == "KeyA" && e.ctrlKey) {
                 this.selectAllNodes();
             }
-            if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            else if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 this.copySelectedNodeToClipboard();
             }
-            if (e.code == "KeyV" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            else if (e.code == "KeyV" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new PasteFromClipboardCommand(this);
                 this.execCommand(command, [e]);
             }
-            if (e.code == "KeyX" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            else if (e.code == "KeyX" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new CutSelectedNodesCommand(this);
                 this.execCommand(command, [e]);
             }
-            if (e.code == "KeyD" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            else if (e.code == "KeyD" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new DuplicateNodeCommand(this);
                 this.execCommand(command, [e]);
             }
-            if (e.code == "ArrowUp" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            else if (e.code == "ArrowUp" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(1, 0, this, e);
             }
-            if (e.code == "ArrowDown" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            else if (e.code == "ArrowDown" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(-1, 0, this, e);
             }
-            if (e.code == "ArrowLeft" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            else if (e.code == "ArrowLeft" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(0, -1, this, e);
             }
-            if (e.code == "ArrowShift" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            else if (e.code == "ArrowShift" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(0, 1, this, e);
             }
         }
