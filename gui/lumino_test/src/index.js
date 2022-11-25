@@ -1,6 +1,6 @@
 define(['@lumino/commands', '@lumino/widgets'], function (
   lumino_commands,
-  lumino_widgets
+  lumino_widgets,
 ) {
 
 
@@ -12,8 +12,11 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   const Menu = lumino_widgets.Menu;
   const MenuBar = lumino_widgets.MenuBar;
   const Widget = lumino_widgets.Widget;
-
+  //const LiteGraph = litegraph.LiteGraph;
   const commands = new CommandRegistry();
+
+
+
 
 
   function createBar(){
@@ -101,6 +104,18 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         console.log('New file');
       }
     });
+
+
+    let helper = mockLiteGraphGetCommands();
+    for(let i = 0; i< helper.length; i++){
+      commands.addCommand(
+        "litegraph:"+helper[i].name,{
+          label: helper[i].label,
+          mnemonic:0,
+          execute: helper[i].exec
+        }
+      )
+    }
   }
   class PropertiesPanel extends Widget {
     constructor(graph) {
@@ -200,7 +215,36 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
   class GraphEditor extends Widget {
     constructor(graph) {
-      super({ node: GraphEditor.prototype.createNode() });
+      let node = document.createElement('div');
+      node.addEventListener('contextmenu', function (event) {
+        let m = new Menu({commands:commands});
+        let cs = mockLiteGraphGetContextMenu();
+        for(let i =0; i<cs.length; i++){
+          m.addItem({
+            command: "litegraph:"+cs[i].command,
+            args: cs[i].args
+          });
+        }
+        /*
+        m.addItem({command:"file:new"});
+        m.addItem({command:"file:load"});*/
+        m.open(event.clientX,event.clientY);
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      let canvas = document.createElement('canvas');
+      canvas.style.margin = "0px";
+      canvas.style.height="100%";
+      canvas.style.width = "100%";
+      node.appendChild(canvas);
+      let ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'pink';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      super({ node: node });
+      this.ctx = ctx;
+      this.graph = new LiteGraph.LGraph();
+      this.graph_canvas = new LiteGraph.LGraphCanvas(canvas, this.graph, {skip_events:false});
       this.setFlag(Widget.Flag.DisallowLayout);
       this.addClass('content');
       this.addClass('blue');
@@ -208,35 +252,50 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       this.title.closable = true;
       this.title.caption = 'Long description for: ' + graph.name;
     }
+
   }
 
   GraphEditor.prototype = Object.create(Widget.prototype);
 
-  GraphEditor.prototype.createNode = function () {
-    let node = document.createElement('div');
-    let content = document.createElement('div');
-    let input = document.createElement('input');
-    input.placeholder = 'Placeholder...';
-    content.appendChild(input);
-    node.appendChild(content);
-    return node;
-  };
 
-  GraphEditor.prototype.inputNode = function () {
-    return this.node.getElementsByTagName('input')[0];
-  };
 
-  GraphEditor.prototype.onActivateRequest = function (msg) {
-    if (this.isAttached) {
-      this.inputNode().focus();
-    }
-  };
+  GraphEditor.prototype.onResize = function(){
+    this.ctx.canvas.height = this.ctx.canvas.clientHeight;
+    this.ctx.canvas.width = this.ctx.canvas.clientWidth;
+/*
+    this.ctx.fillStyle = 'pink';
+    this.ctx.fillRect(0,0,this.ctx.canvas.width,this.ctx.canvas.height);
+
+    this.ctx.fillStyle = 'red';
+    this.ctx.fillRect(0,1,this.ctx.canvas.width,this.ctx.canvas.height-2);
+*/
+  }
+
+  function mockLiteGraphGetCommands(){
+    return [
+      {name: "add_node",label:"Add Node",exec: function(){ console.log("adding node")}},
+      {name: "toggle_minimap",label:"Toggle Minimap",exec: function(){ console.log("toggling minimap")}},
+      {name: "node_properties", label:"Node Properties",exec: function(args){ console.log("node props are " + args)}},
+      {name: "hide_node", label:"Hide Node",exec: function(args){console.log("hiding node: " + args)}},
+      {name: "delete_comment", label:"Delete Comment",exec: function(args){console.log("deleting comment: " + args)}},
+    ]
+  }
+  function mockLiteGraphGetContextMenu(){
+    return [
+      {command: "add_node"},
+      {command: "toggle_minimap"},
+      {command: "node_properties", args: {name: "Add function", left: 23.1, right: 5.4}},
+      {command: "hide_node", args: "Add func"},
+    ]
+  }
 
   function main(){
     createCommands();
     let c = new ContextMenu({commands:commands});
     c.addItem({command:"file:new",selector:".content"});
     c.addItem({command:"file:load",selector:"*"});
+
+    let canvasCM = null;
 
     document.addEventListener('contextmenu', function (event) {
       if (c.open(event)) {
