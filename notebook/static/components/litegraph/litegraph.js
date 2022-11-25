@@ -2655,7 +2655,7 @@ if (typeof exports != "undefined") {
     }
 
     Scene.prototype.endCommand = function(args) {
-        this.command_in_process.end.apply(args);
+        this.command_in_process.end.apply(this.command_in_process, args);
         if(this.command_in_process.support_undo)
             this.undo_history.addCommand(this.command_in_process);
         debug_log(`end ${this.command_in_process.constructor.name}`);
