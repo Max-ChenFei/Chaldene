@@ -80,7 +80,7 @@ if (typeof exports != "undefined") {
     TypeRegistry.prototype.createNode = function(type_name) {
         let node_class = this.registered_node_types[type_name];
         if (!node_class) {
-            console.warn("Can not create node with type ${type_name}");
+            console.warn(`Can not create node with type ${type_name}`);
             return undefined;
         };
         let node = new node_class();
@@ -2352,7 +2352,7 @@ if (typeof exports != "undefined") {
             return false;
         }
         if (!(node instanceof Node)) {
-            console.warn("The ${node} is not the instance of the Node");
+            console.warn(`The ${node} is not the instance of the Node`);
             return false;
         }
         return true;
@@ -2364,7 +2364,7 @@ if (typeof exports != "undefined") {
             return false;
         }
         if (!(connector instanceof Connector)) {
-            console.warn("The ${node} is not the instance of the Connector");
+            console.warn(`The ${node} is not the instance of the Connector`);
             return false;
         }
         return true;
@@ -2648,7 +2648,8 @@ if (typeof exports != "undefined") {
 
     Scene.prototype.execCommand = function(command, args) {
         this.command_in_process = command;
-        this.command_in_process.exec.apply(args);
+        this.command_in_process.exec.apply(this.command_in_process, args);
+        debug_log(`exec ${this.command_in_process.constructor.name}`);
         if (!command.update)
             this.endCommand(args);
     }
@@ -2657,6 +2658,7 @@ if (typeof exports != "undefined") {
         this.command_in_process.end.apply(args);
         if(this.command_in_process.support_undo)
             this.undo_history.addCommand(this.command_in_process);
+        debug_log(`end ${this.command_in_process.constructor.name}`);
         this.command_in_process = null;
     }
 
@@ -2842,7 +2844,7 @@ if (typeof exports != "undefined") {
     Scene.prototype.onMouseDown = function(e) {
         if (!this.addSceneCoordinateIfHandleMouseEvent(e))
             return;
-        debug_log('mouse move');
+        debug_log('mouse down and press the button ' +　e.button);
         this.moveAndUpEventsToDocument();
         this.pointer_down = e.button;
         if (!this.hit_result)
@@ -2873,7 +2875,7 @@ if (typeof exports != "undefined") {
     }
 
     Scene.prototype.onMouseMove = function(e) {
-        debug_log('mouse move');
+        debug_log('mouse move and press the button ' +　this.pointer_down);
         this.addSceneCoordinateToEvent(e);
         if (this.command_in_process)
             this.command_in_process.update(e);
@@ -2887,7 +2889,7 @@ if (typeof exports != "undefined") {
     }
 
     Scene.prototype.onMouseUp = function(e) {
-        debug_log('mouse up');
+        debug_log('mouse up and release the button ' +　e.button);
         this.focus_node = this.pointer_down = null;
         this.moveAndUpEventsToScene();
         this.addSceneCoordinateToEvent(e);
@@ -3584,11 +3586,11 @@ if (typeof exports != "undefined") {
         }
         let rect = item.getBoundingRect();
         if (!rect) {
-            console.warn("The ${item} do not have bounding rectangle for collision detection");
+            console.warn(`The ${item} do not have bounding rectangle for collision detection`);
             return;
         }
         if (!rect.isValid()) {
-            console.warn("The ${item} has invalid bounding rectangle for collision detection");
+            console.warn(`The ${item} has invalid bounding rectangle for collision detection`);
             return;
         }
         rect.owner = item;
