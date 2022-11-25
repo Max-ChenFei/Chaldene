@@ -158,6 +158,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       node.classList.add('membersPanel');
       let input = document.createElement('input');
       node.appendChild(input);
+      input.placeholder = "Search...";
 
       this._list = document.createElement('div');
       node.appendChild(this._list);
@@ -165,26 +166,59 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
       this.addMember = function(category,name){
         if(!this._groups[category]){
-          this._groups[category] = [];
+          this._groups[category] = {show:true, list:[]};
         }
-        this._groups[category].push(name);
+        this._groups[category].list.push(name);
+      }
+      let that = this;
+      let prevObj = null;
+
+      function onclick(obj){
+        if(prevObj){
+          prevObj.classList.remove("selected");
+        }
+        prevObj = obj;
+        obj.classList.add("selected");
+      }
+
+      function groupClick(group){
+        group.show = !group.show;
+        that.update();
       }
 
       this.update = function(){
         this._list.remove();
         this._list = document.createElement('div');
         node.appendChild(this._list);
-        for (const [category, members] of Object.entries(this._groups)){
+        for (const [category, group] of Object.entries(this._groups)){
+          let icon= document.createElement('i');
+          icon.classList.add("fa");
+          if(group.show)
+          icon.classList.add("fa-chevron-down");
+          else
+          icon.classList.add("fa-chevron-right");
+          icon.ariaHidden=true;
           let catTitle = document.createElement('p');
           catTitle.innerHTML = category;
-          catTitle.classList.add('categoryName');
-          this._list.appendChild(catTitle);
-          for(let i = 0; i<members.length; i++){
-            let memberEl = document.createElement('p');
-            memberEl.innerHTML = members[i];
-            memberEl.classList.add('memberEl');
+          let catItem = document.createElement('div');
 
-            this._list.appendChild(memberEl);
+          catItem.appendChild(icon);
+          catItem.appendChild(catTitle);
+          catItem.classList.add('categoryName');
+          catItem.onclick = function(){groupClick(group);};
+
+
+          this._list.appendChild(catItem);
+          if(group.show){
+            for(let i = 0; i<group.list.length; i++){
+              let memberEl = document.createElement('p');
+              memberEl.innerHTML = group.list[i];
+              memberEl.classList.add('memberEl');
+              memberEl.onclick = function(){onclick(memberEl);};
+
+
+              this._list.appendChild(memberEl);
+            }
           }
         }
       }
@@ -271,6 +305,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 */
   }
 
+
+  //TODO: submenus
   function mockLiteGraphGetCommands(){
     return [
       {name: "add_node",label:"Add Node",exec: function(){ console.log("adding node")}},

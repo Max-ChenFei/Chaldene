@@ -1,0 +1,36 @@
+.membersPanel{
+  font: 12px Helvetica, Arial, sans-serif;
+}
+.membersPanel input {
+    margin: 0.3rem;
+    /*padding-bottom: 1rem;
+    border-bottom: 3px solid black;*/
+}
+
+.membersPanel .memberEl,
+.membersPanel .categoryName {
+    padding: 0.5rem;
+    margin: 0;
+}
+.membersPanel .memberEl:hover:not(.selected),
+.membersPanel .categoryName:hover:not(.selected){
+    background-color: lightblue;
+}
+
+.membersPanel .memberEl{
+    padding-left: 2.4rem;
+
+}
+
+.membersPanel .categoryName{
+    padding-left: 1rem;
+}
+
+
+.membersPanel .categoryName p{
+    padding-left: 0.2rem;
+    display: inline;
+}
+.membersPanel .selected{
+    background-color: darkcyan;
+}

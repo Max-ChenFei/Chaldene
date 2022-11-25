@@ -22,6 +22,7 @@
 @import '../lumino/packages/default-theme/style/scrollbar.css';
 @import '../lumino/packages/default-theme/style/tabbar.css';
 @import './content.css';
+@import './members_panel.css';
 
 body {
   display: flex;
