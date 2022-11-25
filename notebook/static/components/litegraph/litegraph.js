@@ -2891,6 +2891,7 @@ if (typeof exports != "undefined") {
             this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_node]);
         else if (this.pointer_down == 2)
             this.pan(e.sceneMovementX, e.sceneMovementY);
+        e.stopPropagation();
         e.preventDefault();
     }
 
