@@ -2213,7 +2213,7 @@ if (typeof exports != "undefined") {
         this.undo_history = new UndoHistory();
         this.pluginSceneRenderingConfig();
         this.updateBoundingRectInGraph();
-        this.pointer_pos = new Point(0, 0);
+        this.last_client_pos = [0, 0];
         this.pointer_down = null; //pointer means any input devices like mouse, pen, touch surfaces
         this.force_lod = null;
         Object.defineProperty(this, "lod", {
@@ -2565,7 +2565,7 @@ if (typeof exports != "undefined") {
         localStorage.setItem("visual_programming_env_clipboard", JSON.stringify(clipboard_info));
     };
 
-    Scene.prototype.pasteFromClipboard = function(config) {
+    Scene.prototype.pasteFromClipboard = function(pointer_x, pointer_y, config) {
         let created = {
             "is_empty": true,
             "nodes": [],
@@ -2583,7 +2583,7 @@ if (typeof exports != "undefined") {
             if (!node) continue;
             node.configure(node_config);
             //paste in last known mouse position
-            node.translate.add(this.pointer_pos.x - config.min_x_of_nodes, this.pointer_pos.y - config.min_y_of_nodes);
+            node.translate.add(pointer_x - config.min_x_of_nodes, pointer_y - config.min_y_of_nodes);
             this.addNode(node);
             created.nodes.append(node);
             new_nodes[old_id] = node;
@@ -2629,6 +2629,8 @@ if (typeof exports != "undefined") {
     Scene.prototype.pan = function(delta_x, delta_y) {
         this.setCursor('Move');
         this.view.addTranslate(delta_x, delta_y);
+        debug_log('scene move');
+        this.renderer.forceRenderLayers();
     };
 
     Scene.prototype.draw = function(ctx, rect, lod) {
@@ -2640,10 +2642,9 @@ if (typeof exports != "undefined") {
         let pos = this.view.mapToScene(new Point(e.offsetX, e.offsetY));
         e.sceneX = pos.x;
         e.sceneY = pos.y;
-        e.sceneMovementX = e.sceneX - this.pointer_pos.x;
-        e.sceneMovementY = e.sceneY - this.pointer_pos.y;
-        this.pointer_pos.x = e.sceneX;
-        this.pointer_pos.y = e.sceneY;
+        e.sceneMovementX = (e.clientX - this.last_client_pos[0]) / this.view.scale;
+        e.sceneMovementY = (e.clientY - this.last_client_pos[1]) / this.view.scale;
+        this.last_client_pos = [e.clientX, e.clientY];
     }
 
     Scene.prototype.execCommand = function(command, args) {
@@ -2908,6 +2909,7 @@ if (typeof exports != "undefined") {
             this.leftMouseUp(e, this.hit_result);
         else if (e.button == 2)
             this.rightMouseUp(e, this.hit_result);
+        this.setCursor('default');
         e.stopPropagation();
         e.preventDefault();
     }
@@ -3407,7 +3409,9 @@ if (typeof exports != "undefined") {
             this.support_undo = false;
             return;
         }
-        let created = this.scene.pasteFromClipboard();
+        this.scene_x = e.sceneX;
+        this.scene_y = e.sceneY;
+        let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y);
         this.support_undo = created.is_empty;
         this.end_state.nodes = created.nodes;
         this.end_state.connectors = created.connectors;
@@ -3419,7 +3423,7 @@ if (typeof exports != "undefined") {
     }
 
     PasteFromClipboardCommand.prototype.redo = function() {
-        this.scene.pasteFromClipboard(this.end_state.config);
+        this.scene.pasteFromClipboard(this.scene_x, this.scene_y, this.end_state.config);
     }
 
     Object.setPrototypeOf(PasteFromClipboardCommand.prototype, Command.prototype);
