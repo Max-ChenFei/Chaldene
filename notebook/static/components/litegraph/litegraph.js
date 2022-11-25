@@ -306,7 +306,7 @@ if (typeof exports != "undefined") {
      */
     Graph.prototype.addNode = function(node) {
         if (!this.isNodeValid())
-            return
+            return false;
         node.id = this.getUniqueId();
         this.nodes[node.id] = node;
 
@@ -317,12 +317,13 @@ if (typeof exports != "undefined") {
         if (this.onNodeAdded) {
             this.onNodeAdded(node);
         }
+        return true;
     };
 
     Graph.prototype.addConnector = function(connector) {
         if (!connector) {
             console.warn("None is passed as the connector parameter");
-            return;
+            return false;
         }
         connector.id = this.getUniqueId();
         this.connectors[connector.id] = connector;
@@ -330,6 +331,7 @@ if (typeof exports != "undefined") {
         if (out_node) out_node.addConnectionOfOutput(connector.out_slot_name);
         let in_node = connector.in_node;
         if (in_node) in_node.addConnectionOfInput(connector.in_slot_name);
+        return true;
     };
 
     Graph.prototype.allOutConnectorsOf = function(node_id) {
@@ -342,22 +344,24 @@ if (typeof exports != "undefined") {
     };
 
     Graph.prototype.removeConnector = function(connector) {
-        if (!connector) {
+        if (!connector || !this.connectors[connector.id]) {
             console.warn("The connector is not existed");
-            return;
+            return false;
         }
         let out_node = connector.out_node;
         if (out_node) out_node.breakConnectionOfOutput(connector.out_slot_name);
         let in_node = connector.in_node;
         if (in_node) in_node.breakConnectionOfInput(connector.in_slot_name);
         delete this.connectors[connector.id];
+        return true;
     };
 
     Graph.prototype.removeConnectors = function(connectors) {
-        if (connectors.constructor === Array)
-            for (const connector of connectors) {
-                this.removeConnector(connector);
-            }
+        let did = false;
+        for (const connector of connectors) {
+            did = this.removeConnector(connector) || did;
+        }
+        return did;
     };
 
     Graph.prototype.getConnectorsLinkedToNodes = function(nodes) {
@@ -400,15 +404,18 @@ if (typeof exports != "undefined") {
 
     Graph.prototype.removeNode = function(node) {
         if (!this.isNodeValid())
-            return
+            return false;
         if (this.onNodeRemoved) {
             this.onNodeRemoved(node.id);
         }
+        if(!this.nodes[node.id])
+            return false;
         this.clearConnectorsOfNode(node);
         if (node.onRemoved) {
             node.onRemoved();
         }
         delete this.nodes[node.id];
+        return true;
     };
 
     /**
@@ -2307,28 +2314,36 @@ if (typeof exports != "undefined") {
 
     Scene.prototype.deselectNode = function(node, not_to_redraw) {
         if (!this.isNodeValid(node))
-            return;
+            return false;
         node.deselected();
         delete this.selected_nodes[node.id];
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.deselectNodes = function(nodes, not_to_redraw) {
+        let did = false;
         for (let node of nodes) {
-            this.deselectNode(node, true);
+            did = this.deselectNode(node, true) || did;
         }
+        if(!did)
+            return false;
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.deselectSelectedNodes = function(not_to_redraw) {
+        if(Object.keys(this.selected_nodes).length === 0)
+            return false;
         for (const node of Object.values(this.selected_nodes)) {
             node.deselected();
         }
         this.selected_nodes = {};
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.isNodeValid = function(node) {
@@ -2365,34 +2380,39 @@ if (typeof exports != "undefined") {
 
     Scene.prototype.selectNode = function(node, append_to_selections, not_to_redraw) {
         if (!this.isNodeValid(node))
-            return;
+            return false;
         if (!append_to_selections)
             this.deselectSelectedNodes(true);
         if (this.selected_nodes[node.id] == node)
-            return;
+            return false;
         node.selected();
         this.selected_nodes[node.id] = node;
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.selectNodes = function(nodes, append_to_selections, not_to_redraw) {
         if (!append_to_selections)
             this.deselectSelectedNodes(true);
+        let did = false;
         for (let node of nodes) {
-            this.selectNode(node, true, true);
+            did = this.selectNode(node, true, true) || did;
         }
+        if(!did)
+            return false;
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.selectAllNodes = function(not_to_redraw) {
-        this.selectNodes(Object.values(this.graph.nodes), not_to_redraw);
+        return this.selectNodes(Object.values(this.graph.nodes), not_to_redraw);
     };
 
     Scene.prototype.toggleNodeSelection = function(node, not_to_redraw) {
         if (!this.isNodeValid(node))
-            return;
+            return false;
         node.toggleSelection();
         if (this.selected_nodes[node.id])
             delete this.selected_nodes[node.id];
@@ -2400,86 +2420,130 @@ if (typeof exports != "undefined") {
             this.selected_nodes[node.id] = node;
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.toggleNodesSelection = function(nodes, not_to_redraw) {
+        let did = false;
         for (let node of nodes) {
-            this.toggleNodeSelection(node, true);
+            did = this.toggleNodeSelection(node, true) || did;
         }
+        if(!did)
+            return false;
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.removeSelectedNodes = function(not_to_redraw) {
+        if(Object.keys(this.selected_nodes).length === 0)
+            return false;
         for (const node of Object.values(this.selected_nodes)) {
             this.graph.remove(node)
         }
         this.selected_nodes = {};
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
+    };
+
+    Scene.prototype.removeNode = function(node, not_to_redraw) {
+        this.deselectNode(node);
+        let did = this.graph.removeNode(node);
+        if(!did)
+            return false;
+        if (!not_to_redraw)
+            this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.removeNodes = function(nodes, not_to_redraw) {
+        this.deselectNodes(nodes);
+        let did = false;
         for (const node of nodes) {
-            this.deselectNode(node, true);
-            this.graph.removeNode(node)
+            did = this.removeNode(node) || did;
         }
+        if(!did)
+            return false;
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.addNode = function(node, not_to_redraw) {
         if (!this.isNodeValid(node))
-            return
+            return false;
+        let did = this.graph.addNode(node);
+        if (!did)
+            return false;
         node.pluginRenderingTemplate(this.rendering_template);
-        this.graph.addNode(node);
         this.selectNode(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.addNodes = function(nodes, not_to_redraw) {
+        let did = false;
         for (const node of nodes) {
-            this.addNode(node, true);
+            did = this.addNode(node, true) || did;
         }
+        if(!did)
+            return false;
         this.selectNodes(nodes)
         if (!not_to_redraw)
             this.setToRender("nodes");
+        return true;
     };
 
     Scene.prototype.addConnector = function(connector, not_to_redraw) {
         if (!this.isConnectorValid(connector))
-            return
+            return false;
         connector.pluginRenderingTemplate(this.rendering_template);
-        this.graph.addConnector(connector);
+        let did = this.graph.addConnector(connector);
+        if(!did)
+            return false;
         if (!not_to_redraw)
             this.setToRender("connectors");
+        return true;
     };
 
     Scene.prototype.addConnectors = function(connectors, not_to_redraw) {
+        let did = false;
         for (const connector of connectors) {
-            this.addConnector(connectors, true);
+            did = this.addConnector(connectors, true) || did;
         }
+        if(!did)
+            return false;
         if (!not_to_redraw)
             this.setToRender("connectors");
+        return true;
     };
 
     Scene.prototype.removeConnector = function(connector, not_to_redraw) {
-        this.graph.removeConnector(connector);
+        let did = this.graph.removeConnector(connector);
+        if(!did)
+            return false;
         if (!not_to_redraw)
             this.setToRender("connectors");
+        return true;
     };
 
     Scene.prototype.removeConnectors = function(connectors, not_to_redraw) {
+        let did = false;
         for (const connector of connectors) {
-            this.removeConnector(connector, true);
+            did = this.removeConnector(connector, true) || false;
         }
+        if(!did)
+            return false;
         if (!not_to_redraw)
             this.setToRender("connectors");
+        return true;
     };
 
     Scene.prototype.copySelectedNodeToClipboard = function() {
         let clipboard_info = {
+            is_empty: true,
             nodes: {},
             connectors: [],
             min_x_of_nodes: 0,
@@ -2497,18 +2561,21 @@ if (typeof exports != "undefined") {
                     clipboard_info.connectors.push(connector.serialize());
             }
         };
+        clipboard_info.is_empty = Object.keys(this.selected_nodes).length === 0;
         localStorage.setItem("visual_programming_env_clipboard", JSON.stringify(clipboard_info));
     };
 
     Scene.prototype.pasteFromClipboard = function(config) {
         let created = {
+            "is_empty": true,
             "nodes": [],
             "connectors": []
         };
         config = config || localStorage.getItem("visual_programming_env_clipboard");
-        if (!config) {
+        if (!config || config.is_empty) {
             return created;
         }
+        created.is_empty = false;
         let clipboard_info = JSON.parse(config);
         let new_nodes = {};
         for (const [old_id, node_config] of Object.entries(clipboard_info.nodes)) {
@@ -2588,7 +2655,8 @@ if (typeof exports != "undefined") {
 
     Scene.prototype.endCommand = function(args) {
         this.command_in_process.end.apply(args);
-        this.undo_history.addCommand(this.command_in_process);
+        if(this.command_in_process.support_undo)
+            this.undo_history.addCommand(this.command_in_process);
         this.command_in_process = null;
     }
 
@@ -3188,7 +3256,11 @@ if (typeof exports != "undefined") {
      * @param connector the connector will also be created when drag the connector and create node from context menu
      */
     AddNodeCommand.prototype.exec = function(e, node, connector) {
-        this.scene.addNode(node);
+        let did = this.scene.addNode(node);
+        if(!did){
+            this.support_undo = false;
+            return;
+        }
         if (connector)
             this.scene.addConnector(connector);
         this.end_state = {
@@ -3235,7 +3307,11 @@ if (typeof exports != "undefined") {
     }
 
     RemoveConnectorCommand.prototype.exec = function(e, connector) {
-        this.scene.removeConnector(connector);
+        let did = this.scene.removeConnector(connector);
+        if(!did){
+            this.support_undo = false;
+            return;
+        }
         this.end_state = connector;
     }
 
@@ -3259,7 +3335,11 @@ if (typeof exports != "undefined") {
             "nodes": this.scene.getSelectedNodes(),
             "connectors": this.scene.getConnectorsLinkedToNodes(this.scene.getSelectedNodes())
         }
-        this.scene.removeSelectedNodes();
+        let did = this.scene.removeSelectedNodes();
+        if(!did){
+            this.support_undo = false;
+            return;
+        }
     }
 
     RemoveSelectedNodesCommand.prototype.undo = function() {
@@ -3279,7 +3359,11 @@ if (typeof exports != "undefined") {
 
     RemoveConnectorsCommand.prototype.exec = function(e, connectors) {
         this.end_state = connectors;
-        this.scene.removeConnectors(connectors);
+        let did = this.scene.removeConnectors(connectors);
+        if(!did){
+            this.support_undo = false;
+            return;
+        }
     }
 
     RemoveConnectorsCommand.prototype.undo = function() {
@@ -3306,6 +3390,7 @@ if (typeof exports != "undefined") {
             return;
         }
         let created = this.scene.pasteFromClipboard();
+        this.support_undo = created.is_empty;
         this.end_state.nodes = created.nodes;
         this.end_state.connectors = created.connectors;
     }
@@ -3328,8 +3413,13 @@ if (typeof exports != "undefined") {
     }
 
     CutSelectedNodesCommand.prototype.exec = function(e) {
-        this.scene.copySelectedNodeToClipboard();
-        this.delete_command.exec(e);
+        let contents = this.scene.copySelectedNodeToClipboard();
+        if(contents.is_empty) {
+            this.support_undo = false;
+            return false;
+        }
+        let did = this.delete_command.exec(e);
+        this.support_undo = did;
     }
 
     CutSelectedNodesCommand.prototype.undo = function() {
@@ -3349,7 +3439,11 @@ if (typeof exports != "undefined") {
     }
 
     DuplicateNodeCommand.prototype.exec = function(e) {
-        this.scene.copySelectedNodeToClipboard();
+        let contents = this.scene.copySelectedNodeToClipboard();
+        if(contents.is_empty) {
+            this.support_undo = false;
+            return false;
+        }
         this.paste_command.exec(e);
     }
 
