@@ -2654,6 +2654,11 @@ if (typeof exports != "undefined") {
             this.endCommand(args);
     }
 
+    Scene.prototype.updateCommand = function(args) {
+        debug_log(`update ${this.command_in_process.constructor.name}`);
+        this.command_in_process.update.apply(this.command_in_process, args);
+    }
+
     Scene.prototype.endCommand = function(args) {
         this.command_in_process.end.apply(this.command_in_process, args);
         if(this.command_in_process.support_undo)
@@ -2878,7 +2883,7 @@ if (typeof exports != "undefined") {
         debug_log('mouse move and press the button ' +　this.pointer_down);
         this.addSceneCoordinateToEvent(e);
         if (this.command_in_process)
-            this.command_in_process.update(e);
+            this.updateCommand([e]);
         else if (!this.pointer_down)
             this.mouseHover(e);
         else if (this.pointer_down == 0)
