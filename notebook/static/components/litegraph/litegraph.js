@@ -1323,11 +1323,11 @@ if (typeof exports != "undefined") {
                         } else{
                             ctx.fillStyle = ctx.createPattern(this.current_bg, style.image_repetition);
                             ctx.imageSmoothingEnabled = true;
-                            ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+                            ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
                         }
                     } else {
                         ctx.fillStyle = style.color;
-                        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+                        ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
                     }
                 }
             }
@@ -1661,7 +1661,7 @@ if (typeof exports != "undefined") {
                 }
                 ctx.beginPath();
                 const rect = this.size();
-                ctx.roundRect(rect.x, rect.y, rect.width, rect.height, [ctx_style.round_radius]);
+                ctx.roundRect(rect.left, rect.top, rect.width, rect.height, [ctx_style.round_radius]);
                 ctx.fill();
                 if (ctx_style.stroke_style) {
                     ctx.stroke();
@@ -1992,7 +1992,7 @@ if (typeof exports != "undefined") {
         let ctx = this.getDrawingContextFrom(layer.canvas);
         this._ctxFromViewToScene(ctx);
         const rect = this.scene.sceneRect();
-        ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
+        ctx.clearRect(rect.left, rect.top, rect.width, rect.height);
         this.scene.draw(ctx, rect, this.scene.lod);
         this._ctxFromSceneToView(ctx);
     };
@@ -2002,7 +2002,7 @@ if (typeof exports != "undefined") {
         let ctx = this.getDrawingContextFrom(layer.canvas);
         this._ctxFromViewToScene(ctx);
         const scene_rect = this.scene.sceneRect();
-        ctx.clearRect(scene_rect.x, scene_rect.y, scene_rect.width, scene_rect.height);
+        ctx.clearRect(scene_rect.left, scene_rect.top, scene_rect.width, scene_rect.height);
         for (let connector of this.scene.visibleConnectors()) {
             connector.draw(ctx, this.scene.lod);
         }
@@ -2015,7 +2015,7 @@ if (typeof exports != "undefined") {
         let ctx = this.getDrawingContextFrom(layer.canvas);
         this._ctxFromViewToScene(ctx)
         const scene_rect = this.scene.sceneRect();
-        ctx.clearRect(scene_rect.x, scene_rect.y, scene_rect.width, scene_rect.height);
+        ctx.clearRect(scene_rect.left, scene_rect.top, scene_rect.width, scene_rect.height);
         for (let node of Object.values(this.scene.visibleNodes())) {
             this._ctxFromSceneToNode(ctx, node);
             node.draw(ctx, this.scene.lod);
@@ -2068,59 +2068,31 @@ if (typeof exports != "undefined") {
      * @constructor
      */
     function Rect(left, top, width, height) {
-        this.x_1 = left;
-        this.y_1 = top;
-        this.x_2 = left + width - 1;
-        this.y_2 = top + height - 1;
+        this.left = left;
+        this.top = top;
+        this.width = width;
+        this.height = height;
         Object.defineProperties(this, {
-            "x": {
+            "x_1": {
                 get() {
-                    return this.x_1;
-                },
-                set(x) {
-                    this.x_1 = x;
+                    return this.left;
                 }
             },
-            "y": {
+            "y_1": {
                 get() {
-                    return this.y_1;
-                },
-                set(y) {
-                    this.y_1 = y;
+                    return this.top;
                 }
             },
-            "left": {
+            "x_2": {
                 get() {
-                    return this.x_1;
-                },
-                set(x) {
-                    this.x_1 = x;
+                    return this.left + this.width - 1;
                 }
             },
-            "top": {
+            "y_2": {
                 get() {
-                    return this.y_1;
+                    return this.top + this.height - 1;
                 },
-                set(y) {
-                    this.y_1 = y;
-                }
             },
-            "width": {
-                get() {
-                    return this.x_2 - this.x_1 + 1;
-                },
-                set(w) {
-                    this.x_2 = this.x_1 + w - 1;
-                }
-            },
-            "height": {
-                get() {
-                    return this.y_2 - this.y_1 + 1;
-                },
-                set(h) {
-                    this.y_2 = this.y_1 + h - 1;
-                }
-            }
         });
     };
 
@@ -2135,7 +2107,7 @@ if (typeof exports != "undefined") {
     };
 
     Rect.prototype.isRectInside = function(rect) {
-        return this.isInside(rect.x_1, rect.y1) && this.isInside(rect.x_2, rect.y2)
+        return this.isInside(rect.x_1, rect.y_1) && this.isInside(rect.x_2, rect.y_2)
     }
 
     Rect.prototype.isInside = function(x, y) {
@@ -3621,7 +3593,7 @@ if (typeof exports != "undefined") {
     CollisionDetector.prototype.getHitResultAtPos = function(x, y) {
         for (const rect of Object.values(this._boundingRects)) {
             if (rect.isInside(x, y)) {
-                const local_pos = new Point(x - rect.x, y - rect.y);
+                const local_pos = new Point(x - rect.x_1, y - rect.y_1);
                 const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
                 return new HitResult(true, rect.owner, local_pos[0], local_pos[1], hit_component);
             }
