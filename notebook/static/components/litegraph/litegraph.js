@@ -2804,7 +2804,7 @@ if (typeof exports != "undefined") {
     Scene.prototype.onMouseWheel = function(e) {
         debug_log('mouse wheel');
         this.addSceneCoordinateToEvent(e);
-        let delta = e.deltaY * -0.01;
+        let delta = e.deltaY * -0.002;
         this.zoom(this.viewScale() + delta, new Point(e.offsetX, e.offsetY));
         e.preventDefault();
         e.stopPropagation();
@@ -3469,8 +3469,8 @@ if (typeof exports != "undefined") {
         // (pos_scene + translate) * scale = pos_view
         this.translate = new Point(0, 0);
         this.scale = 1;
-        this.max_scale = 5;
-        this.min_scale = 0.2;
+        this.max_scale = 1;
+        this.min_scale = 0.3;
         Object.defineProperty(this, "lod", {
             get() {return this.scale > (this.max_scale + this.min_scale) / 2.0 ? 0 : 1;}
         })
