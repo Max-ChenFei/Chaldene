@@ -1931,7 +1931,8 @@ if (typeof exports != "undefined") {
 
     Renderer.prototype._ctxFromViewToScene = function(ctx) {
         ctx.save();
-        ctx.scale(this.scene.view.scale, this.scene.view.scale);
+        let scale = this.scene.viewScale();
+        ctx.scale(scale, scale);
         ctx.translate(this.scene.view.translate.x, this.scene.view.translate.y);
     };
 
