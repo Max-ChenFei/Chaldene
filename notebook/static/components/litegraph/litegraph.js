@@ -3546,6 +3546,7 @@ if (typeof exports != "undefined") {
         pivot_in_view = pivot_in_view || this.scale_pivot();
         let pivot_before_scale = this.mapToScene(pivot_in_view);
         this.scale = s;
+        debug_log(`scale to ${this.scale}`);
         if (Math.abs(this.scale - 1) < 0.01) this.scale = 1;
         let pivot_after_scale = this.mapToScene(pivot_in_view);
         this.addTranslate(pivot_after_scale.x - pivot_before_scale.x, pivot_after_scale.y - pivot_before_scale.y);
