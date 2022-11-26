@@ -1866,6 +1866,7 @@ if (typeof exports != "undefined") {
             "connectors": this._renderConnectors.bind(this),
             "background": this._renderBackground.bind(this)
         };
+        this.render_order_upwards = ['background', 'connectors', 'nodes', 'action'];
         this.initRenderLayers();
     };
 
@@ -1973,10 +1974,10 @@ if (typeof exports != "undefined") {
 
     Renderer.prototype._compositeLayers = function() {
         let ctx = this.getDrawingContextFrom(this.getCanvas());
-        const rect = this.scene.sceneRect();
-        ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
-        for (let layer of Object.values(this.layers)) {
-            ctx.drawImage(layer.canvas, 0, 0);
+        const rect = this.scene.viewport;
+        ctx.clearRect(rect.left, rect.top, rect.width, rect.height);
+        for (const name of this.render_order_upwards) {
+             ctx.drawImage(this.layers[name].canvas, 0, 0);
         }
     }
 
