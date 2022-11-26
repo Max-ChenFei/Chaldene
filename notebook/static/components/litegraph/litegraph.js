@@ -2624,6 +2624,7 @@ if (typeof exports != "undefined") {
         this.command_in_process = command;
         this.command_in_process.exec.apply(this.command_in_process, args);
         debug_log(`exec ${this.command_in_process.constructor.name}`);
+        this.setToRender("action");
         if (!command.update)
             this.endCommand(args);
     }
@@ -2631,6 +2632,7 @@ if (typeof exports != "undefined") {
     Scene.prototype.updateCommand = function(args) {
         debug_log(`update ${this.command_in_process.constructor.name}`);
         this.command_in_process.update.apply(this.command_in_process, args);
+        this.setToRender("action");
     }
 
     Scene.prototype.endCommand = function(args) {
@@ -2639,6 +2641,7 @@ if (typeof exports != "undefined") {
             this.undo_history.addCommand(this.command_in_process);
         debug_log(`end ${this.command_in_process.constructor.name}`);
         this.command_in_process = null;
+        this.setToRender("action");
     }
 
     Scene.prototype.undo = function() {
