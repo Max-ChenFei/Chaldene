@@ -2027,14 +2027,13 @@ if (typeof exports != "undefined") {
     };
 
     Renderer.prototype._renderActions = function(draw) {
-        let layer = this.layers['nodes'];
+        let layer = this.layers['action'];
         let ctx = this.getDrawingContextFrom(layer.canvas);
         const scene_rect = this.scene.sceneRect();
-        ctx.clearRect(scene_rect.x, scene_rect.y, scene_rect.width, scene_rect.height);
-        if(!this.scene.command_in_process || !this.scene.command_in_process.draw)
-            return;
         this._ctxFromViewToScene(ctx);
-        this.scene.command_in_process.draw(ctx, this.scene.lod);
+        ctx.clearRect(scene_rect.left, scene_rect.top, scene_rect.width, scene_rect.height);
+        if(this.scene.command_in_process && this.scene.command_in_process.draw)
+            this.scene.command_in_process.draw(ctx, this.scene.lod);
         this._ctxFromSceneToView(ctx);
     };
 
@@ -2193,6 +2192,9 @@ if (typeof exports != "undefined") {
         Object.defineProperty(this, "lod", {
             get() { return this.force_lod != null? this.force_lod:this.view.lod;}
         })
+        Object.defineProperty(this, "viewport", {
+            get() { return this.view.viewport;}
+        })
     };
 
     Scene.prototype.resize = function(w, h) {
@@ -2203,6 +2205,7 @@ if (typeof exports != "undefined") {
         this.canvas.width = w;
         this.canvas.height = h;
         this.renderer.updateAllLayersSize(w, h);
+        debug_log('scene resize');
     }
 
     Scene.prototype.fitToParentWidth = function() {
@@ -2613,9 +2616,12 @@ if (typeof exports != "undefined") {
     };
 
     Scene.prototype.addSceneCoordinateToEvent = function(e) {
-        let pos = this.view.mapToScene(new Point(e.offsetX, e.offsetY));
-        e.sceneX = pos.x;
-        e.sceneY = pos.y;
+        // we will move outside the canvas
+        let canvas_client_rect = this.canvas.getBoundingClientRect();
+        let pos_in_view = new Point(e.clientX - canvas_client_rect.left, e.clientY - canvas_client_rect.top);
+        let pos_in_scene = this.view.mapToScene(pos_in_view);
+        e.sceneX = pos_in_scene.x;
+        e.sceneY = pos_in_scene.y;
         e.sceneMovementX = (e.clientX - this.last_client_pos[0]) / this.view.scale;
         e.sceneMovementY = (e.clientY - this.last_client_pos[1]) / this.view.scale;
         this.last_client_pos = [e.clientX, e.clientY];
@@ -3062,21 +3068,22 @@ if (typeof exports != "undefined") {
         this.desc = "Select Nodes";
         this.scene = scene;
         this.support_undo = false;
-        this.select_rect = new Rect(0, 0, 0, 0);
+        this.start_pos = new Point(0, 0);
+        this.end_pos = null;
     }
 
     MarqueeSelectionCommand.prototype.exec = function(e) {
-        this.select_rect.x = e.sceneX;
-        this.select_rect.y = e.sceneY;
+        this.start_pos.x = e.sceneX;
+        this.start_pos.y = e.sceneY;
     }
 
     MarqueeSelectionCommand.prototype.update = function(e) {
         this.end_pos = new Point(e.sceneX, e.sceneY);
-        this.select_rect.width = Math.abs(this.select_rect.x - this.end_pos.x),
-            this.select_rect.height = Math.abs(this.select_rect.y - this.end_pos.y),
-            this.select_rect.x = Math.min(this.select_rect.x - this.end_pos.x);
-        this.select_rect.y = Math.min(this.select_rect.y - this.end_pos.y);
-        let nodes = this.scene.collision_detector.getItemsOverlapWith(this.select_rect, Node)
+        let left = Math.min(this.start_pos.x, this.end_pos.x);
+        let top = Math.min(this.start_pos.y, this.end_pos.y);
+        let width = Math.abs(this.start_pos.x - this.end_pos.x);
+        let height = Math.abs(this.start_pos.y - this.end_pos.y);
+        let nodes = this.scene.collision_detector.getItemsOverlapWith(new Rect(left, top, width, height), Node)
         if (e.ctrlKey && !e.shiftKey)
             this.scene.toggleNodesSelection(nodes);
         this.scene.selectNodes(nodes, e.shiftKey);
@@ -3086,10 +3093,15 @@ if (typeof exports != "undefined") {
         this.update(e);
     }
 
-    MarqueeSelectionCommand.prototype.draw = function(ctx) {
-        ctx.lineWidth = 0.3;
-        ctx.setLineDash([0.5, 0.25]);
-        ctx.strokeRect(this.select_rect.x, this.select_rect.y, this.select_rect.width, this.select_rect.height);
+    MarqueeSelectionCommand.prototype.draw = function(ctx, lod) {
+        ctx.globalAlpha = 1;
+        if(!this.end_pos || (this.start_pos.x == this.end_pos.x && this.start_pos.y == this.end_pos.y))
+            return;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#000000";
+        let view_scale = this.scene.viewScale();
+        ctx.setLineDash([4 / view_scale, 2 / view_scale]);
+        ctx.strokeRect(this.start_pos.x, this.start_pos.y, this.end_pos.x - this.start_pos.x, this.end_pos.y - this.start_pos.y);
     }
 
     Object.setPrototypeOf(MarqueeSelectionCommand.prototype, Command.prototype);
