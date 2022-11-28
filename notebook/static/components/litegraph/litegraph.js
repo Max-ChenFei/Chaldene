@@ -334,7 +334,7 @@
         let out = [];
         for (const connector of Object.values(this.connectors)) {
             if (connector.out_node.id = node_id)
-                out.append(connector);
+                out.push(connector);
         }
         return out;
     };
@@ -364,11 +364,11 @@
         let connectors = [];
         let nodes_id = [];
         for (const node of nodes) {
-            nodes_id.append(node.id);
+            nodes_id.push(node.id);
         }
         for (const connector of Object.values(this.connectors)) {
             if (nodes_id.includes(connector.out_node.id) || nodes_id.includes(connector.in_node.id)) {
-                connectors.append(connector);
+                connectors.push(connector);
             }
         }
         return connectors;
@@ -387,7 +387,7 @@
                 target_slot_name = connector.out_slot_name;
             }
             if (node.id == target_node_id && slot.name == target_slot_name)
-                connectors.append(connector);
+                connectors.push(connector);
         }
         return connectors;
     }
@@ -857,14 +857,14 @@
     };
 
     NodeSlot.prototype.pluginRenderingTemplate = function(template) {
-        for (const [name, value] of Object.entities(template)) {
+        for (const [name, value] of Object.entries(template)) {
             this[name] = value;
         }
     };
 
     NodeSlot.prototype.getBoundingRect = function() {
         const size = this.size();
-        return new Rect(this.translate.x + size.x, this.translate.y + size.y, size.width, size.height);
+        return new Rect(this.translate.x + size.left, this.translate.y + size.top, size.width, size.height);
     };
 
     NodeSlot.prototype.draw = function(ctx, lod) {
@@ -999,8 +999,7 @@
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
-        slot.pluginRenderingTemplate(template['NodeSlot']);
-        this.collidable_components.append(slot);
+        this.collidable_components.push(slot);
         if (call_back) {
             call_back(slot);
         }
@@ -1189,14 +1188,14 @@
 
     Node.prototype.getBoundingRect = function() {
         const size = this.size();
-        return new Rect(this.translate.x + size.x, this.translate.y + size.y, size.width, size.height);
+        return new Rect(this.translate.x + size.left, this.translate.y + size.top, size.width, size.height);
     };
 
     Node.prototype.draw = function(ctx, lod) {
         if (!this.style) return;
         let state_draw_method = this.style[this.current_state];
         if (state_draw_method)
-            state_draw_method.draw(ctx, lod);
+            state_draw_method.draw(this, ctx, lod);
     };
 
     Node.prototype.pluginRenderingTemplate = function(template) {
@@ -1206,11 +1205,11 @@
             Object.setPrototypeOf(this_node.prototype, default_node.prototype);
         else
             this_node = default_node;
-        for (const [name, value] of Object.entities(this_node)) {
+        for (const [name, value] of Object.entries(this_node)) {
             this[name] = value;
         }
 
-        for (let slot of Object.values(this.inputs.concat(this.outputs))) {
+        for (let slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
             slot.pluginRenderingTemplate(template['NodeSlot']);
         }
     }
@@ -1357,8 +1356,8 @@
             size: function() {
                 let x = this.isInput() ? 0 : -this.width();
                 return {
-                    x: x,
-                    y: 0,
+                    left: x,
+                    top: 0,
                     width: this.width(),
                     height: this.height()
                 };
@@ -2154,7 +2153,7 @@
 
     UndoHistory.prototype.addCommand = function(command) {
         this.undo_history.splice(this.undo_history.length - this.reverse_index, this.reverse_index)
-        this.undo_history.append(command);
+        this.undo_history.push(command);
         this.reverse_index = 0;
         this.updateDesc();
     }
@@ -2558,7 +2557,7 @@
             //paste in last known mouse position
             node.translate.add(pointer_x - config.min_x_of_nodes, pointer_y - config.min_y_of_nodes);
             this.addNode(node);
-            created.nodes.append(node);
+            created.nodes.push(node);
             new_nodes[old_id] = node;
         }
         for (const connector_config of clipboard_info.connectors) {
@@ -2566,7 +2565,7 @@
             let connector = new Connector(connector_config[0], new_nodes[connector_config[1]], connector_config[2],
                 new_nodes[connector_config[3]], connector_config[4]);
             this.addConnector(connector);
-            created.connectors.append(connector);
+            created.connectors.push(connector);
         }
         this.selectNodes(Object.values(new_nodes));
         return created;
@@ -2927,7 +2926,7 @@
     MoveCommand.prototype.exec = function(e) {
         this.start_state = [];
         for (const node of Object.values(this.scene.selected_nodes)) {
-            this.start_state.append(node.translate);
+            this.start_state.push(node.translate);
         }
     }
     MoveCommand.prototype.update = function(e) {
@@ -2941,7 +2940,7 @@
         this.update(e);
         this.end_state = [];
         for (const node of Object.values(this.scene.selected_nodes)) {
-            this.end_state.append(node.translate);
+            this.end_state.push(node.translate);
         }
     }
     MoveCommand.prototype.undo = function() {
@@ -3218,7 +3217,7 @@
             command.exec(e,
                 change_in_slot ? connector.out_node : connector.in_node,
                 change_in_slot ? connector.out_slot_name : connector.in_slot_name);
-            this.add_connector_commands.append(command);
+            this.add_connector_commands.push(command);
         }
     }
 
@@ -3628,7 +3627,7 @@
         let intersections = [];
         for (const r of Object.values(this._boundingRects)) {
             let is_this_type = type ? r.owner instanceof type : true;
-            if (is_this_type && rect.isIntersectWith(r.getBoundingRect())) {
+            if (is_this_type && rect.isIntersectWith(r)) {
                 intersections.push(r.owner);
             }
         }
