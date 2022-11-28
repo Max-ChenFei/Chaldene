@@ -105,14 +105,16 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       }
     });
 
-
     let helper = mockLiteGraphGetCommands();
     for(let i = 0; i< helper.length; i++){
       commands.addCommand(
         "litegraph:"+helper[i].name,{
           label: helper[i].label,
           mnemonic:0,
-          execute: helper[i].exec
+          execute: helper[i].exec,
+          isEnabled: function(arg){
+            return arg.__active__;
+          }
         }
       )
     }
@@ -250,18 +252,39 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   class GraphEditor extends Widget {
     constructor(graph) {
       let node = document.createElement('div');
-      node.addEventListener('contextmenu', function (event) {
+
+      function createMenu(items,label='',inactive){
+
         let m = new Menu({commands:commands});
-        let cs = mockLiteGraphGetContextMenu();
-        for(let i =0; i<cs.length; i++){
-          m.addItem({
-            command: "litegraph:"+cs[i].command,
-            args: cs[i].args
-          });
+        for(let i =0; i<items.length; i++){
+          let args = items[i].args || {};
+          args.__active__=true;
+          if(!items[i].submenu){
+            //todo: we are seeting the args of the item itself?
+            if(items[i].inactive || inactive){
+              args.__active__=false;
+            }
+            m.addItem({
+              command: "litegraph:"+items[i].command,
+              args: args
+            });
+          } else {
+            m.addItem({type: 'submenu',
+            submenu: createMenu(items[i].submenu.items,
+                              items[i].submenu.label,items[i].inactive)});
+          }
+
         }
-        /*
-        m.addItem({command:"file:new"});
-        m.addItem({command:"file:load"});*/
+        m.title.label = label;
+        m.title.mnemonic = 0;
+        return m;
+      }
+
+      node.addEventListener('contextmenu', function (event) {
+        let cs = mockLiteGraphGetContextMenu();
+        let m = createMenu(cs);
+
+
         m.open(event.clientX,event.clientY);
         event.preventDefault();
         event.stopPropagation();
@@ -309,19 +332,42 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   //TODO: submenus
   function mockLiteGraphGetCommands(){
     return [
+      {name: "copy_node",label:"Copy",exec: function(){ console.log("copying node")}},
+      {name: "paste_node",label:"Paste",exec: function(){ console.log("pasting node")}},
+      {name: "test1",label:"Test 1",exec: function(){ console.log("testing 1")}},
+      {name: "test2",label:"Test 2",exec: function(){ console.log("testing 2")}},
+      {name: "test3",label:"Test 3",exec: function(){ console.log("testing 3")}},
       {name: "add_node",label:"Add Node",exec: function(){ console.log("adding node")}},
       {name: "toggle_minimap",label:"Toggle Minimap",exec: function(){ console.log("toggling minimap")}},
-      {name: "node_properties", label:"Node Properties",exec: function(args){ console.log("node props are " + args)}},
-      {name: "hide_node", label:"Hide Node",exec: function(args){console.log("hiding node: " + args)}},
-      {name: "delete_comment", label:"Delete Comment",exec: function(args){console.log("deleting comment: " + args)}},
+      {name: "node_properties", label:"Node Properties",exec: function(args){ console.log("node props are " + args.content)}},
+      {name: "hide_node", label:"Hide Node",exec: function(args){console.log("hiding node: " + args.content)}},
+      {name: "delete_comment", label:"Delete Comment",exec: function(args){console.log("deleting comment: " + args.content)}},
     ]
   }
   function mockLiteGraphGetContextMenu(){
     return [
       {command: "add_node"},
       {command: "toggle_minimap"},
-      {command: "node_properties", args: {name: "Add function", left: 23.1, right: 5.4}},
-      {command: "hide_node", args: "Add func"},
+      {command: "node_properties", args:{content:{name: "Add function", left: 23.1, right: 5.4}}},
+      {command: "hide_node", args: {content:"Add func"}},
+      {submenu: {
+        label: "Edit...",
+        items: [
+          {command: "copy_node"},
+          {command: "paste_node"},
+        ]
+      }},
+      {
+        inactive: true,
+        submenu: {
+          label: "Testing...",
+          items: [
+            {command: "test1"},
+            {command: "test2"},
+            {command: "test3"},
+          ]
+        }
+      }
     ]
   }
 
