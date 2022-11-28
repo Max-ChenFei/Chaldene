@@ -3,15 +3,11 @@
 //*********************************************************************************
 // Renderer: multiple layers rendering using offscreen canvans
 //*********************************************************************************\
-if (typeof exports != "undefined") {
-    exports.Scene = Scene;
-    exports.TypeRegistry = new TypeRegistry();
-}
-
 (function(global) {
+    let type_registry = new TypeRegistry();
     global.VPE = {
         DEBUG: true,
-        TypeRegistry: new TypeRegistry(),
+        TypeRegistry: type_registry,
         Scene: Scene,
     };
     function debug_log(msg) {
@@ -215,7 +211,7 @@ if (typeof exports != "undefined") {
         if (!config)
             return;
         for (const node_config of config.nodes) {
-            let node = TypeRegistry.createNode(node_config.type);
+            let node = type_registry.createNode(node_config.type);
             if (!node) continue;
             node.configure(config);
             this.nodes[node.id] = node;
@@ -823,7 +819,7 @@ if (typeof exports != "undefined") {
             return new SlotConnection(SlotConnectionMethod.null,
                 '{this.data_type} is not compatible with {other_slot.data_type}');
 
-        if (!TypeRegistry.isDataTypeMatch(this.data_type, other_slot.data_type))
+        if (!type_registry.isDataTypeMatch(this.data_type, other_slot.data_type))
             return new SlotConnection(SlotConnectionMethod.null,
                 '{this.data_type} is not compatible with {other_slot.data_type}');
 
@@ -2527,7 +2523,7 @@ if (typeof exports != "undefined") {
             min_y_of_nodes: 0
         };
         for (const node of Object.values(this.selected_nodes)) {
-            let new_node = TypeRegistry.cloneNode(node);
+            let new_node = type_registry.cloneNode(node);
             clipboard_info.nodes[node.id] = new_node.serialize();
             clipboard_info.min_x_of_nodes = Math.min(clipboard_info.min_x_of_nodes, new_node.translate.x);
             clipboard_info.min_y_of_nodes = Math.min(clipboard_info.min_y_of_nodes, new_node.translate.y);
@@ -2556,7 +2552,7 @@ if (typeof exports != "undefined") {
         let clipboard_info = JSON.parse(config);
         let new_nodes = {};
         for (const [old_id, node_config] of Object.entries(clipboard_info.nodes)) {
-            let node = TypeRegistry.createNode(node_config.type);
+            let node = type_registry.createNode(node_config.type);
             if (!node) continue;
             node.configure(node_config);
             //paste in last known mouse position
@@ -3743,7 +3739,7 @@ if (typeof exports != "undefined") {
 
 //import './nodes/scipy.js'
 (function(global) {
-    let TypeRegistry = global.VPE.TypeRegistry;
+    let type_registry = global.VPE.TypeRegistry;
 
     function ImageIOImRead() {
         this.addOutput("image", "numpy.ndarray");
@@ -3753,7 +3749,7 @@ if (typeof exports != "undefined") {
     ImageIOImRead.type = "Image.Read";
     ImageIOImRead.desc = "Reads an image from the specified file. Returns a numpy array," +
         "which comes with a dict of meta data at its ‘meta’ attribute.";
-    TypeRegistry.registerNodeType(ImageIOImRead);
+    type_registry.registerNodeType(ImageIOImRead);
 
     function ImageIOImWrite() {
         this.addInput("image", "numpy.ndarray")
@@ -3762,7 +3758,7 @@ if (typeof exports != "undefined") {
     ImageIOImWrite.title = "Image Write";
     ImageIOImWrite.type = "Image.Write";
     ImageIOImWrite.desc = "Write an image to the specified file.";
-    TypeRegistry.registerNodeType(ImageIOImWrite);
+    type_registry.registerNodeType(ImageIOImWrite);
 
     function ImageShow() {
         this.addInput("image", "numpy.ndarray")
@@ -3771,7 +3767,7 @@ if (typeof exports != "undefined") {
     ImageShow.title = "Image Show";
     ImageShow.type = "Image.Show";
     ImageShow.desc = "Show an image.";
-    TypeRegistry.registerNodeType(ImageShow);
+    type_registry.registerNodeType(ImageShow);
 
     function ImageGaussianFilter() {
         this.addInput("input", "numpy.ndarray");
@@ -3782,5 +3778,5 @@ if (typeof exports != "undefined") {
     ImageGaussianFilter.title = "Gaussian Filter";
     ImageGaussianFilter.type = "Image.GaussianFilter";
     ImageGaussianFilter.desc = "Gaussian filter";
-    TypeRegistry.registerNodeType(ImageGaussianFilter);
+    type_registry.registerNodeType(ImageGaussianFilter);
 })(this);
