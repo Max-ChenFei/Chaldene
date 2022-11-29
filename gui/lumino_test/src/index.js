@@ -111,9 +111,11 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         "litegraph:"+helper[i].name,{
           label: helper[i].label,
           mnemonic:0,
-          execute: helper[i].exec,
-          isEnabled: function(arg){
-            return arg.__active__;
+          execute: function(args){
+            return helper[i].exec(args._content);
+          },
+          isEnabled: function(args){
+            return args._active;
           }
         }
       )
@@ -194,6 +196,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         node.appendChild(this._list);
         for (const [category, group] of Object.entries(this._groups)){
           let icon= document.createElement('i');
+          icon.style.width = "1rem";
           icon.classList.add("fa");
           if(group.show)
           icon.classList.add("fa-chevron-down");
@@ -257,12 +260,14 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
         let m = new Menu({commands:commands});
         for(let i =0; i<items.length; i++){
-          let args = items[i].args || {};
-          args.__active__=true;
+          //let args = items[i].args || {};
+          let args = {}
+          args._content = items[i].args;
+          args._active = true;
           if(!items[i].submenu){
             //todo: we are seeting the args of the item itself?
             if(items[i].inactive || inactive){
-              args.__active__=false;
+              args._active=false;
             }
             m.addItem({
               command: "litegraph:"+items[i].command,
@@ -339,17 +344,18 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       {name: "test3",label:"Test 3",exec: function(){ console.log("testing 3")}},
       {name: "add_node",label:"Add Node",exec: function(){ console.log("adding node")}},
       {name: "toggle_minimap",label:"Toggle Minimap",exec: function(){ console.log("toggling minimap")}},
-      {name: "node_properties", label:"Node Properties",exec: function(args){ console.log("node props are " + args.content)}},
-      {name: "hide_node", label:"Hide Node",exec: function(args){console.log("hiding node: " + args.content)}},
-      {name: "delete_comment", label:"Delete Comment",exec: function(args){console.log("deleting comment: " + args.content)}},
+      {name: "node_properties", label:"Node Properties",exec: function(args){ console.log("node props are " + args)}},
+      {name: "hide_node", label:"Hide Node",exec: function(args){console.log("hiding node: " + args)}},
+      {name: "delete_comment", label:"Delete Comment",exec: function(args){console.log("deleting comment: " + args)}},
     ]
   }
+
   function mockLiteGraphGetContextMenu(){
     return [
       {command: "add_node"},
       {command: "toggle_minimap"},
-      {command: "node_properties", args:{content:{name: "Add function", left: 23.1, right: 5.4}}},
-      {command: "hide_node", args: {content:"Add func"}},
+      {command: "node_properties", args:{name: "Add function", left: 23.1, right: 5.4}},
+      {command: "hide_node", args: "Add func"},
       {submenu: {
         label: "Edit...",
         items: [
