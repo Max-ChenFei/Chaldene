@@ -161,6 +161,59 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       super({ node: node });
       node.classList.add('membersPanel');
       let input = document.createElement('input');
+      let that = this;
+      this._search = null;
+      function createLabel(name,search_results){
+        let s = "";
+        s+=name.slice(0,search_results[0].index);
+        for(let i = 0;i<search_results.length-1;i++){
+          s+="<b>" +search_results[i][0] + "</b>";
+          s+=name.slice(search_results[i].index + search_results[i][0].length,search_results[i+1].index);
+        }
+        let i = search_results.length-1;
+        s+="<b>" +search_results[i][0] + "</b>";
+        s+=name.slice(search_results[i].index + search_results[i][0].length);
+        return s;
+      }
+      function updateSearch(){
+        if(!input.value){
+          that._search = null;
+          that.update();
+          return;
+        }
+
+        that._search = {};
+
+        for (const [category, group] of Object.entries(that._groups)){
+          let s1 = [...category.matchAll(input.value)];
+          let added = false;
+          if(s1.length>0){
+            that._search[category] = {name: createLabel(category, s1), list:[]}
+            added = true;
+          }
+
+          for(let i = 0; i<group.list.length; i++){
+            let member = group.list[i];
+            let s2 = [...member.matchAll(input.value)];
+            if(s2.length>0){
+              if(!added){
+                that._search[category] = {name: category, list:[]}
+                added = true;
+              }
+              that._search[category].list.push(createLabel(member,s2));
+              that._search[category].show = true;
+            }
+
+          }
+
+        }
+        that.update();
+
+      }
+
+      input.addEventListener("input",function(){
+        updateSearch();
+      });
       node.appendChild(input);
       input.placeholder = "Search...";
 
@@ -170,11 +223,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
       this.addMember = function(category,name){
         if(!this._groups[category]){
-          this._groups[category] = {show:true, list:[]};
+          this._groups[category] = {name: category,show:true, list:[]};
         }
         this._groups[category].list.push(name);
       }
-      let that = this;
       let prevObj = null;
 
       function onclick(obj){
@@ -194,7 +246,16 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         this._list.remove();
         this._list = document.createElement('div');
         node.appendChild(this._list);
-        for (const [category, group] of Object.entries(this._groups)){
+        let help = this._groups;
+        if(this._search){
+          if(Object.keys(this._search).length === 0){
+            this._list.innerHTML = "No search results...";
+            return;
+          } else {
+            help = this._search;
+          }
+        }
+        for (const [category, group] of Object.entries(help)){
           let icon= document.createElement('i');
           icon.style.width = "1rem";
           icon.classList.add("fa");
@@ -204,7 +265,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
           icon.classList.add("fa-chevron-right");
           icon.ariaHidden=true;
           let catTitle = document.createElement('p');
-          catTitle.innerHTML = category;
+          catTitle.innerHTML = group.name;
           let catItem = document.createElement('div');
 
           catItem.appendChild(icon);
