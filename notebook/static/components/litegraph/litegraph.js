@@ -628,15 +628,14 @@
     };
 
     Connector.prototype.pluginRenderingTemplate = function(template) {
-        for (const [name, value] of Object.entities(template)) {
+        for (const [name, value] of Object.entries(template)) {
             this[name] = value;
         }
     }
 
     Connector.prototype.draw = function(ctx, lod) {
         if (!this.style) return;
-        let draw_method = this.style[this.current_state].draw;
-        draw_method(this.style, ctx, lod);
+        this.style[this.current_state].draw(this, ctx,lod);
     }
 
     Connector.prototype.fromPos = function() {
@@ -646,7 +645,7 @@
 
     Connector.prototype.toPos = function() {
         if (!this.in_node) return new Point(0, 0);
-        return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name);
+        return this.in_node.getConnectedAnchorPosInScene(this.in_slot_name);
     };
 
     Connector.prototype.width = function() {
@@ -662,7 +661,7 @@
         const to = this.toPos();
         let x = Math.min(from.x, to.x);
         let y = Math.min(from.y, to.y);
-        return new Rect(x, y, this.width(), this.height());
+        return new Rect(x, y, Math.abs(from.x - to.x) , Math.abs(from.y - to.y));
     }
 
     Connector.prototype.mouseEnter = function() {
@@ -947,6 +946,7 @@
         this.scale = undefined;
         this.collidable_components = [];
         this.current_state = VisualState.normal;
+        this.lod = 0;
     }
 
     Node.prototype.serialize = function() {
@@ -1213,10 +1213,10 @@
         for (const [name, value] of Object.entries(this_node)) {
             this[name] = value;
         }
-
         for (let slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
             slot.pluginRenderingTemplate(template['NodeSlot']);
         }
+        this.setSlotsTranslation();
     }
 
     Node.prototype.mouseEnter = function() {
@@ -1352,12 +1352,9 @@
                 return this.icon_height;
             },
             getConnectedAnchorPos: function() {
-                let pos = {
-                    x: this.icon_width / 2.0,
-                    y: this.icon_height / 2.0
-                };
-                if (this.isInput())
-                    pos.x *= -1;
+                let pos = {};
+                pos.x = this.icon_width / 2.0 + (this.isInput()-1) * this.icon_width + this.translate.x;
+                pos.y = this.icon_height / 2.0 + this.translate.y
                 return pos;
             },
             size: function() {
@@ -1667,7 +1664,24 @@
                     }
                 },
             },
-
+            setSlotsTranslation: function(){
+                let index = 1;
+                let next_slot_y = this.slot_to_top_border;
+                for (let slot of Object.values(this.inputs)) {
+                    slot.translate.x = this.slot_to_side_border;
+                    slot.translate.y = next_slot_y;
+                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
+                    index++;
+                }
+                index = 1;
+                next_slot_y = this.slot_to_top_border;
+                for (let slot of Object.values(this.outputs)) {
+                    slot.translate.x = this.width() - this.slot_to_side_border;
+                    slot.translate.y = next_slot_y;
+                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
+                    index++;
+                }
+            },
             _draw: function(ctx, ctx_style, lod) {
                 this._drawBackground(ctx, ctx_style, lod);
                 this._drawTitle(ctx, ctx_style, lod);
@@ -1720,32 +1734,12 @@
             },
 
             _drawSlots: function(ctx, lod) {
-                ctx.save();
-                let index = 1;
-                let next_slot_y = this.slot_to_top_border;
-                for (let slot of Object.values(this.inputs)) {
+                for (let slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
                     ctx.save();
-                    slot.translate.x = this.slot_to_side_border;
-                    slot.translate.y = next_slot_y;
-                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
-                    index++;
                     ctx.translate(slot.translate.x, slot.translate.y);
                     slot.draw(ctx, lod);
                     ctx.restore();
                 }
-                index = 1;
-                next_slot_y = this.slot_to_top_border;
-                for (let slot of Object.values(this.outputs)) {
-                    ctx.save();
-                    slot.translate.x = this.width() - this.slot_to_side_border;
-                    slot.translate.y = next_slot_y;
-                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
-                    index++;
-                    ctx.translate(slot.translate.x, slot.translate.y);
-                    slot.draw(ctx, lod);
-                    ctx.restore();
-                }
-                ctx.restore();
             },
 
             _drawCentral: function(ctx, ctx_style, lod) {
@@ -1803,7 +1797,7 @@
                     }
                 },
             },
-            draw: function(this_style, ctx, ctx_style, lod) {
+            draw: function(ctx, ctx_style, lod) {
                 ctx.save()
                 ctx.globalAlpha = this.alpha;
                 ctx.fillStyle = ctx_style.fill_style;
@@ -1821,14 +1815,13 @@
             style: {
                 normal: {
                     ctx_style: {
-                        stroke_style: "#fffdfd",
+                        stroke_style: "#126acf",
                         line_width: 2,
                         line_join: "round",
                         alpha: 1
                     },
-                    draw: function(this_style, ctx, lod) {
-                        const ctx_style = this_style.normal.ctx_style;
-                        this.draw(this_style, ctx, ctx_style, lod);
+                    draw: function(connector, ctx, lod) {
+                       connector._draw(ctx, this.ctx_style, lod);
                     }
                 },
                 hovered: {
@@ -1838,13 +1831,12 @@
                         line_join: "round",
                         alpha: 1
                     },
-                    draw: function(this_style, ctx, lod) {
-                        const ctx_style = this_style.hovered.ctx_style;
-                        this.draw(this_style, ctx, ctx_style, lod);
+                    draw: function(connector, ctx, lod) {
+                       connector._draw(ctx, this.ctx_style, lod);
                     }
                 }
             },
-            draw: function(this_style, ctx, ctx_style, lod) {
+            _draw: function(ctx, ctx_style, lod) {
                 ctx.save();
                 ctx.beginPath();
                 ctx.lineJoin = ctx_style.line_join;
@@ -2120,19 +2112,19 @@
             },
             "x_2": {
                 get() {
-                    return this.left + this.width - 1;
+                    return this.left + this.width;
                 }
             },
             "y_2": {
                 get() {
-                    return this.top + this.height - 1;
+                    return this.top + this.height;
                 },
             },
         });
     };
 
     Rect.prototype.isValid = function() {
-        return this.x_1 < this.x_2 && this.y_1 < this.y_2;
+        return this.x_1 <= this.x_2 && this.y_1 <= this.y_2;
     };
 
     Rect.prototype.isIntersectWith = function(rect) {
@@ -2512,10 +2504,11 @@
     Scene.prototype.addConnector = function(connector, not_to_redraw) {
         if (!this.isConnectorValid(connector))
             return false;
-        connector.pluginRenderingTemplate(this.rendering_template);
         let did = this.graph.addConnector(connector);
         if(!did)
             return false;
+        connector.pluginRenderingTemplate(this.rendering_template['Connector']);
+        this.collision_detector.addBoundingRect(connector);
         if (!not_to_redraw)
             this.setToRender("connectors");
         return true;
@@ -3792,8 +3785,9 @@
 
     function ImageIOImRead() {
         this._ctor();
-        this.addInput("exec", "exec");
+        this.addInput("in_exec", "exec");
         this.addInput("path", "string");
+        this.addOutput("out_exec", "exec");
         this.addOutput("image", "numpy.ndarray");
         this.title = "Image Read";
         this.type = "Image.Read";
@@ -3828,7 +3822,7 @@
         this.addInput("input", "numpy.ndarray");
         this.addInput("sigma", "number");
         this.addOutput("out_exec", "exec");
-        this.addOutput("output", "numpy.ndarray");
+        this.addOutput("image", "numpy.ndarray");
         this.title = "Gaussian Filter";
         this.type = "Image.GaussianFilter";
         this.desc = "Gaussian filter";
