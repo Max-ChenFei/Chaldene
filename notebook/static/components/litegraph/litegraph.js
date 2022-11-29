@@ -38,7 +38,7 @@
      * @param {String} type name of the node and path
      * @param {Class} node_class
      */
-    TypeRegistry.prototype.registerNodeType = function(node_class) {
+    TypeRegistry.prototype.registerNodeType = function(type, node_class) {
         if (!node_class.prototype) {
             throw "Cannot register a simple object, it must be a class with a prototype";
         }
@@ -47,7 +47,6 @@
         if (!node_class.title) {
             node_class.title = node_class.name;
         }
-        let type = node_class.type;
         let already_registered = this.registered_node_types[type];
         if (already_registered) console.warn("replacing node type: " + type);
         this.registered_node_types[type] = node_class;
@@ -301,7 +300,7 @@
      * @param {Node} node the instance of the node
      */
     Graph.prototype.addNode = function(node) {
-        if (!this.isNodeValid())
+        if (!this.isNodeValid(node))
             return false;
         node.id = this.getUniqueId();
         this.nodes[node.id] = node;
@@ -675,7 +674,7 @@
     };
 
     const SlotType = {
-        Exec: "Exec",
+        Exec: "exec",
         number: "number",
         string: "string",
         boolean: "boolean"
@@ -869,15 +868,17 @@
 
     NodeSlot.prototype.draw = function(ctx, lod) {
         if (!this.style) return;
+        let default_style = this.style['default']
         let type_style = this.style[this.data_type];
-        if (!type_style) {
-            type_style = this.style['default'];
+        if (type_style) {
+             Object.setPrototypeOf(type_style, default_style);
         }
         else
-            Object.setPrototypeOf(type_style, this.style['default']);
+            type_style = default_style;
         const connected_state = this.isConnected() ? "connected" : "unconnected";
-        let draw_method = type_style[connected_state][this.current_state].draw;
-        draw_method(type_style, ctx, lod);
+        let ctx_style = type_style[connected_state][this.current_state].ctx_style;
+        type_style.owner = this;
+        type_style[connected_state][this.current_state].draw(type_style, ctx, ctx_style, lod);
     }
 
     const VisualState = {
@@ -930,19 +931,23 @@
      * @param {String} name a name for the node
      */
 
-    function Node() {}
+    function Node() {
+        this._ctor();
+    }
 
-    Node.prototype.id = undefined;
-    Node.prototype.title = undefined;
-    Node.prototype.type = "*";
-    Node.prototype.desc = "";
-    Node.prototype.inputs = {};
-    Node.prototype.outputs = {};
-    Node.prototype.allow_resize = false;
-    Node.prototype.translate = new Point(0, 0);
-    Node.prototype.scale = new Point(1, 1);
-    Node.prototype.collidable_components = [];
-    Node.prototype.current_state = VisualState.normal;
+    Node.prototype._ctor = function() {
+        this.id = undefined;
+        this.title = undefined;
+        this.type = "*";
+        this.desc = "";
+        this.inputs = {};
+        this.outputs = {};
+        this.allow_resize = false;
+        this.translate = undefined;
+        this.scale = undefined;
+        this.collidable_components = [];
+        this.current_state = VisualState.normal;
+    }
 
     Node.prototype.serialize = function() {
         let o = {
@@ -1282,10 +1287,14 @@
         delete this.nodes_inside[node_id];
     };
 
-    function textWidth(text, font_size) {
-        if (!text)
-            return 0;
-        return font_size * text.length * 0.6;
+    function textWidth(text, font) {
+        let canvas = document.getElementsByTagName("canvas")[0];
+        let ctx = canvas.getContext("2d");
+        ctx.save();
+        ctx.font = font;
+        let text_width = ctx.measureText(text).width;
+        ctx.restore();
+        return text_width;
     }
 
     let RenderingTemplate = {
@@ -1329,17 +1338,15 @@
         },
         // different slot data types(number, string..), different states style sheet(selected, unselected, hovered) applied on
         // different LOD of shape
-        Nodeslot: {
+        NodeSlot: {
             icon_width: 10,
-            icon_height: 20,
-            line_width: 2,
+            icon_height: 10,
             to_render_text: true,
-            font_size: 12,
             font: '12px Arial',
             padding_between_icon_text: 3,
             width: function() {
-                let text_width = this.to_render_text ? textWidth(this.font_size, this.name) : 0;
-                return this.icon_width + text_width > 0 ? this.padding_between_icon_text + text_width : 0;
+                let text_width = this.to_render_text && this.data_type == 'exec' ? textWidth(this.font_size, this.name) : 0;
+                return this.icon_width + (text_width > 0 ? this.padding_between_icon_text + text_width : 0);
             },
             height: function() {
                 return this.icon_height;
@@ -1369,20 +1376,20 @@
                         normal: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#80b3ff"
+                                strokeStyle: "#80b3ff",
+                                lineWidth: 2,
                             },
-                            draw: function(this_style, ctx, lod) {
-                                let ctx_style = this_style.unconnected.normal.ctx_style;
+                            draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#80b3ff"
+                                strokeStyle: "#80b3ff",
+                                lineWidth: 2,
                             },
-                            draw: function(this_style, ctx, lod) {
-                                let ctx_style = this_style.unconnected.hovered.ctx_style;
+                            draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
                             }
                         }
@@ -1391,28 +1398,29 @@
                         normal: {
                             ctx_style: {
                                 fillStyle: "#FF0303FF",
-                                strokeStyle: "#FF0303FF"
+                                strokeStyle: "#FF0303FF",
+                                lineWidth: 2,
                             },
-                            draw: function(this_style, ctx, lod) {
-                                let ctx_style = this_style.connected.normal.ctx_style;
+                            draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
                             ctx_style: {
                                 fillStyle: "#FF0303FF",
-                                strokeStyle: "#FF0303FF"
+                                strokeStyle: "#FF0303FF",
+                                lineWidth: 2,
                             },
-                            draw: function(this_style, ctx, lod) {
-                                let ctx_style = this_style.connected.hovered.ctx_style;
+                            draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
                             }
                         },
                     },
                     _draw_when_normal: function(this_style, ctx, ctx_style, lod) {
                         this_style.drawShape(ctx, ctx_style);
-                        if (lod == 0 && this.to_render_text)
+                        if (lod == 0 && this_style.owner.to_render_text && this_style.owner.data_type != 'exec') {
                             this_style.drawName(ctx, ctx_style);
+                        }
                     },
                     _draw_when_hovered: function(this_style, ctx, ctx_style, lod) {
                         this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
@@ -1422,20 +1430,20 @@
                     drawShape: function(ctx, style) {
                         ctx.save();
                         ctx.beginPath();
-                        if (this.isInput())
-                            ctx.move(-this.height, 0);
-                        ctx.arc(this.height / 2.0, this.height / 2.0, this.height / 2.0, 0, Math.PI * 2, true);
+                        ctx.arc(
+                            this.owner.icon_width / 2.0 + (this.owner.isInput()-1) * this.owner.icon_width,
+                            this.owner.icon_width / 2.0,
+                            this.owner.icon_width / 2.0, 0, Math.PI * 2, true);
                         ctx.closePath();
                         if (style.fillStyle) {
                             ctx.fillStyle = style.fillStyle;
                             ctx.fill();
                         }
                         if (style.strokeStyle) {
-                            ctx.lineWidth = this.lineWidth;
+                            ctx.lineWidth = style.lineWidth;
                             ctx.strokeStyle = style.strokeStyle;
                             ctx.stroke();
                         }
-                        ctx.move(0, 0);
                         ctx.restore();
                     },
                     drawName: function(ctx, style) {
@@ -1444,35 +1452,44 @@
                         if (style.fillStyle) ctx.fillStyle = style.fillStyle;
                         ctx.textBaseline = "middle";
                         let x = 0;
-                        if (this.isInput()) {
+                        if (this.owner.isInput()) {
                             ctx.textAlign = "left";
-                            x = this.icon_width + this.padding_between_icon_text;
+                            x = this.owner.icon_width + this.owner.padding_between_icon_text;
                         } else {
                             ctx.textAlign = "right";
-                            x = -(this.icon_width + this.padding_between_icon_text);
+                            x = -(this.owner.icon_width + this.owner.padding_between_icon_text);
                         }
-                        ctx.fillText(this.name, x, this.icon_height / 2.0);
+                        ctx.fillText(this.owner.name, x, this.owner.icon_height / 2.0);
                         ctx.restore();
                     },
                     hovered: function(ctx, style) {
-                        ctx.globalAlpha = 0.2;
-                        if (style.fillStyle) ctx.fillStyle = style.fillStyle;
-                        ctx.fillRect(-this.line_width * 2, -this.line_width * 2, this.width() + this.line_width * 2, this.height() + this.line_width);
+                        ctx.globalAlpha = 0.6;
+                        if (style.fillStyle)
+                            ctx.fillStyle = style.fillStyle;
+                        ctx.fillRect(-style.lineWidth * 2, -style.lineWidth * 2, this.owner.width() + style.lineWidth * 2, this.owner.height() + style.lineWidth);
                         ctx.globalAlpha = 1;
                     },
                 },
-                "Exec": {
+                "exec": {
                     unconnected: {
                         normal: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#FFFFFF"
+                                strokeStyle: "#FFFFFF",
+                                line_width:2
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#FFFFFF"
+                                strokeStyle: "#FFFFFF",
+                                line_width:2
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
                             }
                         },
                     },
@@ -1480,34 +1497,42 @@
                         normal: {
                             ctx_style: {
                                 fillStyle: "#FFFFFF",
-                                strokeStyle: "#FFFFFF"
+                                strokeStyle: "#FFFFFF",
+                                line_width:2
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
                             ctx_style: {
                                 fillStyle: "#FFFFFF",
-                                strokeStyle: "#FFFFFF"
+                                strokeStyle: "#FFFFFF",
+                                line_width:2
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
                             }
                         },
                     },
                     drawShape: function(ctx, style) {
                         ctx.save();
                         ctx.beginPath();
-                        if (this.isInput())
-                            ctx.move(-this.height, 0);
-                        else
-                            ctx.moveTo(0, 0);
-                        ctx.lineTo(this.width / 2.0, 0);
-                        ctx.lineTo(this.width, this.height / 2.0);
-                        ctx.lineTo(this.width / 2.0, this.height);
-                        ctx.lineTo(0, this.height);
+                        let start_x = 0;
+                        if (!this.owner.isInput())
+                            start_x = - this.owner.icon_width;
+                        ctx.moveTo(start_x, 0);
+                        ctx.lineTo(this.owner.icon_width / 2.0 + start_x, 0);
+                        ctx.lineTo(this.owner.icon_width + start_x, this.owner.icon_height / 2.0);
+                        ctx.lineTo(this.owner.icon_width / 2.0 + start_x, this.owner.icon_height);
+                        ctx.lineTo(start_x, this.owner.icon_height);
                         ctx.closePath();
                         if (style.fillStyle) {
                             ctx.fillStyle = style.fillStyle;
                             ctx.fill();
                         }
                         if (style.strokeStyle) {
-                            ctx.lineWidth = this.lineWidth;
+                            ctx.lineWidth = style.line_width;
                             ctx.strokeStyle = style.strokeStyle;
                             ctx.stroke();
                         }
@@ -1552,47 +1577,56 @@
             title_bar: {
                 to_render: true,
                 color: "#999",
-                height: 30,
-                font_size: 14,
-                font: "14 px Arial",
-                font_fill_color: "FFFFFFFF"
+                height: 25,
+                font: "12px Arial",
+                font_color: '#ff0000',
+                text_to_border: 5
             },
-            slot_to_top_border: 3,
-            slot_to_side_border: 3,
-            horizontal_padding_between_slots: 5,
-            vertical_padding_between_slots: 5,
+            central_text: {
+                to_render: false,
+                width: 10,
+                color: "#999"
+            },
+            slot_to_top_border: 6,
+            slot_to_side_border: 6,
+            horizontal_padding_between_slots: 20,
+            vertical_padding_between_slots: 10,
             width: function() {
-                let max_width = this.slot_to_side_border * 2 + this.vertical_padding_between_slots;
                 const input_slots = Object.values(this.inputs);
                 const output_slots = Object.values(this.outputs);
+                let max_line_width = 0;
                 for (let i = 0; i < Math.max(input_slots.length, output_slots.length); i++) {
-                    let width = input_slots[i] || 0 + output_slots[i] || 0;
-                    if (max_width < width)
-                        max_width = width;
+                    let width = (input_slots[i]? input_slots[i].width(): 0 ) + (output_slots[i]? output_slots[i].width(): 0 );
+                    max_line_width = Math.max(max_line_width, width);
                 }
+                max_line_width += this.slot_to_side_border * 2;
                 if (this.central_text.to_render)
-                    max_width += this.central_text.width;
-                return max_width;
+                    max_line_width += this.central_text.width;
+                else
+                    max_line_width += this.horizontal_padding_between_slots;
+                max_line_width = Math.max(max_line_width,
+                    textWidth(this.title, this.title_bar.font) + this.title_bar.text_to_border * 2);
+                return max_line_width;
             },
             height: function() {
                 let left_side = this.slot_to_side_border * 2;
                 for (const input of Object.values(this.inputs)) {
                     left_side += input.height();
                 }
-                left_side += this.horizontal_padding_between_slots * Math.max((Object.values(this.inputs).length - 1), 0);
+                left_side += this.vertical_padding_between_slots * Math.max((Object.values(this.inputs).length - 1), 0);
                 let right_side = this.slot_to_side_border * 2;
                 for (const output of Object.values(this.outputs)) {
                     right_side += output.height();
                 }
-                right_side += this.horizontal_padding_between_slots * Math.max((Object.values(this.outputs).length - 1), 0);
-                let central_text_height = this.central_text.to_render * this.central_text.height;
-                return Math.max(left_side, right_side, central_text_height) + this.title_bar.to_render ? this.title_bar.height : 0
+                right_side += this.vertical_padding_between_slots * Math.max((Object.values(this.outputs).length - 1), 0);
+                let central_text_height = (this.central_text.to_render || 0) * (this.central_text.height || 0);
+                return Math.max(left_side, right_side, central_text_height) + this.title_bar.to_render * this.title_bar.height;
             },
             size: function() {
                 let y = this.title_bar.to_render ? -this.title_bar.height : 0;
                 return {
-                    x: 0,
-                    y: y,
+                    left: 0,
+                    top: y,
                     width: this.width(),
                     height: this.height()
                 }
@@ -1601,118 +1635,124 @@
             style: {
                 normal: {
                     ctx_style: {
-                        fill_style: "#ffffff",
+                        fill_style: "#0053FFFF",
                         stroke_style: null,
                         line_width: 1,
-                        round_radius: 8,
-                        font_color: "FFFFFFFF"
+                        round_radius: 8
                     },
-                    draw: function(this_style, ctx, lod) {
-                        let style = this_style.normal.ctx_style;
-                        this_style.draw(this_style, ctx, style, lod);
+                    draw: function(node, ctx, lod) {
+                        node._draw(ctx, this.ctx_style, lod);
                     }
                 },
                 hovered: {
                     ctx_style: {
                         fill_style: "#ffcf00",
-                        stroke_style: "FFCF00FF",
+                        stroke_style: "#0053FFFF",
                         line_width: 1,
-                        round_radius: 8,
-                        font_color: "FFFFFFFF"
+                        round_radius: 8
                     },
-                    draw: function(this_style, ctx, lod) {
-                        let style = this_style.hovered.ctx_style;
-                        this_style.draw(this_style, ctx, style, lod);
+                    draw: function(node, ctx, lod) {
+                        node._draw(ctx, this.ctx_style, lod);
                     }
                 },
                 pressed: {
                     ctx_style: {
                         fill_style: "#0053FFFF",
-                        stroke_style: "0053FFFF",
-                        line_width: 1,
-                        round_radius: 8,
-                        font_color: "FFFFFFFF"
+                        stroke_style: "#f0f005",
+                        line_width: 3,
+                        round_radius: 8
                     },
-                    draw: function(this_style, ctx, lod) {
-                        let style = this_style.pressed.ctx_style;
-                        this_style.draw(this_style, ctx, style, lod);
+                    draw: function(node, ctx, lod) {
+                       node._draw(ctx, this.ctx_style, lod);
                     }
                 },
             },
 
-            draw: function(this_style, ctx, ctx_style, lod) {
-                this_style.drawBackground(this_style, ctx, ctx_style, lod);
-                this_style.drawTitle(this_style, ctx, ctx_style, lod);
-                this_style.drawSlots(this_style, ctx, ctx_style, lod);
-                this_style.drawCentral(this_style, ctx, ctx_style, lod);
+            _draw: function(ctx, ctx_style, lod) {
+                this._drawBackground(ctx, ctx_style, lod);
+                this._drawTitle(ctx, ctx_style, lod);
+                this._drawSlots(ctx, lod);
+                // this._drawCentral(ctx, ctx_style, lod);
             },
 
-            drawBackground: function(this_style, ctx, ctx_style, lod) {
+            _drawBackground: function(ctx, ctx_style, lod) {
                 ctx.save();
-                if (ctx_style.fill_style) ctx.fillStyle = ctx_style.fill_style;
+                if (ctx_style.fill_style)
+                    ctx.fillStyle = ctx_style.fill_style;
                 if (ctx_style.stroke_style) {
                     ctx.strokeStyle = ctx_style.stroke_style;
                     ctx.lineWidth = ctx_style.line_width;
                 }
-                ctx.beginPath();
                 const rect = this.size();
-                ctx.roundRect(rect.left, rect.top, rect.width, rect.height, [ctx_style.round_radius]);
-                ctx.fill();
-                if (ctx_style.stroke_style) {
+                if(lod > 0)
+                    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+                else{
+                    ctx.beginPath();
+                    ctx.roundRect(rect.left, rect.top, rect.width, rect.height, [ctx_style.round_radius]);
+                    ctx.fill();
+                    if (ctx_style.stroke_style) {
                     ctx.stroke();
+                    }
                 }
                 ctx.restore();
             },
 
-            drawTitle: function(ctx, ctx_style, lod) {
+            _drawTitle: function(ctx, ctx_style, lod) {
                 if (!this.title_bar.to_render)
                     return;
                 ctx.save();
                 ctx.fillStyle = this.title_bar.color;
+                const rect = this.size();
                 if (lod > 0) {
-                    ctx.fillRect(this.size()[0], this.size()[1], this.size()[2], this.title_bar.height);
-                    ctx.fill();
+                    ctx.fillRect(rect.left, rect.top, rect.width, this.title_bar.height);
                 } else {
-                    ctx.roundRect(this.size()[0], this.size()[1], this.size()[2], this.title_bar.height, [ctx_style.round_radius]);
+                    ctx.beginPath();
+                    ctx.roundRect(rect.left, rect.top, rect.width, this.title_bar.height,
+                        ctx_style.round_radius, 3);
+                    ctx.fill();
                     ctx.font = this.title_bar.font;
-                    ctx.fillStyle = this.title_bar.font_fill_color;
+                    ctx.fillStyle = this.title_bar.font_color;
                     ctx.textBaseline = "middle";
                     ctx.textAlign = "left";
-                    ctx.fillText(this.title, this.icon_width + this.padding_between_icon_text, this.height / 2.0);
+                    ctx.fillText(this.title, this.title_bar.text_to_border, - this.title_bar.height / 2.0);
                 }
                 ctx.restore();
             },
 
-            drawSlots: function(ctx, lod) {
+            _drawSlots: function(ctx, lod) {
                 ctx.save();
                 let index = 1;
+                let next_slot_y = this.slot_to_top_border;
                 for (let slot of Object.values(this.inputs)) {
                     ctx.save();
                     slot.translate.x = this.slot_to_side_border;
-                    slot.translate.y = this.slot_to_top_border + (i - 1) * this.horizontal_padding_between_slots;
+                    slot.translate.y = next_slot_y;
+                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
                     index++;
-                    ctx.translate(slot.translate);
+                    ctx.translate(slot.translate.x, slot.translate.y);
                     slot.draw(ctx, lod);
                     ctx.restore();
                 }
                 index = 1;
+                next_slot_y = this.slot_to_top_border;
                 for (let slot of Object.values(this.outputs)) {
                     ctx.save();
                     slot.translate.x = this.width() - this.slot_to_side_border;
-                    slot.translate.y = this.slot_to_top_border + (i - 1) * this.horizontal_padding_between_slots;
+                    slot.translate.y = next_slot_y;
+                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
                     index++;
-                    ctx.translate(slot.translate);
+                    ctx.translate(slot.translate.x, slot.translate.y);
                     slot.draw(ctx, lod);
                     ctx.restore();
                 }
                 ctx.restore();
             },
 
-            drawCentral: function(ctx, ctx_style, lod) {
+            _drawCentral: function(ctx, ctx_style, lod) {
                 if (!this.central_text.to_render && lod > 0)
                     return;
                 ctx.save();
-                ctx.fillStyle = this.central_text.font_fill_color;
+                ctx.fillStyle = this.central_text.color;
                 ctx.font = this.title_bar.font;
                 ctx.textBaseline = "middle";
                 ctx.textAlign = "center";
@@ -1938,7 +1978,6 @@
     Renderer.prototype._ctxFromSceneToNode = function(ctx, node) {
         ctx.save();
         ctx.translate(node.translate.x, node.translate.y);
-        ctx.scale(node.scale.x, node.scale.y);
     };
 
     Renderer.prototype._ctxFromNodeToScene = function(ctx) {
@@ -2424,6 +2463,7 @@
         let did = this.graph.removeNode(node);
         if(!did)
             return false;
+        this.collision_detector.removeBoundingRect(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
         return true;
@@ -2449,6 +2489,7 @@
         if (!did)
             return false;
         node.pluginRenderingTemplate(this.rendering_template);
+        this.collision_detector.addBoundingRect(node);
         this.selectNode(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
@@ -2626,7 +2667,8 @@
         this.command_in_process = command;
         this.command_in_process.exec.apply(this.command_in_process, args);
         debug_log(`exec ${this.command_in_process.constructor.name}`);
-        this.setToRender("action");
+        if(this.command_in_process.draw)
+            this.setToRender("action");
         if (!command.update)
             this.endCommand(args);
     }
@@ -2634,7 +2676,8 @@
     Scene.prototype.updateCommand = function(args) {
         debug_log(`update ${this.command_in_process.constructor.name}`);
         this.command_in_process.update.apply(this.command_in_process, args);
-        this.setToRender("action");
+        if(this.command_in_process.draw)
+            this.setToRender("action");
     }
 
     Scene.prototype.endCommand = function(args) {
@@ -2642,8 +2685,9 @@
         if(this.command_in_process.support_undo)
             this.undo_history.addCommand(this.command_in_process);
         debug_log(`end ${this.command_in_process.constructor.name}`);
+        if(this.command_in_process.draw)
+            this.setToRender("action");
         this.command_in_process = null;
-        this.setToRender("action");
     }
 
     Scene.prototype.undo = function() {
@@ -2717,6 +2761,8 @@
             }
             else if (e.code == "KeyA" && e.ctrlKey) {
                 this.selectAllNodes();
+                e.preventDefault();
+                e.stopPropagation();
             }
             else if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 this.copySelectedNodeToClipboard();
@@ -3292,7 +3338,11 @@
     }
 
     AddConnectorCommand.prototype.exec = function(e, connector) {
-        this.scene.addConnector(connector);
+        let did = this.scene.addConnector(connector);
+        if(!did) {
+            this.support_undo = false;
+            return;
+        }
         this.end_state = connector;
     }
 
@@ -3476,10 +3526,10 @@
         // (pos_scene + translate) * scale = pos_view
         this.translate = new Point(0, 0);
         this.scale = 1;
-        this.max_scale = 1;
+        this.max_scale = 3;
         this.min_scale = 0.3;
         Object.defineProperty(this, "lod", {
-            get() {return this.scale > (this.max_scale + this.min_scale) / 2.0 ? 0 : 1;}
+            get() {return this.scale > (this.max_scale + this.min_scale) / 3.0 ? 0 : 1;}
         })
         Object.defineProperty(this, "viewport", {
             get() {return new Rect(0, 0, this.canvas().width, this.canvas().height);}
@@ -3706,11 +3756,11 @@
             );
 
             //bottom left
-            this.lineTo(x + bottom_right_radius, y + h);
+            this.lineTo(x + bottom_left_radius, y + h);
             this.quadraticCurveTo(x, y + h, x, y + h - bottom_left_radius);
 
             //top left
-            this.lineTo(x, y + bottom_left_radius);
+            this.lineTo(x, y + top_left_radius);
             this.quadraticCurveTo(x, y, x + top_left_radius, y);
         };
     } //if
@@ -3741,41 +3791,47 @@
     let type_registry = global.VPE.TypeRegistry;
 
     function ImageIOImRead() {
+        this._ctor();
+        this.addInput("exec", "exec");
+        this.addInput("path", "string");
         this.addOutput("image", "numpy.ndarray");
+        this.title = "Image Read";
+        this.type = "Image.Read";
+        this.desc = "Read an image from the path.";
     }
-
-    ImageIOImRead.title = "Image Read";
-    ImageIOImRead.type = "Image.Read";
-    ImageIOImRead.desc = "Reads an image from the specified file. Returns a numpy array," +
-        "which comes with a dict of meta data at its ‘meta’ attribute.";
-    type_registry.registerNodeType(ImageIOImRead);
+    type_registry.registerNodeType("Image.Read", ImageIOImRead);
 
     function ImageIOImWrite() {
-        this.addInput("image", "numpy.ndarray")
+        this._ctor();
+        this.addInput("exec", "exec");
+        this.addInput("image", "numpy.ndarray");
+        this.addOutput("exec", "exec");
+        this.title = "Image Write";
+        this.type = "Image.Write";
+        this.desc = "Write an image to the specified file.";
     }
-
-    ImageIOImWrite.title = "Image Write";
-    ImageIOImWrite.type = "Image.Write";
-    ImageIOImWrite.desc = "Write an image to the specified file.";
-    type_registry.registerNodeType(ImageIOImWrite);
+    type_registry.registerNodeType("Image.Write", ImageIOImWrite);
 
     function ImageShow() {
-        this.addInput("image", "numpy.ndarray")
+        this._ctor();
+        this.addInput("exec", "exec");
+        this.addInput("image", "numpy.ndarray");
+        this.title = "Image Show";
+        this.type = "Image.Show";
+        this.desc = "Show an image.";
     }
-
-    ImageShow.title = "Image Show";
-    ImageShow.type = "Image.Show";
-    ImageShow.desc = "Show an image.";
-    type_registry.registerNodeType(ImageShow);
+    type_registry.registerNodeType("Image.Show", ImageShow);
 
     function ImageGaussianFilter() {
+        this._ctor();
+        this.addInput("exec", "exec");
         this.addInput("input", "numpy.ndarray");
         this.addInput("sigma", "number");
+        this.addOutput("exec", "exec");
         this.addOutput("output", "numpy.ndarray");
+        this.title = "Gaussian Filter";
+        this.type = "Image.GaussianFilter";
+        this.desc = "Gaussian filter";
     }
-
-    ImageGaussianFilter.title = "Gaussian Filter";
-    ImageGaussianFilter.type = "Image.GaussianFilter";
-    ImageGaussianFilter.desc = "Gaussian filter";
-    type_registry.registerNodeType(ImageGaussianFilter);
+    type_registry.registerNodeType("Image.GaussianFilter", ImageGaussianFilter);
 })(this);
