@@ -123,7 +123,7 @@
     };
 
     function assertNameUniqueIn(name, obj) {
-        if (!name in obj) {
+        if (!(name in obj)) {
             throw "Conflicts with another local variable or function parameters";
         }
     };
@@ -3803,9 +3803,9 @@
 
     function ImageIOImWrite() {
         this._ctor();
-        this.addInput("exec", "exec");
+        this.addInput("in_exec", "exec");
         this.addInput("image", "numpy.ndarray");
-        this.addOutput("exec", "exec");
+        this.addOutput("out_exec", "exec");
         this.title = "Image Write";
         this.type = "Image.Write";
         this.desc = "Write an image to the specified file.";
@@ -3814,7 +3814,7 @@
 
     function ImageShow() {
         this._ctor();
-        this.addInput("exec", "exec");
+        this.addInput("in_exec", "exec");
         this.addInput("image", "numpy.ndarray");
         this.title = "Image Show";
         this.type = "Image.Show";
@@ -3824,10 +3824,10 @@
 
     function ImageGaussianFilter() {
         this._ctor();
-        this.addInput("exec", "exec");
+        this.addInput("in_exec", "exec");
         this.addInput("input", "numpy.ndarray");
         this.addInput("sigma", "number");
-        this.addOutput("exec", "exec");
+        this.addOutput("out_exec", "exec");
         this.addOutput("output", "numpy.ndarray");
         this.title = "Gaussian Filter";
         this.type = "Image.GaussianFilter";
