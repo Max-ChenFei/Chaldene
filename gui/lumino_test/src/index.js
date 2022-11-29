@@ -285,15 +285,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         return m;
       }
 
-      node.addEventListener('contextmenu', function (event) {
-        let cs = mockLiteGraphGetContextMenu();
-        let m = createMenu(cs);
 
-
-        m.open(event.clientX,event.clientY);
-        event.preventDefault();
-        event.stopPropagation();
-      });
       let canvas = document.createElement('canvas');
       canvas.style.margin = "0px";
       canvas.style.height="100%";
@@ -304,8 +296,19 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       ctx.fillRect(0,0,canvas.width,canvas.height);
 
       super({ node: node });
+
+      let that = this;
       this.ctx = ctx;
       this.graph = new LiteGraph.LGraph();
+      node.addEventListener('contextmenu', function (event) {
+        let cs = mockLiteGraphGetContextMenu(event);
+        if(cs){
+          let m = createMenu(cs);
+          m.open(event.clientX,event.clientY);
+        }
+        event.preventDefault();
+        event.stopPropagation();
+      });
       this.graph_canvas = new LiteGraph.LGraphCanvas(canvas, this.graph, {skip_events:false});
       this.setFlag(Widget.Flag.DisallowLayout);
       this.addClass('content');
@@ -350,7 +353,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     ]
   }
 
-  function mockLiteGraphGetContextMenu(){
+  function mockLiteGraphGetContextMenu(e /* MouseEvent */){
+    //make sure to return null when the graph is being dragged
     return [
       {command: "add_node"},
       {command: "toggle_minimap"},
