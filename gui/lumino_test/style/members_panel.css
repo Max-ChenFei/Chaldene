@@ -1,5 +1,6 @@
 .membersPanel{
   font: 12px Helvetica, Arial, sans-serif;
+  overflow-y: auto;
 }
 .membersPanel input {
     margin: 0.3rem;
