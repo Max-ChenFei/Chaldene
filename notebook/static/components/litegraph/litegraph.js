@@ -123,7 +123,7 @@
     };
 
     function assertNameUniqueIn(name, obj) {
-        if (!(name in obj)) {
+        if (name in obj) {
             throw "Conflicts with another local variable or function parameters";
         }
     };
