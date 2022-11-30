@@ -3139,11 +3139,32 @@
         this.support_undo = false;
         this.start_pos = new Point(0, 0);
         this.end_pos = null;
+        this.selected_nodes = [];
+        this.toggled_nodes = [];
+        this.key_down = null;
     }
 
     MarqueeSelectionCommand.prototype.exec = function(e) {
         this.start_pos.x = e.sceneX;
         this.start_pos.y = e.sceneY;
+        if(e.ctrlKey)
+            this.key_down = 'ctrlKey';
+        else if(e.shiftKey)
+            this.key_down = 'shiftKey';
+    }
+
+    MarqueeSelectionCommand.prototype.deselectAll = function() {
+        for (const node of this.selected_nodes) {
+            node.deselected();
+        }
+        this.selected_nodes = [];
+    }
+
+    MarqueeSelectionCommand.prototype.toggleAll = function() {
+        for (const node of this.toggled_nodes) {
+            node.toggleSelection();
+        }
+        this.toggled_nodes = [];
     }
 
     MarqueeSelectionCommand.prototype.update = function(e) {
@@ -3152,14 +3173,42 @@
         let top = Math.min(this.start_pos.y, this.end_pos.y);
         let width = Math.abs(this.start_pos.x - this.end_pos.x);
         let height = Math.abs(this.start_pos.y - this.end_pos.y);
-        let nodes = this.scene.collision_detector.getItemsOverlapWith(new Rect(left, top, width, height), Node)
-        if (e.ctrlKey && !e.shiftKey)
-            this.scene.toggleNodesSelection(nodes);
-        this.scene.selectNodes(nodes, e.shiftKey);
+        let nodes = this.scene.collision_detector.getItemsOverlapWith(new Rect(left, top, width, height), Node);
+        this.toggleAll();
+        this.deselectAll();
+        if(this.key_down == 'ctrlKey') {
+            for (const node of nodes) {
+                if (node.isSelected()) {
+                    node.toggleSelection();
+                    this.toggled_nodes.push(node);
+                } else {
+                    node.selected();
+                    this.selected_nodes.push(node);
+                }
+            }
+        }
+        else if(this.key_down == 'shiftKey'){
+            for (const node of nodes)
+                if(!node.isSelected()) {
+                    node.selected();
+                    this.selected_nodes.push(node);
+                }
+        }
+        else {
+            this.scene.deselectSelectedNodes(true);
+            for (const node of nodes) {
+                node.selected();
+                this.selected_nodes.push(node);
+            }
+        }
+        this.scene.setToRender('nodes');
     }
 
     MarqueeSelectionCommand.prototype.end = function(e) {
         this.update(e);
+        if(!this.key_down)
+            this.scene.deselectSelectedNodes(this.selected_nodes.length>0);
+        this.scene.selectNodes(this.selected_nodes, true)
     }
 
     MarqueeSelectionCommand.prototype.draw = function(ctx, lod) {
