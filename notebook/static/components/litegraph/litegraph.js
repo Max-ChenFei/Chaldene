@@ -785,7 +785,7 @@
     };
 
     NodeSlot.prototype.mouseEnter = function() {
-        //this.current_state = VisualState.hovered;
+        this.current_state = VisualState.hovered;
     };
 
     NodeSlot.prototype.resetState = function() {
@@ -793,7 +793,7 @@
     };
 
     NodeSlot.prototype.mouseLeave = function() {
-        //this.current_state = VisualState.normal;
+        this.current_state = VisualState.normal;
     };
 
     NodeSlot.prototype.mousePressed = function() {
@@ -954,7 +954,7 @@
         this.allow_resize = false;
         this.translate = undefined;
         this.scale = undefined;
-        this.collidable_components = [];
+        this.collidable_components = {};
         this.current_state = VisualState.normal;
         this.lod = 0;
     }
@@ -1018,7 +1018,7 @@
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
-        this.collidable_components.push(slot);
+        this.collidable_components[slot_name] = slot;
         if (call_back) {
             call_back(slot);
         }
@@ -1078,6 +1078,7 @@
      * @param {Arrary}  slots intput or outputs slots
      */
     Node.prototype.removeSlotFrom = function(slot_name, slots, call_back) {
+        delete this.collidable_components[slot_name];
         delete slots[slot_name];
 
         if (call_back) {
@@ -1359,7 +1360,7 @@
             font: '12px Arial',
             padding_between_icon_text: 3,
             width: function() {
-                let text_width = this.to_render_text && this.data_type == 'exec' ? textWidth(this.font_size, this.name) : 0;
+                let text_width = (this.to_render_text && this.data_type != 'exec') ? textWidth(this.name, this.font) : 0;
                 return this.icon_width + (text_width > 0 ? this.padding_between_icon_text + text_width : 0);
             },
             height: function() {
@@ -1398,7 +1399,7 @@
                             ctx_style: {
                                 fillStyle: null,
                                 strokeStyle: "#80b3ff",
-                                lineWidth: 2,
+                                lineWidth: 5,
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
@@ -1420,7 +1421,7 @@
                             ctx_style: {
                                 fillStyle: "#FF0303FF",
                                 strokeStyle: "#FF0303FF",
-                                lineWidth: 2,
+                                lineWidth: 5,
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
@@ -1477,7 +1478,10 @@
                         ctx.globalAlpha = 0.6;
                         if (style.fillStyle)
                             ctx.fillStyle = style.fillStyle;
-                        ctx.fillRect(-style.lineWidth * 2, -style.lineWidth * 2, this.owner.width() + style.lineWidth * 2, this.owner.height() + style.lineWidth);
+                        if(this.owner.isInput())
+                            ctx.fillRect(0, 0, this.owner.width(), this.owner.height());
+                        else
+                            ctx.fillRect(-this.owner.width(), 0, this.owner.width(), this.owner.height());
                         ctx.globalAlpha = 1;
                     },
                 },
@@ -1519,7 +1523,7 @@
                             ctx_style: {
                                 fillStyle: "#bf00ff",
                                 strokeStyle: "#363015",
-                                line_width:2
+                                line_width:5
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
@@ -3679,8 +3683,8 @@
 
     CollisionDetector.prototype.getHitResultAtPos = function(x, y) {
         for (const rect of Object.values(this._boundingRects)) {
-            if (rect.isInside(x, y)) {
-                const local_pos = new Point(x - rect.x_1, y - rect.y_1);
+            if (rect.owner instanceof Node && rect.isInside(x, y)) {
+                const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
                 const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
                 return new HitResult(true, rect.owner, local_pos[0], local_pos[1], hit_component);
             }
@@ -3689,7 +3693,9 @@
     }
 
     CollisionDetector.prototype.getHitComponentAtPos = function(x, y, item) {
-        for (const comp of item.collidable_components) {
+        if(!item.collidable_components)
+            return null;
+        for (const comp of Object.values(item.collidable_components)) {
             if (comp.getBoundingRect().isInside(x, y)) {
                 return comp;
             }
