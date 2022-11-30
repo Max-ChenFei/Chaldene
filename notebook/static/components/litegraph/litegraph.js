@@ -963,8 +963,7 @@
         let o = {
             id: this.id,
             type: this.type,
-            translate: [this.translate.x, this.translate.y],
-            scale: [this.scale.x, this.scale.y],
+            translate: [this.translate.x, this.translate.y]
         };
         for (const slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
             o["connections"].push(slot.connections)
@@ -3483,7 +3482,7 @@
         let contents = this.scene.copySelectedNodeToClipboard();
         if(contents.is_empty) {
             this.support_undo = false;
-            return false;
+            return;
         }
         let did = this.delete_command.exec(e);
         this.support_undo = did;
@@ -3509,7 +3508,7 @@
         let contents = this.scene.copySelectedNodeToClipboard();
         if(contents.is_empty) {
             this.support_undo = false;
-            return false;
+            return;
         }
         this.paste_command.exec(e);
     }
