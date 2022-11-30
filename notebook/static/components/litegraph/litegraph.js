@@ -866,20 +866,30 @@
     };
 
     NodeSlot.prototype.draw = function(ctx, lod) {
-        if (!this.style) return;
-        let default_style = this.style['default']
-        let type_style = this.style[this.data_type];
-        if (type_style) {
-             Object.setPrototypeOf(type_style, default_style);
+        if (!this.style)
+            return;
+        if(!this.type_style) {
+            let default_style = this.style['default']
+            this.type_style = this.style[this.data_type];
+            if (this.type_style) {
+                Object.setPrototypeOf(this.type_style, default_style);
+            } else {
+                this.type_style = default_style;
+            }
         }
-        else
-            type_style = default_style;
         const connected_state = this.isConnected() ? "connected" : "unconnected";
-        let ctx_style = type_style[connected_state][this.current_state].ctx_style;
-        type_style.owner = this;
-        type_style[connected_state][this.current_state].draw(type_style, ctx, ctx_style, lod);
+        let ctx_style = this.type_style[connected_state][this.current_state].ctx_style;
+        this.type_style.owner = this;
+        this.type_style[connected_state][this.current_state].draw(this.type_style, ctx, ctx_style, lod);
     }
 
+    NodeSlot.prototype.getCtxStyle = function(){
+        if (!this.style)
+            return null;
+        const connected_state = this.isConnected() ? "connected" : "unconnected";
+        return this.type_style[connected_state][this.current_state].ctx_style;
+
+    };
     const VisualState = {
         normal: "normal",
         hovered: "hovered",
@@ -976,6 +986,11 @@
             i++;
         }
     }
+
+    Node.prototype.getSlotCtxStyle = function(slot_name){
+      let slot = this.inputs[slot_name] || this.outputs[slot_name];
+      return slot.getCtxStyle();
+    };
 
     Node.prototype.getTitle = function() {
         return this.title || this.constructor.title;
@@ -1493,8 +1508,8 @@
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#FFFFFF",
-                                strokeStyle: "#FFFFFF",
+                                fillStyle: "#0002ff",
+                                strokeStyle: "#363015",
                                 line_width:2
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
@@ -1503,8 +1518,8 @@
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#FFFFFF",
-                                strokeStyle: "#FFFFFF",
+                                fillStyle: "#bf00ff",
+                                strokeStyle: "#363015",
                                 line_width:2
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
@@ -1821,7 +1836,8 @@
                         alpha: 1
                     },
                     draw: function(connector, ctx, lod) {
-                       connector._draw(ctx, this.ctx_style, lod);
+                        this.ctx_style.stroke_style = connector.out_node.getSlotCtxStyle(connector.out_slot_name).fillStyle;
+                        connector._draw(ctx, this.ctx_style, lod);
                     }
                 },
                 hovered: {
@@ -1845,11 +1861,12 @@
                 ctx.globalAlpha = ctx_style.alpha;
                 const from = this.fromPos();
                 const to = this.toPos();
-                const distance = from.distanceTo(to);
                 ctx.moveTo(from.x, from.y);
+                let slot = this.out_node.getSlot(this.out_slot_name);
+                let control_point_delta_x = this.out_node.slot_to_side_border + slot.icon_width / 2.0 + 4;
                 ctx.bezierCurveTo(
-                    from.x + distance * 0.25, from.y,
-                    to.x - distance * 0.25, to.y,
+                    from.x + control_point_delta_x, from.y,
+                    to.x - control_point_delta_x, to.y,
                     to.x, to.y
                 );
                 ctx.stroke();
