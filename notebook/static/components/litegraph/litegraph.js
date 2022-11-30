@@ -785,7 +785,7 @@
     };
 
     NodeSlot.prototype.mouseEnter = function() {
-        this.current_state = VisualState.hovered;
+        //this.current_state = VisualState.hovered;
     };
 
     NodeSlot.prototype.resetState = function() {
@@ -793,7 +793,7 @@
     };
 
     NodeSlot.prototype.mouseLeave = function() {
-        this.current_state = VisualState.normal;
+        //this.current_state = VisualState.normal;
     };
 
     NodeSlot.prototype.mousePressed = function() {
@@ -1234,11 +1234,11 @@
     }
 
     Node.prototype.mouseEnter = function() {
-        this.current_state = VisualState.hovered;
+        //this.current_state = VisualState.hovered;
     };
 
-    Node.prototype.moveLeave = function() {
-        this.current_state = VisualState.normal;
+    Node.prototype.mouseLeave = function() {
+        //this.current_state = VisualState.normal;
     };
 
     Node.prototype.isSelected = function() {
@@ -2413,7 +2413,7 @@
 
     Scene.prototype.selectNodes = function(nodes, append_to_selections, not_to_redraw) {
         if (!append_to_selections)
-            this.deselectSelectedNodes(true);
+            this.deselectSelectedNodes(nodes.length!=0);
         let did = false;
         for (let node of nodes) {
             did = this.selectNode(node, true, true) || did;
@@ -2846,11 +2846,12 @@
         if (hit.is_hitted) {
             if (hit.hit_component)
                 console.log('hit on slot');
-            if (e.ctrlKey && !e.shiftKey)
+            if (e.ctrlKey && !e.shiftKey) {
                 this.toggleNodeSelection(hit.hit_node);
+                return;
+            }
             this.selectNode(hit.hit_node, e.shiftKey);
         }
-        this.deselectSelectedNodes();
     }
 
     Scene.prototype.rightMouseUp = function(e, hit) {
@@ -2898,19 +2899,33 @@
     }
 
     Scene.prototype.mouseHover = function(e) {
-        this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
-        if (this.hit_result.is_hitted) {
-            this.hit_result.hit_node.mouseEnter();
-            if (this.hit_result.hit_component) {
-                this.hit_result.hit_component.mouseEnter();
-                return;
-            }
-            let border = whichBorder(this.hit_result.hit_local_x, this.hit_result.hit_local_y, this.hit_result.hit_node);
-            if (this.hit_result.hit_node.allow_resize && border) {
-                let cursor = mapNodeBorderToCursor[border] || "all-scroll";
-                this.setCursor(cursor);
+        let new_hit = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+        if(this.hit_result &&
+            new_hit.hit_node == this.hit_result.hit_node &&
+            new_hit.hit_component == this.hit_result.hit_component) {
+            this.hit_result = new_hit;
+            return;
+        }
+        if(this.hit_result){
+            if(new_hit.hit_node != this.hit_result.hit_node && this.hit_result.hit_node)
+                this.hit_result.hit_node.mouseLeave(this.hit_result);
+            if (new_hit.hit_component != this.hit_result.hit_component && this.hit_result.hit_component)
+                this.hit_result.hit_component.mouseLeave();
+        }
+        if (new_hit.is_hitted){
+            if(new_hit.hit_node && new_hit.hit_node != this.hit_result.hit_node)
+                new_hit.hit_node.mouseEnter(new_hit);
+            if(new_hit.hit_component && new_hit.hit_component != this.hit_result.hit_component) {
+                new_hit.hit_component.mouseEnter();
+                let border = whichBorder(new_hit.hit_local_x, new_hit.hit_local_y, new_hit.hit_node);
+                if (new_hit.hit_node.allow_resize && border) {
+                    let cursor = mapNodeBorderToCursor[border] || "all-scroll";
+                    this.setCursor(cursor);
+                }
             }
         }
+        this.hit_result = new_hit;
+        this.setToRender("nodes");
     }
 
     Scene.prototype.onMouseMove = function(e) {
@@ -2930,7 +2945,7 @@
 
     Scene.prototype.onMouseUp = function(e) {
         debug_log('mouse up and release the button ' +　e.button);
-        this.focus_node = this.pointer_down = null;
+        this.pointer_down = null;
         this.moveAndUpEventsToScene();
         this.addSceneCoordinateToEvent(e);
         if (this.command_in_process) {
