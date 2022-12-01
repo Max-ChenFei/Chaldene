@@ -1881,12 +1881,11 @@
                 ctx.globalAlpha = ctx_style.alpha;
                 const from = this.fromPos();
                 const to = this.toPos();
+                const distance = from.distanceTo(to);
                 ctx.moveTo(from.x, from.y);
-                let slot = this.out_node.getSlot(this.out_slot_name);
-                let control_point_delta_x = this.out_node.slot_to_side_border + slot.icon_width / 2.0 + 4;
                 ctx.bezierCurveTo(
-                    from.x + control_point_delta_x, from.y,
-                    to.x - control_point_delta_x, to.y,
+                    from.x + distance * 0.3, from.y,
+                    to.x - distance * 0.3, to.y,
                     to.x, to.y
                 );
                 ctx.stroke();
