@@ -2852,16 +2852,16 @@
                 e.stopPropagation();
             }
             else if (e.code == "ArrowUp" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
-                NudgetNode(1, 0, this, e);
-            }
-            else if (e.code == "ArrowDown" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
-                NudgetNode(-1, 0, this, e);
-            }
-            else if (e.code == "ArrowLeft" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(0, -1, this, e);
             }
-            else if (e.code == "ArrowShift" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            else if (e.code == "ArrowDown" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(0, 1, this, e);
+            }
+            else if (e.code == "ArrowLeft" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                NudgetNode(-1, 0, this, e);
+            }
+            else if (e.code == "ArrowRight" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                NudgetNode(1, 0, this, e);
             }
         }
     }
@@ -3031,11 +3031,14 @@
     };
 
     function NudgetNode(delta_x, delta_y, scene, e) {
-        let command = new MoveCommand(this);
+        let command = new MoveCommand(scene);
         command.desc = 'Nudge Node';
-        e.sceneMovementX = 1;
-        e.sceneMovementY = 0;
+        e.sceneMovementX = delta_x;
+        e.sceneMovementY = delta_y;
         scene.execCommand(command, [e]);
+        scene.endCommand([e]);
+        e.preventDefault();
+        e.stopPropagation();
     }
 
     function Command() {}
@@ -3058,7 +3061,7 @@
 
     MoveCommand.prototype.exec = function(e, node) {
         this.start_state = [];
-        if(!Object.keys(this.scene.selected_nodes).includes(node.id.toString()))
+        if(node && !Object.keys(this.scene.selected_nodes).includes(node.id.toString()))
             this.scene.selectNode(node, e.shiftKey || e.ctrlKey, true);
         for (const node of Object.values(this.scene.selected_nodes)) {
             this.start_state.push(node.translate);
