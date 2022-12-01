@@ -2549,6 +2549,16 @@
         return true;
     };
 
+    Scene.prototype.translateNode= function(node, delta_x, delta_y){
+         node.addTranslate(delta_x, delta_y);
+         this.collision_detector.updateBoundingRect(node);
+    };
+
+    Scene.prototype.setNodeTranslation = function(node, translation){
+         node.translate = translation;
+         this.collision_detector.updateBoundingRect(node);
+    };
+
     Scene.prototype.addConnector = function(connector, not_to_redraw) {
         if (!this.isConnectorValid(connector))
             return false;
@@ -2884,7 +2894,7 @@
         let border = whichBorder(hit.hit_local_x, hit.hit_local_y, hit.hit_node);
         if (hit.hit_node.allow_resize && border)
             this.execCommand(new ResizeCommand(this, hit.hit_node), [e, border]);
-        else if (hit.hit_component instanceof Node) {
+        else if (hit.hit_component instanceof NodeSlot) {
             this.leftMouseDownOnSlot(e, hit);
         }
     }
@@ -2939,8 +2949,7 @@
         debug_log('mouse down and press the button ' +　e.button);
         this.moveAndUpEventsToDocument();
         this.pointer_down = e.button;
-        if (!this.hit_result)
-            this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+        this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (e.button == 0) {
             if (!this.hit_result.is_hitted || !this.hit_result.hit_node)
                 this.leftMouseDownOnScene(e);
@@ -2950,8 +2959,7 @@
         e.preventDefault();
     }
 
-    Scene.prototype.mouseHover = function(e) {
-        let new_hit = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+    Scene.prototype.mouseHover = function(e, new_hit) {
         if(this.hit_result &&
             new_hit.hit_node == this.hit_result.hit_node &&
             new_hit.hit_component == this.hit_result.hit_component) {
@@ -2976,21 +2984,23 @@
                 }
             }
         }
-        this.hit_result = new_hit;
         this.setToRender("nodes");
     }
 
     Scene.prototype.onMouseMove = function(e) {
         debug_log('mouse move and press the button ' +　this.pointer_down);
         this.addSceneCoordinateToEvent(e);
+        let new_hit = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (this.command_in_process)
             this.updateCommand([e]);
-        else if (!this.pointer_down)
-            this.mouseHover(e);
-        else if (this.pointer_down == 0)
+        else if (this.pointer_down == null)
+            this.mouseHover(e, new_hit);
+        else if (this.pointer_down == 0) {
             this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_node]);
+        }
         else if (this.pointer_down == 2)
             this.pan(e.sceneMovementX, e.sceneMovementY);
+        this.hit_result = new_hit;
         e.stopPropagation();
         e.preventDefault();
     }
@@ -3045,17 +3055,21 @@
         this.scene = scene;
     }
 
-    MoveCommand.prototype.exec = function(e) {
+    MoveCommand.prototype.exec = function(e, node) {
         this.start_state = [];
+        if(!Object.keys(this.scene.selected_nodes).includes(node.id.toString()))
+            this.scene.selectNode(node, e.shiftKey || e.ctrlKey, true);
         for (const node of Object.values(this.scene.selected_nodes)) {
             this.start_state.push(node.translate);
         }
     }
+
     MoveCommand.prototype.update = function(e) {
         for (const node of Object.values(this.scene.selected_nodes)) {
-            node.addTranslate(e.sceneMovementX, e.sceneMovementY)
+            this.scene.translateNode(node, e.sceneMovementX, e.sceneMovementY);
         }
         this.scene.setToRender("nodes");
+        this.scene.setToRender("connectors");
     }
 
     MoveCommand.prototype.end = function(e) {
@@ -3068,14 +3082,14 @@
     MoveCommand.prototype.undo = function() {
         let index = 0;
         for (const node of Object.values(this.scene.selected_nodes)) {
-            node.translate = this.start_state[index];
+            this.scene.setNodeTranslation(node, this.start_state[index]);
             index++;
         }
     }
     MoveCommand.prototype.redo = function() {
         let index = 0;
         for (const node of Object.values(this.scene.selected_nodes)) {
-            node.translate = this.end_state[index];
+            this.scene.setNodeTranslation(node, this.end_state[index]);
             index++;
         }
     }
