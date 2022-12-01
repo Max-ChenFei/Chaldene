@@ -2643,6 +2643,7 @@
         };
         clipboard_info.is_empty = Object.keys(this.selected_nodes).length === 0;
         localStorage.setItem("visual_programming_env_clipboard", JSON.stringify(clipboard_info));
+        return clipboard_info;
     };
 
     Scene.prototype.pasteFromClipboard = function(pointer_x, pointer_y, config) {
