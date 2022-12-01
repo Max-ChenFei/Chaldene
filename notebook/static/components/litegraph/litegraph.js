@@ -122,6 +122,10 @@
         this.node_types_in_categories = {};
     };
 
+    TypeRegistry.prototype.isDataTypeMatch = function(type_a, type_b) {
+        return type_a == type_b;
+    };
+
     function assertNameUniqueIn(name, obj) {
         if (name in obj) {
             throw "Conflicts with another local variable or function parameters";
@@ -323,10 +327,28 @@
         connector.id = this.getUniqueId();
         this.connectors[connector.id] = connector;
         let out_node = connector.out_node;
-        if (out_node) out_node.addConnectionOfOutput(connector.out_slot_name);
         let in_node = connector.in_node;
-        if (in_node) in_node.addConnectionOfInput(connector.in_slot_name);
-        return true;
+        if (out_node && in_node) {
+            let in_slot = in_node.getSlot(connector.in_slot_name);
+            let connection = out_node.allowConnectTo(connector.out_slot_name, in_node, in_slot);
+            if (connection.method == SlotConnectionMethod.replace) {
+                if(!in_slot.allowMultipleConnections()) {
+                    let connectors = this.getConnectorsLinkedToSlot(in_node, in_slot);
+                    this.removeConnector(connectors[0]);
+                }
+                let out_slot = out_node.getSlot(connector.out_slot_name);
+                if(!out_slot.allowMultipleConnections()) {
+                    let connectors = this.getConnectorsLinkedToSlot(out_node, out_slot);
+                    this.removeConnector(connectors[0]);
+                }
+            }
+            if(connection.method == SlotConnectionMethod.replace || connection.method == SlotConnectionMethod.add){
+                out_node.addConnectionOfOutput(connector.out_slot_name);
+                in_node.addConnectionOfInput(connector.in_slot_name);
+                return true;
+            }
+        }
+        return false;
     };
 
     Graph.prototype.allOutConnectorsOf = function(node_id) {
@@ -398,7 +420,7 @@
     };
 
     Graph.prototype.removeNode = function(node) {
-        if (!this.isNodeValid())
+        if (!this.isNodeValid(node))
             return false;
         if (this.onNodeRemoved) {
             this.onNodeRemoved(node.id);
@@ -693,9 +715,9 @@
      * areMultipleValuesInArray
      * @method areMultipleValuesInArray
      * @param {Array} values
-     * @param {Array} Array
+     * @param {Array} array
      */
-    function areMultipleValuesInArray(values, Array) {
+    function areMultipleValuesInArray(values, array) {
         return values.every(s => {
             return array.includes(s)
         });
@@ -821,7 +843,7 @@
             return new SlotConnection(SlotConnectionMethod.null,
                 '{this.data_type} is not compatible with {other_slot.data_type}');
 
-        if (this.isConnected() && !this.allowMultipleConnections) {
+        if (this.isConnected() && !this.allowMultipleConnections()) {
             return new SlotConnection(SlotConnectionMethod.replace,
                 'Replace the existing connections');
         }
@@ -848,10 +870,7 @@
     };
 
     NodeSlot.prototype.allowMultipleConnections = function() {
-        if (this.slot_pos === SlotPos.exec_in || this.slot_type === SlotPos.data_out) {
-            return true;
-        }
-        return false;
+        return this.slot_pos == SlotPos.exec_in || this.slot_pos == SlotPos.data_out;
     };
 
     NodeSlot.prototype.pluginRenderingTemplate = function(template) {
@@ -1183,13 +1202,13 @@
     };
 
     Node.prototype.clearInConnections = function() {
-        for (let slot of this.inputs) {
+        for (let slot of Object.values(this.inputs)) {
             this.clearConnectionsOf(slot)
         }
     };
 
     Node.prototype.clearOutConnections = function() {
-        for (let slot of this.outputs) {
+        for (let slot of Object.values(this.outputs)) {
             this.clearConnectionsOf(slot)
         }
     };
@@ -2461,12 +2480,21 @@
     Scene.prototype.removeSelectedNodes = function(not_to_redraw) {
         if(Object.keys(this.selected_nodes).length === 0)
             return false;
+        let remove_connector = false;
         for (const node of Object.values(this.selected_nodes)) {
-            this.graph.remove(node)
+            let connectors = this.graph.getConnectorsLinkedToNodes([node]);
+            for (const connector of connectors) {
+                this.collision_detector.removeBoundingRect(connector);
+                remove_connector = true;
+            }
+            this.graph.removeNode(node);
+            this.collision_detector.removeBoundingRect(node);
         }
         this.selected_nodes = {};
         if (!not_to_redraw)
             this.setToRender("nodes");
+        if(remove_connector)
+            this.setToRender("connectors")
         return true;
     };
 
@@ -2524,6 +2552,23 @@
     Scene.prototype.addConnector = function(connector, not_to_redraw) {
         if (!this.isConnectorValid(connector))
             return false;
+        let out_node = connector.out_node;
+        let in_node = connector.in_node;
+        let in_slot = in_node.getSlot(connector.in_slot_name);
+        let connection = out_node.allowConnectTo(connector.out_slot_name, in_node, in_slot);
+        if (connection.method == SlotConnectionMethod.null)
+            return false;
+        if (connection.method == SlotConnectionMethod.replace) {
+            if(!in_slot.allowMultipleConnections()) {
+                let connectors = this.graph.getConnectorsLinkedToSlot(in_node, in_slot);
+                this.collision_detector.removeBoundingRect(connectors[0]);
+            }
+            let out_slot = out_node.getSlot(connector.out_slot_name);
+            if(!out_slot.allowMultipleConnections()) {
+                let connectors = this.graph.getConnectorsLinkedToSlot(out_node, out_slot);
+                this.collision_detector.removeBoundingRect(connectors[0]);
+            }
+        }
         let did = this.graph.addConnector(connector);
         if(!did)
             return false;
@@ -2547,6 +2592,7 @@
     };
 
     Scene.prototype.removeConnector = function(connector, not_to_redraw) {
+        this.collision_detector.removeBoundingRect(connector);
         let did = this.graph.removeConnector(connector);
         if(!did)
             return false;
@@ -2767,6 +2813,8 @@
         if (e.type == "keydown") {
             if (e.code == 'Escape') {
                 this.deselectSelectedNodes();
+                e.preventDefault();
+                e.stopPropagation();
             }
             else if (e.code == 'Delete') {
                 let command = new RemoveSelectedNodesCommand(this);
@@ -3484,6 +3532,8 @@
         this.scene.removeConnectors(this.end_state.connectors);
     }
 
+    Object.setPrototypeOf(RemoveSelectedNodesCommand.prototype, Command.prototype);
+
     function RemoveConnectorsCommand(scene) {
         this.desc = "Delete connectors";
         this.scene = scene;
@@ -3721,12 +3771,12 @@
         this._boundingRects[rect.owner.id] = rect;
     };
 
-    CollisionDetector.prototype.removeBoundingRect = function(owner_id) {
-        delete this._boundingRects[owner_id];
+    CollisionDetector.prototype.removeBoundingRect = function(item) {
+        delete this._boundingRects[item.id];
     };
 
     CollisionDetector.prototype.updateBoundingRect = function(item) {
-        this.removeBoundingRect(item.id);
+        this.removeBoundingRect(item);
         this.addBoundingRect(item)
     };
 
