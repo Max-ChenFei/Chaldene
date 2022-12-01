@@ -354,7 +354,7 @@
     Graph.prototype.allOutConnectorsOf = function(node_id) {
         let out = [];
         for (const connector of Object.values(this.connectors)) {
-            if (connector.out_node.id = node_id)
+            if (connector.out_node.id == node_id)
                 out.push(connector);
         }
         return out;
@@ -982,7 +982,8 @@
         let o = {
             id: this.id,
             type: this.type,
-            translate: [this.translate.x, this.translate.y]
+            translate: [this.translate.x, this.translate.y],
+            connections: []
         };
         for (const slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
             o["connections"].push(slot.connections)
@@ -994,13 +995,10 @@
         if (!config)
             return;
         this.id = config.id;
-        this.translate.x = config.translate[0];
-        this.translate.y = config.translate[1];
-        this.scale.x = config.scale[0];
-        this.scale.y = config.scale[1];
+        this.translate = new Point(config.translate[0], config.translate[1]);
         let i = 0;
         for (const slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
-            o["connections"].push(config.connections[i] || 0);
+            slot.connections = config.connections[i];
             i++;
         }
     }
@@ -2628,8 +2626,8 @@
             is_empty: true,
             nodes: {},
             connectors: [],
-            min_x_of_nodes: 0,
-            min_y_of_nodes: 0
+            min_x_of_nodes: Infinity,
+            min_y_of_nodes: Infinity
         };
         for (const node of Object.values(this.selected_nodes)) {
             let new_node = type_registry.cloneNode(node);
@@ -2665,7 +2663,7 @@
             if (!node) continue;
             node.configure(node_config);
             //paste in last known mouse position
-            node.translate.add(pointer_x - config.min_x_of_nodes, pointer_y - config.min_y_of_nodes);
+            node.addTranslate(pointer_x - clipboard_info.min_x_of_nodes, pointer_y - clipboard_info.min_y_of_nodes);
             this.addNode(node);
             created.nodes.push(node);
             new_nodes[old_id] = node;
@@ -2724,9 +2722,9 @@
         // we will move outside the canvas
         let canvas_client_rect = this.canvas.getBoundingClientRect();
         let pos_in_view = new Point(e.clientX - canvas_client_rect.left, e.clientY - canvas_client_rect.top);
-        let pos_in_scene = this.view.mapToScene(pos_in_view);
-        e.sceneX = pos_in_scene.x;
-        e.sceneY = pos_in_scene.y;
+        this.last_scene_pos = this.view.mapToScene(pos_in_view);
+        e.sceneX = this.last_scene_pos.x;
+        e.sceneY = this.last_scene_pos.y;
         e.sceneMovementX = (e.clientX - this.last_client_pos[0]) / this.view.scale;
         e.sceneMovementY = (e.clientY - this.last_client_pos[1]) / this.view.scale;
         this.last_client_pos = [e.clientX, e.clientY];
@@ -2840,7 +2838,7 @@
             }
             else if (e.code == "KeyV" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new PasteFromClipboardCommand(this);
-                this.execCommand(command, [e]);
+                this.execCommand(command, [this.last_scene_pos.x, this.last_scene_pos.y]);
             }
             else if (e.code == "KeyX" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new CutSelectedNodesCommand(this);
@@ -3577,7 +3575,7 @@
         this.scene = scene;
     }
 
-    PasteFromClipboardCommand.prototype.exec = function(e) {
+    PasteFromClipboardCommand.prototype.exec = function(x, y) {
         this.end_state = {
             "config": localStorage.getItem("visual_programming_env_clipboard")
         };
@@ -3585,8 +3583,8 @@
             this.support_undo = false;
             return;
         }
-        this.scene_x = e.sceneX;
-        this.scene_y = e.sceneY;
+        this.scene_x = x;
+        this.scene_y = y;
         let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y);
         this.support_undo = created.is_empty;
         this.end_state.nodes = created.nodes;
