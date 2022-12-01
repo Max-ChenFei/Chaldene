@@ -2847,7 +2847,9 @@
             }
             else if (e.code == "KeyD" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new DuplicateNodeCommand(this);
-                this.execCommand(command, [e]);
+                this.execCommand(command, [this.last_scene_pos.x, this.last_scene_pos.y]);
+                e.preventDefault();
+                e.stopPropagation();
             }
             else if (e.code == "ArrowUp" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(1, 0, this, e);
@@ -3635,13 +3637,13 @@
         this.desc = this.paste_command.desc;
     }
 
-    DuplicateNodeCommand.prototype.exec = function(e) {
+    DuplicateNodeCommand.prototype.exec = function(x, y) {
         let contents = this.scene.copySelectedNodeToClipboard();
         if(contents.is_empty) {
             this.support_undo = false;
             return;
         }
-        this.paste_command.exec(e);
+        this.paste_command.exec(x, y);
     }
 
     DuplicateNodeCommand.prototype.undo = function() {
