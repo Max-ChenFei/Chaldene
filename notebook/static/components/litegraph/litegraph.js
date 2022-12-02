@@ -264,7 +264,7 @@
                 return connector;
             }
         }
-        console.warn("Can find a connector");
+        console.warn("Can not find a connector");
         return null;
     }
 
