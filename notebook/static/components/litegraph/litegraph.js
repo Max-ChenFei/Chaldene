@@ -1162,6 +1162,28 @@
 
         return slot.allowConnectTo(to_slot)
     };
+    Node.prototype.allowConnectToAnySlot = function(slot_name, to_node) {
+        let slot = this.inputs[slot_name] || this.outputs[slot_name];
+        if (!slot || !to_node) {
+            return false;
+        }
+
+        if (this == to_node) {
+            return false;
+        }
+        let to_slots = [];
+        if(slot.isInput()){
+           to_slots = Object.values(to_node.outputs);
+        }
+        else{
+           to_slots = Object.values(to_node.inputs);
+        }
+        for(const out_slot of to_slots){
+            if(slot.allowConnectTo(out_slot) != SlotConnectionMethod.null)
+                return true;
+        }
+        return false;
+    };
 
     /**
      * add a connection to the slot. The connector is not recored because the slot can be connected only when the node is added to the graph that will
@@ -3017,6 +3039,7 @@
             else
                 this.leftMouseDownOnNode(e, this.hit_result);
         }
+        this.last_event = e;
         e.preventDefault();
     }
 
@@ -3062,6 +3085,7 @@
         else if (this.pointer_down == 2)
             this.pan(e.sceneMovementX, e.sceneMovementY);
         this.hit_result = new_hit;
+        this.last_event = e;
         e.stopPropagation();
         e.preventDefault();
     }
@@ -3082,12 +3106,58 @@
         else if (e.button == 2)
             this.rightMouseUp(e, this.hit_result);
         this.setCursor('default');
+        this.last_event = e;
         e.stopPropagation();
         e.preventDefault();
     }
 
     Scene.prototype.getDocument = function() {
         return this.canvas.ownerDocument;
+    };
+
+    Scene.prototype.getContextMenu = function() {
+        return this.canvas.ownerDocument;
+    };
+
+    Scene.prototype.command_classes = [
+        RemoveSelectedNodesCommand, CutSelectedNodesCommand,
+        copySelectedNodeToClipboard, DuplicateNodeCommand,
+        RemoveConnectorCommand];
+
+    Scene.prototype.getAllContextCommands = function() {
+        function toContextCommand(command_class){
+            let command = new command_class(this);
+            return {name: command.constructor.name,
+            label: command.label || command.constructor.name,
+            exec: function(args){
+                this.execCommand(command, args);
+            }}
+        }
+
+        let context_commands = [];
+        for (const c of this.command_classes) {
+            let context_command = toContextCommand(c);
+            context_command.exec.bind(this);
+            context_commands.push(context_command);
+        };
+        return context_commands;
+    };
+
+    Scene.prototype.getContextCommands = function() {
+        let context_command_names = [];
+        if(this.hit_result.is_hitted){
+            if(this.hit_result.hit_node instanceof Node)
+            {
+                for (const c of this.command_classes) {
+                    context_command_names.push({command: c.name, args: [this.last_event]});
+                };
+            }
+            if(this.hit_result.hit_node instanceof NodeSlot)
+            {
+                return context_command_names.push({command: RemoveConnectorCommand.name, args: [this.last_event]});
+            }
+        }
+        return context_command_names;
     };
 
     function NudgetNode(delta_x, delta_y, scene, e) {
@@ -3103,6 +3173,7 @@
 
     function Command() {}
 
+    Command.prototype.label = "Command"; // shown in context menu
     Command.prototype.desc = "Abstract command";
     Command.prototype.support_undo = true;
     Command.prototype.start_state = null;
@@ -3113,6 +3184,18 @@
     Command.prototype.draw = function(ctx) {}
     Command.prototype.undo = function() {}
     Command.prototype.redo = function() {}
+
+    function copySelectedNodeToClipboard(scene) {
+        this.label = "Copy";
+        this.scene = scene;
+        this.support_undo = false;
+    }
+
+    copySelectedNodeToClipboard.prototype.exec = function(){
+        this.scene.copySelectedNodeToClipboard();
+    };
+
+    Object.setPrototypeOf(copySelectedNodeToClipboard.prototype, Command.prototype);
 
     function MoveCommand(scene) {
         this.desc = "Move Node";
@@ -3577,6 +3660,7 @@
     Object.setPrototypeOf(AddConnectorCommand.prototype, Command.prototype);
 
     function RemoveConnectorCommand(scene) {
+        this.label = "Break Node Link(s)";
         this.desc = "Remove Connector";
         this.scene = scene;
     }
@@ -3601,6 +3685,7 @@
     Object.setPrototypeOf(RemoveConnectorCommand.prototype, Command.prototype);
 
     function RemoveSelectedNodesCommand(scene) {
+        this.label = "Delete";
         this.desc = "Delete current selections";
         this.scene = scene;
     }
@@ -3654,6 +3739,7 @@
     Object.setPrototypeOf(RemoveConnectorsCommand.prototype, Command.prototype);
 
     function PasteFromClipboardCommand(scene) {
+        this.label = "Paste";
         this.desc = "Paste clipboard contents";
         this.scene = scene;
     }
@@ -3686,6 +3772,7 @@
     Object.setPrototypeOf(PasteFromClipboardCommand.prototype, Command.prototype);
 
     function CutSelectedNodesCommand(scene) {
+        this.label = "Cut";
         this.scene = scene;
         this.delete_command = new RemoveSelectedNodesCommand(this.scene);
         this.desc = this.delete_command.desc;
@@ -3712,6 +3799,7 @@
     Object.setPrototypeOf(CutSelectedNodesCommand.prototype, Command.prototype);
 
     function DuplicateNodeCommand(scene) {
+        this.label = "Duplicate";
         this.scene = scene;
         this.paste_command = new PasteFromClipboardCommand(this.scene);
         this.desc = this.paste_command.desc;
