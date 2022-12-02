@@ -819,7 +819,7 @@
     };
 
     NodeSlot.prototype.mousePressed = function() {
-        this.current_state = VisualState.pressed;
+        this.current_state = VisualState.hovered;
     };
 
     NodeSlot.prototype.isInput = function() {
@@ -844,6 +844,11 @@
                 '{this.data_type} is not compatible with {other_slot.data_type}');
 
         if (this.isConnected() && !this.allowMultipleConnections()) {
+            return new SlotConnection(SlotConnectionMethod.replace,
+                'Replace the existing connections');
+        }
+
+        if (other_slot.isConnected() && !other_slot.allowMultipleConnections()) {
             return new SlotConnection(SlotConnectionMethod.replace,
                 'Replace the existing connections');
         }
@@ -1856,7 +1861,10 @@
                         alpha: 1
                     },
                     draw: function(connector, ctx, lod) {
-                        this.ctx_style.stroke_style = connector.out_node.getSlotCtxStyle(connector.out_slot_name).fillStyle;
+                        if(connector.out_node.getSlotCtxStyle)
+                            this.ctx_style.stroke_style = connector.out_node.getSlotCtxStyle(connector.out_slot_name).fillStyle;
+                        else if (connector.in_node.getSlotCtxStyle)
+                            this.ctx_style.stroke_style = connector.in_node.getSlotCtxStyle(connector.in_slot_name).fillStyle;
                         connector._draw(ctx, this.ctx_style, lod);
                     }
                 },
@@ -2688,7 +2696,7 @@
     };
 
     Scene.prototype.getConnectorsLinkedToSlot = function(node, slot) {
-        this.graph.getConnectorsLinkedToSlot(node, slot);
+        return this.graph.getConnectorsLinkedToSlot(node, slot);
     };
 
     Scene.prototype.visibleConnectors = function() {
@@ -2875,19 +2883,18 @@
 
     Scene.prototype.leftMouseDownOnSlot = function(e, hit) {
         let connectors = this.getConnectorsLinkedToSlot(hit.hit_node, hit.hit_component);
-        if (connectors.length == 0) {
-            if (!e.altKey || !e.shiftKey)
-                this.execCommand(new ConnectCommand(this), [e, hit.hit_node, hit.hit_component.name]);
-            else if (!e.shiftKey) {
-                if (e.altKey) {
-                    this.execCommand(new RemoveConnectorCommand(this), [e, connectors]);
-                    return;
-                }
-                if (e.ctrlKey) {
-                    this.execCommand(new ReconnectCommand(this), [e, connectors, hit.hit_component.isInput()]);
-                }
-            }
+        if (e.shiftKey)
+            return;
+        else if(e.altKey){
+            if(connectors.length>0)
+                this.execCommand(new RemoveConnectorCommand(this), [e, connectors]);
+            return;
         }
+        else if (e.ctrlKey && connectors.length>0) {
+            this.execCommand(new ReconnectCommand(this), [e, connectors, hit.hit_component.isInput()]);
+            return;
+        }
+        this.execCommand(new ConnectCommand(this), [e, hit.hit_node, hit.hit_component.name]);
     }
 
     Scene.prototype.leftMouseDownOnNode = function(e, hit) {
@@ -2907,7 +2914,7 @@
     Scene.prototype.leftMouseUp = function(e, hit) {
         if (hit.is_hitted) {
             if (hit.hit_component)
-                console.log('hit on slot');
+                return;
             if (e.ctrlKey && !e.shiftKey) {
                 this.toggleNodeSelection(hit.hit_node);
                 return;
@@ -2992,7 +2999,7 @@
         this.addSceneCoordinateToEvent(e);
         let new_hit = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (this.command_in_process)
-            this.updateCommand([e]);
+            this.updateCommand([e, new_hit]);
         else if (this.pointer_down == null)
             this.mouseHover(e, new_hit);
         else if (this.pointer_down == 0) {
@@ -3292,80 +3299,91 @@
     function ConnectCommand(scene) {
         this.desc = "Create Connector";
         this.scene = scene;
+        //the target_node always follow the mouse move
         this.target_node = {
             pos: new Point(0, 0),
             getConnectedAnchorPosInScene: function() {
-                return this.target_node.pos
+                return this.pos
             }
         };
         this.from_node = null;
         this.from_slot = null;
         this.connector = null;
+        this.last_hit = null;
+        this.last_hit_slot = null;
     }
 
     ConnectCommand.prototype.exec = function(e, from_node, from_slot_name) {
         this.from_node = from_node;
         this.from_slot = from_node.getSlot(from_slot_name);
-        this.from_slot.mousePressed();
+        this.last_hit_slot = this.from_slot;
         this.target_node.pos = new Point(e.sceneX, e.sceneY);
         if (this.from_slot.isInput())
             this.connector = new Connector(null, this.target_node, null, this.from_node, from_slot_name);
         else
             this.connector = new Connector(null, this.from_node, from_slot_name, this.target_node, null);
-        this.connector.pluginRenderingTemplate(this.scene.rendering_template);
+        this.connector.pluginRenderingTemplate(this.scene.rendering_template['Connector']);
     }
 
-    ConnectCommand.prototype.update = function(e) {
-        this.target_node.resetState();
+    ConnectCommand.prototype.update = function(e, new_hit) {
         this.target_node.pos = new Point(e.sceneX, e.sceneY);
-        let hit_result = this.scene.collision_detector.getHitResultAtPos(this.target_node.pos);
-        let target_slot = hit_result.hit_component;
-        if (target_slot instanceof NodeSlot) {
-            let connection = this.from_node.allowConnectTo(this.from_slot.name, hit_result.hit_node, target_slot);
-            console.log(connection.desc);
-        }
-    }
-
-    ConnectCommand.prototype._addConnector = function(target_node, target_slot_name, connection) {
-        if (connection.method == SlotConnection.null) {
-            console.warn(connection.desc);
-            this.support_undo = false;
+        if(this.from_node == new_hit.hit_node && this.last_hit_slot == new_hit.hit_component)
             return;
+        if(this.last_hit_slot)
+            this.last_hit_slot.mouseLeave();
+        this.last_hit_slot = new_hit.hit_component;
+        if(this.last_hit_slot)
+            this.last_hit_slot.mouseEnter();
+        this.last_hit = new_hit;
+        let target_slot = new_hit.hit_component;
+        if (target_slot instanceof NodeSlot) {
+            this.connection = this.from_node.allowConnectTo(this.from_slot.name, new_hit.hit_node, target_slot);
         }
-        this.end_state = {};
-        if (connection.method == SlotConnection.replace) {
-            let connector = this.scene.getConnector(this.from_node, this.from_slot.name, target_node, target_slot_name);
-            this.scene.removeConnector(connector);
-            this.end_state['removed_connector'] = [
-                this.connector.out_node, this.connector.out_slot_name,
-                this.connector.in_node, this.connector.in_slot_name
-            ];
-        }
-        if (this.from_slot.isInput()) {
-            this.connector.out_node = target_node;
-            this.connector.out_slot_name = target_slot_name;
-        } else {
-            this.connector.in_node = target_node;
-            this.connector.in_slot_name = target_slot_name;
-        }
-        this.scene.addConnector(this.connector);
-        this.end_state['added_connector'] = [
-            this.connector.out_node, this.connector.out_slot_name,
-            this.connector.in_node, this.connector.in_slot_name
-        ];
-        console.log(connection.desc);
+        this.scene.setToRender('nodes');
+        this.scene.setToRender('connectors');
     }
 
     ConnectCommand.prototype.end = function(e) {
-        this.target_node.pos = new Point(e.sceneX, e.sceneY);
-        let hit_result = this.scene.collision_detector.getHitResultAtPos(this.target_node.pos);
-        let target_slot = hit_result.hit_component;
-        if (target_slot instanceof NodeSlot) {
-            let connection = this.from_node.allowConnectTo(this.from_slot.name, hit_result.hit_node, target_slot);
-            this._addConnector(hit_result.hit_node, target_slot.name, connection);
+        if(this.last_hit && this.last_hit.is_hitted && this.last_hit.hit_component instanceof NodeSlot){
+            if (this.connection.method == SlotConnectionMethod.null) {
+                console.warn(this.connection.desc);
+                this.support_undo = false;
+                return;
+            }
+            this.end_state = {};
+            let target_node = this.last_hit.hit_node;
+            let target_slot = this.last_hit.hit_component;
+            if (this.connection.method == SlotConnectionMethod.replace) {
+                let connector = null;
+                if(!this.from_slot.allowMultipleConnections()) {
+                    connector = this.scene.getConnectorsLinkedToSlot(this.from_node, this.from_slot)[0];
+                }
+                if(!target_slot.allowMultipleConnections()) {
+                    connector = this.scene.getConnectorsLinkedToSlot(target_node, target_slot);
+                }
+                if(connector)
+                    this.end_state['removed_connector'] = [
+                        connector.out_node, connector.out_slot_name,
+                        connector.in_node, connector.in_slot_name
+                    ];
+            }
+            if (this.from_slot.isInput()) {
+                this.connector.out_node = target_node;
+                this.connector.out_slot_name = target_slot.name;
+            } else {
+                this.connector.in_node = target_node;
+                this.connector.in_slot_name = target_slot.name;
+            }
+            this.scene.addConnector(this.connector);
+            this.end_state['added_connector'] = [
+                this.connector.out_node, this.connector.out_slot_name,
+                this.connector.in_node, this.connector.in_slot_name
+            ];
         } else {
             //todo search menu
         }
+        this.scene.setToRender('nodes');
+        this.scene.setToRender('connectors');
     }
 
     ConnectCommand.prototype.draw = function(ctx, lod) {
@@ -3409,9 +3427,9 @@
         }
     }
 
-    ReconnectCommand.prototype.update = function(e) {
+    ReconnectCommand.prototype.update = function(e, new_hit) {
         for (const command of this.add_connector_commands) {
-            command.update(e)
+            command.update(e, new_hit);
         }
     }
 
@@ -3433,6 +3451,12 @@
             command.redo()
         }
         this.remove_connectors_command.redo();
+    }
+
+    ReconnectCommand.prototype.draw = function(ctx, lod) {
+        for (const command of this.add_connector_commands) {
+            command.draw(ctx, lod);
+        }
     }
 
     Object.setPrototypeOf(ReconnectCommand.prototype, Command.prototype);
@@ -3503,17 +3527,17 @@
         this.scene = scene;
     }
 
-    RemoveConnectorCommand.prototype.exec = function(e, connector) {
-        let did = this.scene.removeConnector(connector);
+    RemoveConnectorCommand.prototype.exec = function(e, connectors) {
+        let did = this.scene.removeConnectors(connectors);
         if(!did){
             this.support_undo = false;
             return;
         }
-        this.end_state = connector;
+        this.end_state = connectors;
     }
 
     RemoveConnectorCommand.prototype.undo = function() {
-        this.scene.addConnector(this.end_state);
+        this.scene.addConnectors(this.end_state);
     }
 
     RemoveConnectorCommand.prototype.redo = function() {
