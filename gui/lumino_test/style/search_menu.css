@@ -14,21 +14,26 @@
 
 .SearchMenu .memberEl,
 .SearchMenu .categoryName {
-    padding: 0.5rem;
     margin: 0;
+    display: block;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+
+}
+
+.SearchMenu .memberEl *,
+.SearchMenu .categoryName *{
+    margin: 0;
+    display: inline;
+
 }
 .SearchMenu .memberEl:hover:not(.selected),
 .SearchMenu .categoryName:hover:not(.selected){
     background-color: lightblue;
 }
 
-.SearchMenu .memberEl{
-    padding-left: 2.4rem;
+.SearchMenu .indentation {
 
-}
-
-.SearchMenu .categoryName{
-    padding-left: 1rem;
 }
 
 
@@ -36,6 +41,8 @@
     padding-left: 0.2rem;
     display: inline;
 }
+
+
 .SearchMenu .selected{
     background-color: darkcyan;
 }

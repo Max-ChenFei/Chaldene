@@ -364,34 +364,45 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
         that._search = {};
 
-        for (const [category, group] of Object.entries(that._groups)){
-          let s1 = [...category.matchAll(input.value)];
-          let added = false;
-          if(s1.length>0){
-            that._search[category] = {name: createLabel(category, s1), list:[]}
-            added = true;
-          }
-
-          for(let i = 0; i<group.list.length; i++){
-            let member = group.list[i];
-            let s2 = [...member.matchAll(input.value)];
-            if(s2.length>0){
-              if(!added){
-                that._search[category] = {name: category, list:[]}
-                added = true;
+        function addToSearch(groups,addEverything){
+          let node = {};
+          for (const [category, group] of Object.entries(groups)){
+            let s1 = [...category.matchAll(input.value)];
+            let added = false;
+            if(group.list){
+              let list = {}
+              if(s1.length>0){
+                added =true;
+                node[category] = {name: createLabel(category, s1), list:{}}
+                list = addToSearch(group.list,true);
+              } else {
+                list = addToSearch(group.list,addEverything);
               }
-              that._search[category].list.push(createLabel(member,s2));
-              that._search[category].show = true;
-            } else {
-              if(added){
-                that._search[category].list.push(member);
-                that._search[category].show = group.show;
+              if(Object.entries(list).length>0 || addEverything){
+                if(!added)
+                  node[category] = {name: category, list:list}
+                else
+                  node[category].list =list;
+
+                node[category].show = true;
               }
             }
-
+            else {
+              if(s1.length>0){
+                node[category] = createLabel(category, s1);
+              }
+              else if(addEverything){
+                node[category] = category;
+              }
+            }
           }
-
+          return node;
         }
+
+
+
+
+        that._search = addToSearch(that._groups,false);
         that.update();
 
       }
@@ -407,10 +418,24 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       this._groups = {};
 
       this.addMember = function(category,name){
-        if(!this._groups[category]){
-          this._groups[category] = {name: category,show:false, list:[]};
+
+        function addMember(node,category,name){
+          console.log(category);
+          if(!Object.keys(category).length>0){
+            if(node[name]){
+              console.error("Member  was already added");
+              return;
+            } else {
+              node[name] = name;
+            }
+          } else {
+            if(!node[category[0]]){
+              node[category[0]] = {name: category[0], list: {}, show: true};
+            }
+            addMember(node[category[0]].list, category.slice(1), name);
+          }
         }
-        this._groups[category].list.push(name);
+        addMember(this._groups, category,name);
       }
       let prevObj = null;
 
@@ -444,37 +469,49 @@ define(['@lumino/commands', '@lumino/widgets'], function (
             help = this._search;
           }
         }
-        for (const [category, group] of Object.entries(help)){
-          let icon= document.createElement('i');
-          icon.style.width = "1rem";
-          icon.classList.add("fa");
-          if(group.show)
-          icon.classList.add("fa-chevron-down");
-          else-
-          icon.classList.add("fa-chevron-right");
-          icon.ariaHidden=true;
-          let catTitle = document.createElement('p');
-          catTitle.innerHTML = group.name;
-          let catItem = document.createElement('div');
-          catItem.appendChild(icon);
-          catItem.appendChild(catTitle);
-          catItem.classList.add('categoryName');
-          catItem.onclick = function(){groupClick(group);};
+        let that = this;
+        function addNodes(list, groups,indent){
+          console.log(groups);
+          for (const [category, group] of Object.entries(groups)){
 
+            let d = document.createElement('div');
+            d.style.paddingLeft = indent+1+"rem";
+            d.classList.add("indentation");
+            if(group.name){
+              let icon= document.createElement('i');
+              icon.style.width = "1rem";
+              icon.classList.add("fa");
+              if(group.show)
+              icon.classList.add("fa-chevron-down");
+              else
+              icon.classList.add("fa-chevron-right");
+              icon.ariaHidden=true;
+              let catTitle = document.createElement('p');
+              catTitle.innerHTML = group.name;
+              let catItem = document.createElement('div');
+              catItem.appendChild(d);
+              catItem.appendChild(icon);
+              catItem.appendChild(catTitle);
+              catItem.classList.add('categoryName');
+              catItem.onclick = function(){groupClick(group);};
 
-          this._list.appendChild(catItem);
-          if(group.show){
-            for(let i = 0; i<group.list.length; i++){
-              let memberEl = document.createElement('p');
-              memberEl.innerHTML = group.list[i];
+              that._list.appendChild(catItem);
+              if(group.show)
+                addNodes(list,group.list,indent+1);
+            } else {
+              let p = document.createElement('p');
+              p.innerHTML = group;
+              let memberEl = document.createElement('div')
+              memberEl.appendChild(d);
+              memberEl.appendChild(p);
               memberEl.classList.add('memberEl');
               memberEl.onclick = function(){onclick(memberEl);};
-
-
-              this._list.appendChild(memberEl);
+              that._list.appendChild(memberEl);
             }
           }
         }
+
+        addNodes(this._list, help, 0);
       }
 
 
@@ -485,12 +522,19 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       this.title.caption = 'Shows all the members in ' + graph.name;
 
 
-      let gs = mockLiteGraphGetRegisteredNodes();
-      for (const [category, group] of Object.entries(gs)){
-        for(let i = 0; i<group.length;i++){
-          this.addMember(category, group[i])
+      function addToMenu(category, list){
+        for(let i = 0; i<list.length; i++){
+          if(!list[i].name){
+            console.log("heey",category, list[i]);
+            that.addMember(category,list[i]);
+          } else {
+            addToMenu(category.concat([list[i].name]), list[i].value);
+          }
         }
       }
+
+      let gs = mockLiteGraphGetRegisteredNodes();
+      addToMenu([],gs);
 
 
       this.update();
@@ -740,16 +784,20 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   }
 
   function mockLiteGraphGetRegisteredNodes(){
-    let nodes = {};
-    nodes["Math"] = ["Add","Multiply","Divide"];
-    nodes["Display"] = ["Image","String"];
-    nodes["Color"] = ["RGB2awkjdaiowjdoiawjawd awdawda wdiawhdBW", "HSV", "Contrast","Brightness"];
+    let nodes = [
+    {name: "Math", value: ["Add","Multiply","Divide", {
+      name: "Vector Math", value: ["Dot","Cross"]
+    }]},
+    {name: "Display", value: ["Image","String"]},
+    {name: "Color", value: ["RGB2awkjdaiowjdoiawjawd awdawda wdiawhdBW",
+    "HSV", "Contrast","Brightness"]}
+    ];
     return nodes;
   }
 
   function mockLiteGraphGetContextMenu(e /* MouseEvent */){
     //make sure to return null when the graph is being dragged
-
+    if(false)
     return {
       type: "ContextMenu",
       items: [
