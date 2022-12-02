@@ -23,6 +23,7 @@
 @import '../lumino/packages/default-theme/style/tabbar.css';
 @import './content.css';
 @import './members_panel.css';
+@import './search_menu.css';
 
 body {
   display: flex;
