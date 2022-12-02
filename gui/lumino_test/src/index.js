@@ -268,10 +268,18 @@ define(['@lumino/commands', '@lumino/widgets'], function (
           catTitle.innerHTML = group.name;
           let catItem = document.createElement('div');
 
-          catItem.appendChild(icon);
-          catItem.appendChild(catTitle);
+          let button = document.createElement('button')
+          button.classList.add('addbutton')
+          button.innerHTML = "Add...";
+
+          let catName = document.createElement('div');
+          catName.appendChild(icon);
+          catName.appendChild(catTitle);
           catItem.classList.add('categoryName');
-          catItem.onclick = function(){groupClick(group);};
+
+          catItem.appendChild(catName);
+          catItem.appendChild(button);
+          catName.onclick = function(){groupClick(group);};
 
 
           this._list.appendChild(catItem);
@@ -414,6 +422,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         this._list = document.createElement('div');
         this._list.classList.add("SearchList");
         this._list.style.maxHeight = "10rem";
+        this._list.style.maxWidth = "10rem";
+        node.style.width = "10rem";
         node.appendChild(this._list);
         let help = this._groups;
         if(this._search){
@@ -430,13 +440,12 @@ define(['@lumino/commands', '@lumino/widgets'], function (
           icon.classList.add("fa");
           if(group.show)
           icon.classList.add("fa-chevron-down");
-          else
+          else-
           icon.classList.add("fa-chevron-right");
           icon.ariaHidden=true;
           let catTitle = document.createElement('p');
           catTitle.innerHTML = group.name;
           let catItem = document.createElement('div');
-
           catItem.appendChild(icon);
           catItem.appendChild(catTitle);
           catItem.classList.add('categoryName');
@@ -724,13 +733,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     let nodes = {};
     nodes["Math"] = ["Add","Multiply","Divide"];
     nodes["Display"] = ["Image","String"];
-    nodes["Color"] = ["RGB2BW", "HSV", "Contrast","Brightness"];
+    nodes["Color"] = ["RGB2awkjdaiowjdoiawjawd awdawda wdiawhdBW", "HSV", "Contrast","Brightness"];
     return nodes;
   }
 
   function mockLiteGraphGetContextMenu(e /* MouseEvent */){
     //make sure to return null when the graph is being dragged
-    if(false)
+
     return {
       type: "ContextMenu",
       items: [
