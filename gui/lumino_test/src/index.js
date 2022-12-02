@@ -202,6 +202,11 @@ define(['@lumino/commands', '@lumino/widgets'], function (
               }
               that._search[category].list.push(createLabel(member,s2));
               that._search[category].show = true;
+            } else {
+              if(added){
+                that._search[category].list.push(member);
+                that._search[category].show = group.show;
+              }
             }
 
           }
@@ -377,6 +382,11 @@ define(['@lumino/commands', '@lumino/widgets'], function (
               }
               that._search[category].list.push(createLabel(member,s2));
               that._search[category].show = true;
+            } else {
+              if(added){
+                that._search[category].list.push(member);
+                that._search[category].show = group.show;
+              }
             }
 
           }
