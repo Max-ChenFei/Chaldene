@@ -2841,6 +2841,41 @@
                 e.preventDefault();
                 e.stopPropagation();
             }
+            else if (e.code == "KeyQ" && e.ctrlKey) {
+                let node = type_registry.createNode("Image.Read");
+                node.translate = new Point(10, 30);
+                this.execCommand(new AddNodeCommand(this), [e, node]);
+                let node2 = type_registry.createNode("Image.GaussianFilter");
+                node2.translate= new Point(200, 100);
+                this.execCommand(new AddNodeCommand(this), [e, node2]);
+                let connector = new Connector(null, node, 'out_exec', node2, 'in_exec');
+                this.execCommand(new AddConnectorCommand(this), [e, connector]);
+                let node3 = type_registry.createNode("Image.Write");
+                node3.translate= new Point(400, 40);
+                this.execCommand(new AddNodeCommand(this), [e, node3]);
+                let connector2 = new Connector(null, node, 'image', node3, 'image');
+                this.execCommand(new AddConnectorCommand(this), [e, connector2]);
+                let connector3 = new Connector(null, node2, 'out_exec', node3, 'in_exec');
+                this.execCommand(new AddConnectorCommand(this), [e, connector3]);
+
+                let node4 = type_registry.createNode("Image.Write");
+                node4.translate= new Point(550, 100);
+                this.execCommand(new AddNodeCommand(this), [e, node4]);
+                let connector4 = new Connector(null, node3, 'out_exec', node4, 'in_exec');
+                this.execCommand(new AddConnectorCommand(this), [e, connector4]);
+                let connector5 = new Connector(null, node2, 'image', node4, 'image');
+                this.execCommand(new AddConnectorCommand(this), [e, connector5]);
+
+                let connector6 = new Connector(null, node, 'image', node2, 'input');
+                this.execCommand(new AddConnectorCommand(this), [e, connector6]);
+
+                let connector8 = new Connector(null, node, 'out_exec', node4, 'in_exec');
+                this.execCommand(new AddConnectorCommand(this), [e, connector8]);
+
+                //this.selectAllNodes();
+                e.preventDefault();
+                e.stopPropagation();
+            }
             else if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 this.copySelectedNodeToClipboard();
             }
