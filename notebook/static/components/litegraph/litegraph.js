@@ -50,11 +50,30 @@
         let already_registered = this.registered_node_types[type];
         if (already_registered) console.warn("replacing node type: " + type);
         this.registered_node_types[type] = node_class;
-
-        let pos = type.lastIndexOf(".");
-        node_class.category = type.substr(0, pos);
     };
 
+    TypeRegistry.prototype.getNodeTypesInAllCategories = function(from_node, from_slot) {
+        let categories = {};
+        for (const node_type of Object.values(this.registered_node_types)) {
+            let path = node_type.type.split(".");
+            this.addToCategories(path, categories, from_node, from_slot, node_type);
+        }
+        return categories;
+    };
+
+    TypeRegistry.prototype.addToCategories = function(path, categories, from_node, from_slot, to_node){
+        if(path.length <= 1){
+            if(from_node.allowConnectToAnySlot(from_slot.name, to_node))
+                categories[node.type] = node;
+                return;
+        }
+        else{
+            if(!(path[0] in Object.keys(categories)))
+                categories[path[0]] = {};
+            let last_paht = path.shift();
+            this.addToCategories(path, categories[last_paht], from_node, from_slot, to_node);
+        }
+    };
     /**
      * removes a node type
      * @method unregisterNodeType
