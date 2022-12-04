@@ -3630,6 +3630,29 @@
 
     Object.setPrototypeOf(AddNodeCommand.prototype, Command.prototype);
 
+    function CreateNodeCommand(scene) {
+        this.desc = "Create Node";
+        this.scene = scene;
+        this._add_node = new AddNodeCommand(this.scene);
+    }
+
+    CreateNodeCommand.prototype.exec = function(e, node_type) {
+        let node = type_registry.createNode(node_type);
+        node.translate = new Point(this.scene.last_scene_pos.x, this.scene.last_scene_pos.y);
+        this._add_node.exec(node);
+        this.support_undo = this._add_node.support_undo;
+    }
+
+    CreateNodeCommand.prototype.undo = function() {
+        this._add_node.undo();
+    }
+
+    CreateNodeCommand.prototype.redo = function() {
+        this._add_node.redo();
+    }
+
+    Object.setPrototypeOf(CreateNodeCommand.prototype, Command.prototype);
+
     function AddConnectorCommand(scene) {
         this.desc = "Add Connector";
         this.scene = scene;
@@ -3730,6 +3753,50 @@
     }
 
     Object.setPrototypeOf(RemoveConnectorsCommand.prototype, Command.prototype);
+
+    function RemoveAllConnectorsOfNodeCommand(scene) {
+        this.desc = "Break Node Link(s)";
+        this.scene = scene;
+        this._removeConnectors = new RemoveConnectorCommand(this.scene);
+    }
+
+    RemoveAllConnectorsOfNodeCommand.prototype.exec = function(node) {
+        let connectors = this.scene.getConnectorsLinkedToNodes([node]);
+        this._removeConnectors.exec(connectors);
+        this.support_undo = this._removeConnectors.support_undo;
+    }
+
+    RemoveAllConnectorsOfNodeCommand.prototype.undo = function() {
+        this._removeConnectors.undo();
+    }
+
+    RemoveAllConnectorsOfNodeCommand.prototype.redo = function() {
+        this._removeConnectors.redo();
+    }
+
+    Object.setPrototypeOf(RemoveAllConnectorsOfNodeCommand.prototype, Command.prototype);
+
+    function RemoveAllConnectorsOfSlotCommand(scene) {
+        this.desc = "Break All Pin Link(s)";
+        this.scene = scene;
+        this._removeConnectors = new RemoveConnectorCommand(this.scene);
+    }
+
+    RemoveAllConnectorsOfNodeCommand.prototype.exec = function(e, node, slot) {
+        let connectors = this.scene.getConnectorsLinkedToSlot(node, slot);
+        this._removeConnectors.exec(connectors);
+        this.support_undo = this._removeConnectors.support_undo;
+    }
+
+    RemoveAllConnectorsOfNodeCommand.prototype.undo = function() {
+        this._removeConnectors.undo();
+    }
+
+    RemoveAllConnectorsOfNodeCommand.prototype.redo = function() {
+        this._removeConnectors.redo();
+    }
+
+    Object.setPrototypeOf(RemoveAllConnectorsOfNodeCommand.prototype, Command.prototype);
 
     function PasteFromClipboardCommand(scene) {
         this.label = "Paste";
