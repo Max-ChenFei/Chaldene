@@ -7990,7 +7990,7 @@
         if (ctx.start) {
             ctx.start();
         }
-
+        ctx.imageSmoothingEnabled = true;
 		var viewport = this.viewport || [0,0,ctx.canvas.width,ctx.canvas.height];
 
         //clear
@@ -8053,7 +8053,6 @@
                 } else {
                     ctx.globalAlpha = this.editor_alpha;
                 }
-                ctx.imageSmoothingEnabled = ctx.imageSmoothingEnabled = false; // ctx.mozImageSmoothingEnabled =
                 if (
                     !this._bg_img ||
                     this._bg_img.name != this.background_image
@@ -8087,7 +8086,6 @@
                 }
 
                 ctx.globalAlpha = 1.0;
-                ctx.imageSmoothingEnabled = ctx.imageSmoothingEnabled = true; //= ctx.mozImageSmoothingEnabled
             }
 
             //comments
