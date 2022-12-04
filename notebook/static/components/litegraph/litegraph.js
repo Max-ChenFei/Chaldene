@@ -1281,6 +1281,12 @@
             state_draw_method.draw(this, ctx, lod);
     };
 
+    Node.prototype.overrideRenderingTemplate = function() {
+    };
+
+    Node.prototype.overrideRenderingTemplateOfSlot = function(slot) {
+    };
+
     Node.prototype.pluginRenderingTemplate = function(template) {
         let default_node = template['Node'];
         let this_node = template[this.constructor.name];
@@ -1291,8 +1297,10 @@
         for (const [name, value] of Object.entries(this_node)) {
             this[name] = value;
         }
+        this.overrideRenderingTemplate();
         for (let slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
             slot.pluginRenderingTemplate(template['NodeSlot']);
+            this.overrideRenderingTemplateOfSlot(slot);
         }
         this.setSlotsTranslation();
     }
@@ -1451,8 +1459,9 @@
                         normal: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#80b3ff",
+                                strokeStyle: "#84ff00",
                                 lineWidth: 2,
+                                fontStyle: "000000FF",
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
@@ -1461,8 +1470,9 @@
                         hovered: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#80b3ff",
+                                strokeStyle: "#84ff00",
                                 lineWidth: 5,
+                                fontStyle: "000000FF",
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
@@ -1472,9 +1482,10 @@
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#FF0303FF",
-                                strokeStyle: "#FF0303FF",
+                                fillStyle: "#84ff00",
+                                strokeStyle: "#84ff00",
                                 lineWidth: 2,
+                                fontStyle: "000000FF",
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
@@ -1482,9 +1493,10 @@
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#FF0303FF",
-                                strokeStyle: "#FF0303FF",
+                                fillStyle: "#84ff00",
+                                strokeStyle: "#84ff00",
                                 lineWidth: 5,
+                                fontStyle: "000000FF",
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
                                 this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
@@ -1492,39 +1504,50 @@
                         },
                     },
                     _draw_when_normal: function(this_style, ctx, ctx_style, lod) {
-                        this_style.drawShape(ctx, ctx_style);
+                        this_style.drawShape(ctx, ctx_style, lod);
                         if (lod == 0 && this_style.owner.to_render_text && this_style.owner.data_type != 'exec') {
                             this_style.drawName(ctx, ctx_style);
                         }
                     },
                     _draw_when_hovered: function(this_style, ctx, ctx_style, lod) {
                         this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
-                        if (lod == 0)
-                            this_style.hovered(ctx, ctx_style);
+                        // if (lod == 0)
+                        //     this_style.hovered(ctx, ctx_style);
                     },
-                    drawShape: function(ctx, style) {
+                    drawShape: function(ctx, style, lod) {
                         ctx.save();
-                        ctx.beginPath();
-                        ctx.arc(
-                            this.owner.icon_width / 2.0 + (this.owner.isInput()-1) * this.owner.icon_width,
-                            this.owner.icon_width / 2.0,
-                            this.owner.icon_width / 2.0, 0, Math.PI * 2, true);
-                        ctx.closePath();
                         if (style.fillStyle) {
                             ctx.fillStyle = style.fillStyle;
-                            ctx.fill();
                         }
                         if (style.strokeStyle) {
                             ctx.lineWidth = style.lineWidth;
                             ctx.strokeStyle = style.strokeStyle;
-                            ctx.stroke();
+                        }
+                        if(lod > 0){
+                            if (style.fillStyle)
+                                ctx.fillRect((this.owner.isInput()-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                            ctx.strokeRect((this.owner.isInput()-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                        }
+                        else{
+                            ctx.beginPath();
+                            ctx.arc(
+                                this.owner.icon_width / 2.0 + (this.owner.isInput()-1) * this.owner.icon_width,
+                                this.owner.icon_width / 2.0,
+                                this.owner.icon_width / 2.0, 0, Math.PI * 2, true);
+                            ctx.closePath();
+                            if (style.fillStyle) {
+                                ctx.fill();
+                            }
+                            if (style.strokeStyle) {
+                                ctx.stroke();
+                            }
                         }
                         ctx.restore();
                     },
                     drawName: function(ctx, style) {
                         ctx.save();
                         ctx.font = this.font;
-                        if (style.fillStyle) ctx.fillStyle = style.fillStyle;
+                        if (style.fontStyle) ctx.fillStyle = style.fontStyle;
                         ctx.textBaseline = "middle";
                         let x = 0;
                         if (this.owner.isInput()) {
@@ -1553,7 +1576,7 @@
                         normal: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#FFFFFF",
+                                strokeStyle: "#f33232",
                                 line_width:2
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
@@ -1563,7 +1586,7 @@
                         hovered: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#FFFFFF",
+                                strokeStyle: "#f33232",
                                 line_width:2
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
@@ -1574,8 +1597,8 @@
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#0002ff",
-                                strokeStyle: "#363015",
+                                fillStyle: "#f33232",
+                                strokeStyle: "#f33232",
                                 line_width:2
                             },
                             draw: function(this_style, ctx, ctx_style, lod) {
@@ -1593,57 +1616,78 @@
                             }
                         },
                     },
-                    drawShape: function(ctx, style) {
+                    drawShape: function(ctx, style, lod) {
                         ctx.save();
-                        ctx.beginPath();
                         let start_x = 0;
                         if (!this.owner.isInput())
                             start_x = - this.owner.icon_width;
-                        ctx.moveTo(start_x, 0);
-                        ctx.lineTo(this.owner.icon_width / 2.0 + start_x, 0);
-                        ctx.lineTo(this.owner.icon_width + start_x, this.owner.icon_height / 2.0);
-                        ctx.lineTo(this.owner.icon_width / 2.0 + start_x, this.owner.icon_height);
-                        ctx.lineTo(start_x, this.owner.icon_height);
-                        ctx.closePath();
                         if (style.fillStyle) {
                             ctx.fillStyle = style.fillStyle;
-                            ctx.fill();
                         }
                         if (style.strokeStyle) {
-                            ctx.lineWidth = style.line_width;
+                            ctx.lineWidth = style.lineWidth;
                             ctx.strokeStyle = style.strokeStyle;
-                            ctx.stroke();
                         }
-                        ctx.moveTo(0, 0);
+                        if(lod > 0){
+                            if (style.fillStyle)
+                                ctx.fillRect(start_x, 0, this.owner.icon_width, this.owner.icon_height);
+                            ctx.strokeRect((this.owner.isInput()-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                        }
+                        else {
+                            ctx.beginPath();
+                            ctx.moveTo(start_x, 0);
+                            ctx.lineTo(this.owner.icon_width / 2.0 + start_x, 0);
+                            ctx.lineTo(this.owner.icon_width + start_x, this.owner.icon_height / 2.0);
+                            ctx.lineTo(this.owner.icon_width / 2.0 + start_x, this.owner.icon_height);
+                            ctx.lineTo(start_x, this.owner.icon_height);
+                            ctx.closePath();
+                            if (style.fillStyle)
+                                ctx.fill();
+                            if (style.strokeStyle)
+                                ctx.stroke();
+                            ctx.moveTo(0, 0);
+                        }
                         ctx.restore();
                     },
                 },
-                "Number": {
+                "number": {
                     unconnected: {
                         normal: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#00FF4AFF"
+                                strokeStyle: "#cc00ff"
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
                             ctx_style: {
                                 fillStyle: null,
-                                strokeStyle: "#00FF4AFF"
+                                strokeStyle: "#cc00ff"
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
                             }
                         },
                     },
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#00FF4AFF",
-                                strokeStyle: "#00FF4AFF"
+                                fillStyle: "#cc00ff",
+                                strokeStyle: "#cc00ff",
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#00FF4AFF",
-                                strokeStyle: "#00FF4AFF"
+                                fillStyle: "#cc00ff",
+                                strokeStyle: "#cc00ff"
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
                             }
                         },
                     },
@@ -1654,16 +1698,16 @@
             global_alpha: 1,
             title_bar: {
                 to_render: true,
-                color: "#999",
+                color: "#a3a3fa",
                 height: 25,
                 font: "12px Arial",
-                font_color: '#ff0000',
+                font_color: '#000000',
                 text_to_border: 5
             },
             central_text: {
                 to_render: false,
                 width: 10,
-                color: "#999"
+                color: "#000000"
             },
             slot_to_top_border: 6,
             slot_to_side_border: 6,
@@ -1713,8 +1757,8 @@
             style: {
                 normal: {
                     ctx_style: {
-                        fill_style: "#0053FFFF",
-                        stroke_style: null,
+                        fill_style: "#b6b6b6",
+                        stroke_style: "#2b2b2b",
                         line_width: 1,
                         round_radius: 8
                     },
@@ -1735,8 +1779,8 @@
                 },
                 pressed: {
                     ctx_style: {
-                        fill_style: "#0053FFFF",
-                        stroke_style: "#f0f005",
+                        fill_style: "#b6b6b6",
+                        stroke_style: "#ffcc00",
                         line_width: 3,
                         round_radius: 8
                     },
@@ -1767,7 +1811,7 @@
                 this._drawBackground(ctx, ctx_style, lod);
                 this._drawTitle(ctx, ctx_style, lod);
                 this._drawSlots(ctx, lod);
-                // this._drawCentral(ctx, ctx_style, lod);
+                this._drawCentral(ctx, ctx_style, lod);
             },
 
             _drawBackground: function(ctx, ctx_style, lod) {
@@ -1779,8 +1823,10 @@
                     ctx.lineWidth = ctx_style.line_width;
                 }
                 const rect = this.size();
-                if(lod > 0)
+                if(lod > 0) {
                     ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+                    ctx.strokeRect(rect.left, rect.top, rect.width, rect.height);
+                }
                 else{
                     ctx.beginPath();
                     ctx.roundRect(rect.left, rect.top, rect.width, rect.height, [ctx_style.round_radius]);
@@ -1798,11 +1844,18 @@
                 ctx.save();
                 ctx.fillStyle = this.title_bar.color;
                 const rect = this.size();
+                let inner_offset = ctx_style.line_width / 2.0 || 0;
                 if (lod > 0) {
-                    ctx.fillRect(rect.left, rect.top, rect.width, this.title_bar.height);
+                    ctx.fillRect(
+                        rect.left + inner_offset, rect.top + inner_offset,
+                        rect.width- 2* inner_offset, this.title_bar.height- 2* inner_offset);
                 } else {
                     ctx.beginPath();
-                    ctx.roundRect(rect.left, rect.top, rect.width, this.title_bar.height,
+                    ctx.roundRect(
+                        rect.left + inner_offset,
+                        rect.top + inner_offset,
+                        rect.width - 2* inner_offset,
+                        this.title_bar.height -2* inner_offset,
                         ctx_style.round_radius, 3);
                     ctx.fill();
                     ctx.font = this.title_bar.font;
@@ -1824,14 +1877,14 @@
             },
 
             _drawCentral: function(ctx, ctx_style, lod) {
-                if (!this.central_text.to_render && lod > 0)
+                if (!this.central_text.to_render)
                     return;
                 ctx.save();
                 ctx.fillStyle = this.central_text.color;
-                ctx.font = this.title_bar.font;
+                ctx.font = this.central_text.font;
                 ctx.textBaseline = "middle";
                 ctx.textAlign = "center";
-                ctx.fillText(this.central_text.text, this.icon_width + this.padding_between_icon_text, this.height / 2.0);
+                ctx.fillText(this.central_text.text, this.width()/2.0, this.height() / 2.0);
                 ctx.restore();
             }
         },
@@ -1903,9 +1956,9 @@
                     },
                     draw: function(connector, ctx, lod) {
                         if(connector.out_node.getSlotCtxStyle)
-                            this.ctx_style.stroke_style = connector.out_node.getSlotCtxStyle(connector.out_slot_name).fillStyle;
+                            this.ctx_style.stroke_style = connector.out_node.getSlotCtxStyle(connector.out_slot_name).strokeStyle;
                         else if (connector.in_node.getSlotCtxStyle)
-                            this.ctx_style.stroke_style = connector.in_node.getSlotCtxStyle(connector.in_slot_name).fillStyle;
+                            this.ctx_style.stroke_style = connector.in_node.getSlotCtxStyle(connector.in_slot_name).strokeStyle;
                         connector._draw(ctx, this.ctx_style, lod);
                     }
                 },
@@ -2911,8 +2964,16 @@
                 let connector6 = new Connector(null, node, 'image', node2, 'input');
                 this.execCommand(new AddConnectorCommand(this), [connector6]);
 
-                let connector8 = new Connector(null, node, 'out_exec', node4, 'in_exec');
+                let connector8 = new Connector(null, node, 'out_exec', node2, 'in_exec');
                 this.execCommand(new AddConnectorCommand(this), [connector8]);
+
+                let node5 = type_registry.createNode("Image.Image");
+                node5.translate= new Point(300, 100);
+                this.execCommand(new AddNodeCommand(this), [ node5]);
+
+                let node6 = type_registry.createNode("Image.ImagePlusImage");
+                node6.translate= new Point(300, 200);
+                this.execCommand(new AddNodeCommand(this), [ node6]);
 
                 //this.selectAllNodes();
                 e.preventDefault();
@@ -4212,5 +4273,55 @@
         this.type = "Image.GaussianFilter";
         this.desc = "Gaussian filter";
     }
+
     type_registry.registerNodeType("Image.GaussianFilter", ImageGaussianFilter);
+
+    function ImagePlusImage() {
+        this._ctor();
+        this.addInput("imageA", "numpy.ndarray", null, {to_render_text: false});
+        this.addInput("imageB", "numpy.ndarray", null, {to_render_text: false});
+        this.addOutput("image", "numpy.ndarray", null, {to_render_text: false});
+        this.type = "Image.ImagePlusImage";
+        this.desc = "Image plus image";
+    }
+    ImagePlusImage.prototype.overrideRenderingTemplate = function (){
+        this.title_bar = {
+            to_render: false,
+            color: "#a3a3fa",
+            height: 25,
+            font: "12px Arial",
+            font_color: '#000000',
+            text_to_border: 5
+        };
+        this.central_text = {
+            to_render: true,
+            width: 12,
+            height: 10,
+            color: "#000000",
+            text: "+",
+            font: "22px Arial",
+        };
+    }
+    ImagePlusImage.prototype.overrideRenderingTemplateOfSlot = function(slot) {
+        slot.to_render_text = false;
+    };
+    type_registry.registerNodeType("Image.ImagePlusImage", ImagePlusImage);
+
+    function Image() {
+        this._ctor();
+        this.addOutput("image", "numpy.ndarray", null);
+        this.type = "Image.Image";
+        this.desc = "Image";
+    }
+    Image.prototype.overrideRenderingTemplate = function (){
+        this.title_bar = {
+            to_render: false,
+            color: "#a3a3fa",
+            height: 25,
+            font: "12px Arial",
+            font_color: '#000000',
+            text_to_border: 5
+        };
+    }
+    type_registry.registerNodeType("Image.Image", Image);
 })(this);
