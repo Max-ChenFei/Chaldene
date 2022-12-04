@@ -2781,6 +2781,7 @@
 
     Scene.prototype.execCommand = function(command, args) {
         this.command_in_process = command;
+        args = args || [];
         this.command_in_process.exec.apply(this.command_in_process, args);
         debug_log(`exec ${this.command_in_process.constructor.name}`);
         if(this.command_in_process.draw)
@@ -2875,7 +2876,7 @@
             }
             else if (e.code == 'Delete') {
                 let command = new RemoveSelectedNodesCommand(this);
-                this.execCommand(command, [e]);
+                this.execCommand(command);
             }
             else if (e.code == "KeyA" && e.ctrlKey) {
                 this.selectAllNodes();
@@ -2885,33 +2886,33 @@
             else if (e.code == "KeyQ" && e.ctrlKey) {
                 let node = type_registry.createNode("Image.Read");
                 node.translate = new Point(10, 30);
-                this.execCommand(new AddNodeCommand(this), [e, node]);
+                this.execCommand(new AddNodeCommand(this), [node]);
                 let node2 = type_registry.createNode("Image.GaussianFilter");
                 node2.translate= new Point(200, 100);
-                this.execCommand(new AddNodeCommand(this), [e, node2]);
+                this.execCommand(new AddNodeCommand(this), [node2]);
                 let connector = new Connector(null, node, 'out_exec', node2, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [e, connector]);
+                this.execCommand(new AddConnectorCommand(this), [connector]);
                 let node3 = type_registry.createNode("Image.Write");
                 node3.translate= new Point(400, 40);
-                this.execCommand(new AddNodeCommand(this), [e, node3]);
+                this.execCommand(new AddNodeCommand(this), [node3]);
                 let connector2 = new Connector(null, node, 'image', node3, 'image');
-                this.execCommand(new AddConnectorCommand(this), [e, connector2]);
+                this.execCommand(new AddConnectorCommand(this), [connector2]);
                 let connector3 = new Connector(null, node2, 'out_exec', node3, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [e, connector3]);
+                this.execCommand(new AddConnectorCommand(this), [connector3]);
 
                 let node4 = type_registry.createNode("Image.Write");
                 node4.translate= new Point(550, 100);
-                this.execCommand(new AddNodeCommand(this), [e, node4]);
+                this.execCommand(new AddNodeCommand(this), [ node4]);
                 let connector4 = new Connector(null, node3, 'out_exec', node4, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [e, connector4]);
+                this.execCommand(new AddConnectorCommand(this), [connector4]);
                 let connector5 = new Connector(null, node2, 'image', node4, 'image');
-                this.execCommand(new AddConnectorCommand(this), [e, connector5]);
+                this.execCommand(new AddConnectorCommand(this), [connector5]);
 
                 let connector6 = new Connector(null, node, 'image', node2, 'input');
-                this.execCommand(new AddConnectorCommand(this), [e, connector6]);
+                this.execCommand(new AddConnectorCommand(this), [connector6]);
 
                 let connector8 = new Connector(null, node, 'out_exec', node4, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [e, connector8]);
+                this.execCommand(new AddConnectorCommand(this), [connector8]);
 
                 //this.selectAllNodes();
                 e.preventDefault();
@@ -2922,15 +2923,15 @@
             }
             else if (e.code == "KeyV" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new PasteFromClipboardCommand(this);
-                this.execCommand(command, [this.last_scene_pos.x, this.last_scene_pos.y]);
+                this.execCommand(command);
             }
             else if (e.code == "KeyX" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new CutSelectedNodesCommand(this);
-                this.execCommand(command, [e]);
+                this.execCommand(command);
             }
             else if (e.code == "KeyD" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 let command = new DuplicateNodeCommand(this);
-                this.execCommand(command, [this.last_scene_pos.x, this.last_scene_pos.y]);
+                this.execCommand(command);
                 e.preventDefault();
                 e.stopPropagation();
             }
@@ -2963,7 +2964,7 @@
             return;
         else if(e.altKey){
             if(connectors.length>0)
-                this.execCommand(new RemoveConnectorCommand(this), [e, connectors]);
+                this.execCommand(new RemoveConnectorCommand(this), [connectors]);
             return;
         }
         else if (e.ctrlKey && connectors.length>0) {
@@ -3185,17 +3186,17 @@
     Command.prototype.undo = function() {}
     Command.prototype.redo = function() {}
 
-    function copySelectedNodeToClipboard(scene) {
+    function copySelectedNodeToClipboardCommand(scene) {
         this.label = "Copy";
         this.scene = scene;
         this.support_undo = false;
     }
 
-    copySelectedNodeToClipboard.prototype.exec = function(){
+    copySelectedNodeToClipboardCommand.prototype.exec = function(){
         this.scene.copySelectedNodeToClipboard();
     };
 
-    Object.setPrototypeOf(copySelectedNodeToClipboard.prototype, Command.prototype);
+    Object.setPrototypeOf(copySelectedNodeToClipboardCommand.prototype, Command.prototype);
 
     function MoveCommand(scene) {
         this.desc = "Move Node";
@@ -3554,7 +3555,7 @@
     }
 
     ReconnectCommand.prototype.exec = function(e, connectors, change_in_slot) {
-        this.remove_connectors_command.exec(e, connectors);
+        this.remove_connectors_command.exec(connectors);
         for (const connector of connectors) {
             let command = new ConnectCommand(this.scene);
             command.exec(e,
@@ -3603,13 +3604,7 @@
         this.scene = scene;
     }
 
-    /**
-     *
-     * @param e
-     * @param node
-     * @param connector the connector will also be created when drag the connector and create node from context menu
-     */
-    AddNodeCommand.prototype.exec = function(e, node, connector) {
+    AddNodeCommand.prototype.exec = function(node, connector) {
         let did = this.scene.addNode(node);
         if(!did){
             this.support_undo = false;
@@ -3640,7 +3635,7 @@
         this.scene = scene;
     }
 
-    AddConnectorCommand.prototype.exec = function(e, connector) {
+    AddConnectorCommand.prototype.exec = function(connector) {
         let did = this.scene.addConnector(connector);
         if(!did) {
             this.support_undo = false;
@@ -3665,7 +3660,7 @@
         this.scene = scene;
     }
 
-    RemoveConnectorCommand.prototype.exec = function(e, connectors) {
+    RemoveConnectorCommand.prototype.exec = function(connectors) {
         let did = this.scene.removeConnectors(connectors);
         if(!did){
             this.support_undo = false;
@@ -3690,7 +3685,7 @@
         this.scene = scene;
     }
 
-    RemoveSelectedNodesCommand.prototype.exec = function(e) {
+    RemoveSelectedNodesCommand.prototype.exec = function() {
         this.end_state = {
             "nodes": this.scene.getSelectedNodes(),
             "connectors": this.scene.getConnectorsLinkedToNodes(this.scene.getSelectedNodes())
@@ -3698,7 +3693,6 @@
         let did = this.scene.removeSelectedNodes();
         if(!did){
             this.support_undo = false;
-            return;
         }
     }
 
@@ -3719,12 +3713,11 @@
         this.scene = scene;
     }
 
-    RemoveConnectorsCommand.prototype.exec = function(e, connectors) {
+    RemoveConnectorsCommand.prototype.exec = function(connectors) {
         this.end_state = connectors;
         let did = this.scene.removeConnectors(connectors);
         if(!did){
             this.support_undo = false;
-            return;
         }
     }
 
@@ -3744,7 +3737,7 @@
         this.scene = scene;
     }
 
-    PasteFromClipboardCommand.prototype.exec = function(x, y) {
+    PasteFromClipboardCommand.prototype.exec = function() {
         this.end_state = {
             "config": localStorage.getItem("visual_programming_env_clipboard")
         };
@@ -3752,8 +3745,8 @@
             this.support_undo = false;
             return;
         }
-        this.scene_x = x;
-        this.scene_y = y;
+        this.scene_x = this.scene.last_scene_pos.x;
+        this.scene_y = this.scene.last_scene_pos.y;
         let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y);
         this.support_undo = created.is_empty;
         this.end_state.nodes = created.nodes;
@@ -3778,13 +3771,13 @@
         this.desc = this.delete_command.desc;
     }
 
-    CutSelectedNodesCommand.prototype.exec = function(e) {
+    CutSelectedNodesCommand.prototype.exec = function() {
         let contents = this.scene.copySelectedNodeToClipboard();
         if(contents.is_empty) {
             this.support_undo = false;
             return;
         }
-        let did = this.delete_command.exec(e);
+        let did = this.delete_command.exec();
         this.support_undo = did;
     }
 
@@ -3805,13 +3798,13 @@
         this.desc = this.paste_command.desc;
     }
 
-    DuplicateNodeCommand.prototype.exec = function(x, y) {
+    DuplicateNodeCommand.prototype.exec = function() {
         let contents = this.scene.copySelectedNodeToClipboard();
         if(contents.is_empty) {
             this.support_undo = false;
             return;
         }
-        this.paste_command.exec(x, y);
+        this.paste_command.exec();
     }
 
     DuplicateNodeCommand.prototype.undo = function() {
