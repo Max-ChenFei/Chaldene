@@ -3117,10 +3117,12 @@
         return this.canvas.ownerDocument;
     };
 
-    Scene.prototype.command_classes = [
+    Scene.prototype.commands_for_node = [
         RemoveSelectedNodesCommand, CutSelectedNodesCommand,
-        copySelectedNodeToClipboard, DuplicateNodeCommand,
-        RemoveConnectorCommand];
+        copySelectedNodeToClipboardCommand, DuplicateNodeCommand,
+        RemoveAllConnectorsOfNodeCommand];
+    Scene.prototype.commands_for_slot = [
+        RemoveAllConnectorsOfSlotCommand];
 
     Scene.prototype.getAllContextCommands = function() {
         function toContextCommand(command_class){
@@ -3133,7 +3135,7 @@
         }
 
         let context_commands = [];
-        for (const c of this.command_classes) {
+        for (const c of this.commands_for_node.concat(this.commands_for_slot)) {
             let context_command = toContextCommand(c);
             context_command.exec.bind(this);
             context_commands.push(context_command);
@@ -3144,15 +3146,17 @@
     Scene.prototype.getContextCommands = function() {
         let context_command_names = [];
         if(this.hit_result.is_hitted){
-            if(this.hit_result.hit_node instanceof Node)
+            if(this.hit_result.hit_node instanceof Node && !(this.hit_result.hit_node instanceof NodeSlot))
             {
-                for (const c of this.command_classes) {
-                    context_command_names.push({command: c.name, args: [this.last_event]});
+                for (const c of this.commands_for_node) {
+                    context_command_names.push({command: c.name, args: []});
                 };
             }
             if(this.hit_result.hit_node instanceof NodeSlot)
             {
-                return context_command_names.push({command: RemoveConnectorCommand.name, args: [this.last_event]});
+                 for (const c of this.commands_for_slot) {
+                    context_command_names.push({command: c.name, args: []});
+                };
             }
         }
         return context_command_names;
