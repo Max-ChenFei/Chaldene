@@ -2479,7 +2479,7 @@
 
     Scene.prototype.visibleNodes = function(include_type, exclude_type) {
         let sceneRect = this.sceneRect();
-        return this.collision_detector.getItemsOverlapWith(sceneRect, include_type, exclude_type)
+        return this.collision_detector.getItemsOverlapWith(sceneRect, include_type, exclude_type, true);
     };
 
     Scene.prototype.deselectNode = function(node, not_to_redraw) {
@@ -2557,6 +2557,7 @@
             return false;
         node.selected();
         this.selected_nodes[node.id] = node;
+        this.collision_detector.setTopZOrder(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
         return true;
@@ -4090,6 +4091,18 @@
         return this.mapRectToScene(this.viewport);
     };
 
+    function moveItemToFrontInArray(array, item){
+        let i = array.indexOf(item);
+        if(i>0)
+            array.unshift(array.splice(i, 1)[0]);
+    }
+
+    function removeItemInArray(array, item){
+        let index = array.indexOf(item);
+        if(index> -1)
+            array.splice(index, 1);
+    }
+
     function HitResult(is_hitted, hit_node, hit_local_x, hit_local_y, hit_component) {
         this.is_hitted = is_hitted;
         this.hit_node = hit_node;
@@ -4104,21 +4117,51 @@
      * @constructor
      */
     function CollisionDetector() {
-        this._boundingRectsOfNodes = {};
-        this._boundingRectsOfComments = {};
+       this.clear();
     };
 
     CollisionDetector.prototype.clear = function() {
-        this._boundingRectsOfNodes = {};
+        this._boundingRectsExcludeComments = {};
         this._boundingRectsOfComments = {};
+        this._idsOfNoCommentsWithDescendZOrder = [];
+        this._idsOfCommentsWithDescendZOrder = [];
+    };
+
+    CollisionDetector.prototype.addExcludeCommentsBoundingRect = function(rect) {
+        this._boundingRectsExcludeComments[rect.owner.id] = rect;
+        this._idsOfNoCommentsWithDescendZOrder.unshift(rect.owner.id);
+    };
+
+    CollisionDetector.prototype.addCommentNodeBoundingRect = function(rect) {
+        this._boundingRectsOfComments[rect.owner.id] = rect;
+        this._idsOfCommentsWithDescendZOrder.unshift(rect.owner.id);
     };
 
     CollisionDetector.prototype.allBoundingRectIDs = function (){
-        return Object.keys(this._boundingRectsOfNodes).concat(Object.keys(this._boundingRectsOfComments));
+        return this._idsOfNoCommentsWithDescendZOrder.concat(this._idsOfCommentsWithDescendZOrder);
     }
 
     CollisionDetector.prototype.allBoundingRects = function (){
-        return Object.values(this._boundingRectsOfNodes).concat(Object.values(this._boundingRectsOfComments));
+        return Object.values(this._boundingRectsExcludeComments).concat(Object.values(this._boundingRectsOfComments));
+    }
+
+    CollisionDetector.prototype.allZOrderedBoundingRects = function (){
+        let z_ordered_nodes = [];
+        for (const id of this._idsOfNoCommentsWithDescendZOrder) {
+            z_ordered_nodes.push(this._boundingRectsExcludeComments[id]);
+        }
+        let z_ordered_comments = [];
+        for (const id of this._idsOfCommentsWithDescendZOrder) {
+            z_ordered_comments.push(this._boundingRectsOfComments[id]);
+        }
+        return z_ordered_nodes.concat(z_ordered_comments);
+    }
+
+    CollisionDetector.prototype.setTopZOrder = function(item) {
+        if(item instanceof CommentNode)
+            moveItemToFrontInArray(this._idsOfCommentsWithDescendZOrder, item.id);
+        else
+            moveItemToFrontInArray(this._idsOfNoCommentsWithDescendZOrder, item.id);
     }
 
     CollisionDetector.prototype.addBoundingRect = function(item) {
@@ -4139,15 +4182,20 @@
         if (this.allBoundingRectIDs().includes(rect.owner.id))
             throw "The id of bounding rect already in used."
         if(item instanceof CommentNode)
-            this._boundingRectsOfComments[rect.owner.id] = rect;
+            this.addCommentNodeBoundingRect(rect);
         else
-            this._boundingRectsOfNodes[rect.owner.id] = rect;
+            this.addExcludeCommentsBoundingRect(rect);
     };
 
     CollisionDetector.prototype.removeBoundingRect = function(item) {
-        delete this._boundingRectsOfNodes[item.id];
-        delete this._boundingRectsOfComments[item.id];
-
+        if(item instanceof CommentNode){
+            removeItemInArray(this._idsOfCommentsWithDescendZOrder, item.id);
+            delete this._boundingRectsOfComments[item.id];
+        }
+        else{
+            removeItemInArray(this._idsOfNoCommentsWithDescendZOrder, item.id);
+            delete this._boundingRectsExcludeComments[item.id];
+        }
     };
 
     CollisionDetector.prototype.updateBoundingRect = function(item) {
@@ -4156,7 +4204,7 @@
     };
 
     CollisionDetector.prototype.getHitResultAtPos = function(x, y) {
-        for (const rect of this.allBoundingRects()) {
+        for (const rect of this.allZOrderedBoundingRects()) {
             if (rect.owner instanceof Node && rect.isInside(x, y)) {
                 const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
                 const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
@@ -4177,15 +4225,17 @@
         return null;
     };
 
-    CollisionDetector.prototype.getItemsOverlapWith = function(rect, include_type, exclude_type) {
+    CollisionDetector.prototype.getItemsOverlapWith = function(rect, include_type, exclude_type, z_order_ascend) {
         let intersections = [];
-        for (const r of this.allBoundingRects()) {
+        for (const r of this.allZOrderedBoundingRects()) {
             let include = include_type ? r.owner instanceof include_type : true;
             let exclude = exclude_type? r.owner instanceof exclude_type: false;
             if (include && (!exclude) && rect.isIntersectWith(r)) {
                 intersections.push(r.owner);
             }
         }
+        if(z_order_ascend)
+            intersections.reverse();
         return intersections;
     }
 
