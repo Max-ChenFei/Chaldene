@@ -4344,9 +4344,9 @@
 
     function ImagePlusImage() {
         this._ctor();
-        this.addInput("imageA", "numpy.ndarray", null, {to_render_text: false});
-        this.addInput("imageB", "numpy.ndarray", null, {to_render_text: false});
-        this.addOutput("image", "numpy.ndarray", null, {to_render_text: false});
+        this.addInput("imageA", "numpy.ndarray");
+        this.addInput("imageB", "numpy.ndarray");
+        this.addOutput("image", "numpy.ndarray");
         this.type = "Image.ImagePlusImage";
         this.desc = "Image plus image";
     }
