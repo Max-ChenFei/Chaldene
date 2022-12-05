@@ -725,7 +725,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
       let that = this;
       this.ctx = ctx;
-      this.graph = new LiteGraph.LGraph();
       let serachMenu =createSearchMenu({name:"main"});
       node.addEventListener('contextmenu', function (event) {
         let cs = mockLiteGraphGetContextMenu(event);
@@ -739,7 +738,15 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         event.preventDefault();
         event.stopPropagation();
       });
-      this.graph_canvas = new LiteGraph.LGraphCanvas(canvas, this.graph, {skip_events:false});
+      this.scene = new VPE.Scene(canvas);
+      this.scene.start();
+      // let fit_to_parent_callback = this.scene.fitToParentSize().bind(this.scene);
+      // // The width of scene parent is zero at current frame
+      // window.requestAnimationFrame(function(){
+      //    fit_to_width_callback();
+      // });
+      // window.addEventListener("resize", fit_to_parent_callback);
+
       this.setFlag(Widget.Flag.DisallowLayout);
       this.addClass('content');
       this.addClass('blue');
@@ -755,8 +762,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
 
   GraphEditor.prototype.onResize = function(){
-    this.ctx.canvas.height = this.ctx.canvas.clientHeight;
-    this.ctx.canvas.width = this.ctx.canvas.clientWidth;
+    // this.ctx.canvas.height = this.ctx.canvas.clientHeight;
+    // this.ctx.canvas.width = this.ctx.canvas.clientWidth;
+    this.scene.resize(this.ctx.canvas.clientHeight, this.ctx.canvas.clientWidth);
 /*
     this.ctx.fillStyle = 'pink';
     this.ctx.fillRect(0,0,this.ctx.canvas.width,this.ctx.canvas.height);
