@@ -1291,7 +1291,7 @@
         let default_node = template['Node'];
         let this_node = template[this.constructor.name];
         if (this_node)
-            Object.setPrototypeOf(this_node.prototype, default_node.prototype);
+            Object.setPrototypeOf(this_node, default_node);
         else
             this_node = default_node;
         for (const [name, value] of Object.entries(this_node)) {
@@ -1302,7 +1302,8 @@
             slot.pluginRenderingTemplate(template['NodeSlot']);
             this.overrideRenderingTemplateOfSlot(slot);
         }
-        this.setSlotsTranslation();
+        if(Object.keys(this.inputs).length > 0 || Object.keys(this.outputs).length > 0)
+            this.setSlotsTranslation();
     }
 
     Node.prototype.mouseEnter = function() {
@@ -1347,31 +1348,26 @@
     };
 
 
-    function LGraphComment() {
-        this.nodes_inside = {};
+    function CommentNode() {
+        this._ctor();
         this.allow_resize = true;
+        //for resize detection
+        this.resize_detection_distance = 4;
     }
 
-    LGraphComment.title = "Comment";
-    LGraphComment.type = "comment";
-    LGraphComment.desc = "Comment";
+    CommentNode.title = "Comment";
+    CommentNode.type = "comment";
+    CommentNode.desc = "Comment";
 
-    LGraphComment.prototype.move = function(delta_x, delta_y) {
-        for (const node of this.nodes_inside) {
-            node.addTranslate(delta_x, delta_y)
-        }
-        if (this.onMove) {
-            this.onMove(delta_x, delta_y);
-        }
+    CommentNode.prototype.getBoundingRect = function() {
+        const size = this.size();
+        return new Rect(this.translate.x + size.left - this.resize_detection_distance,
+            this.translate.y + size.top - this.resize_detection_distance,
+            size.width + 2 * this.resize_detection_distance,
+            size.height + 2 * this.resize_detection_distance);
     };
 
-    LGraphComment.prototype.addNode = function(node) {
-        this.nodes_inside[node.id] = node;
-    };
-
-    LGraphComment.prototype.removeNode = function(node_id) {
-        delete this.nodes_inside[node_id];
-    };
+    type_registry.registerNodeType("Comment", CommentNode);
 
     function textWidth(text, font) {
         let canvas = document.getElementsByTagName("canvas")[0];
@@ -1890,10 +1886,10 @@
         },
         CommentNode: {
             alpha: 0.5,
-            _width: 20,
-            _height: 20,
-            _min_width: 2,
-            _min_height: 2,
+            _width: 200,
+            _height: 200,
+            _min_width: 10,
+            _min_height: 10,
             width: function() {
                 return this._width;
             },
@@ -1910,8 +1906,8 @@
             },
             size: function() {
                 return {
-                    x: 0,
-                    y: 0,
+                    left: 0,
+                    top: 0,
                     width: this.width(),
                     height: this.height()
                 }
@@ -1920,26 +1916,42 @@
             style: {
                 normal: {
                     ctx_style: {
-                        fill_style: "#ffffff",
-                        stroke_style: null
+                        fill_style: "#CBCBCBFF",
+                        stroke_style: "#2b2b2b",
+                        line_width: 1,
+                    },
+                    draw: function(node, ctx, lod) {
+                       node._draw(ctx, this.ctx_style, lod);
                     }
                 },
                 pressed: {
                     ctx_style: {
-                        fill_style: "#0053FFFF",
-                        stroke_style: "0053FFFF"
+                        fill_style: "#CBCBCBFF",
+                        stroke_style: "#ffcc00",
+                        line_width: 3,
+                    },
+                    draw: function(node, ctx, lod) {
+                       node._draw(ctx, this.ctx_style, lod);
                     }
                 },
             },
-            draw: function(ctx, ctx_style, lod) {
+            _draw: function(ctx, ctx_style, lod) {
                 ctx.save()
                 ctx.globalAlpha = this.alpha;
                 ctx.fillStyle = ctx_style.fill_style;
-                ctx.stroke_style = ctx_style.stroke_style;
+                if(ctx_style.stroke_style)
+                    ctx.strokeStyle = ctx_style.stroke_style;
                 ctx.beginPath();
-                ctx.rect(0, 0, this.width, this.height);
+                ctx.lineWidth = ctx_style.line_width;
+                ctx.rect(0, 0, this.width(), this.height());
                 ctx.fill();
                 ctx.stroke();
+                ctx.globalAlpha = 1;
+                ctx.font = "20px Arial";
+                ctx.textBaseline = "bottom";
+                ctx.textAlign = "left";
+                ctx.fillStyle = "#2b2b2b";
+                ctx.fillText("Gaussian Filter", 0, 0);
                 ctx.restore();
             },
         },
@@ -2029,9 +2041,10 @@
             "action": this._renderActions.bind(this),
             "nodes": this._renderNodes.bind(this),
             "connectors": this._renderConnectors.bind(this),
+            "comments": this._renderComments.bind(this),
             "background": this._renderBackground.bind(this)
         };
-        this.render_order_upwards = ['background', 'connectors', 'nodes', 'action'];
+        this.render_order_upwards = ['background', 'comments', 'connectors', 'nodes', 'action'];
         this.initRenderLayers();
     };
 
@@ -2058,12 +2071,14 @@
 
     /**
      *
-     * @param changed_obj "background" "connectors" "nodes" "action"
+     * @param changed_obj "background" "connectors" "nodes" "action", "comments"
      */
     Renderer.prototype.setToRender = function(which_layer) {
         if (this.layers[which_layer]) {
             this.layers[which_layer].re_render = true;
         }
+        if(which_layer=="nodes")
+            this.layers["comments"].re_render = true;
     };
 
     Renderer.prototype.updateAllLayersSize = function(width, heigth) {
@@ -2163,6 +2178,20 @@
         this._ctxFromSceneToView(ctx);
     };
 
+    Renderer.prototype._renderComments = function() {
+        let layer = this.layers['comments'];
+        let ctx = this.getDrawingContextFrom(layer.canvas);
+        this._ctxFromViewToScene(ctx);
+        const scene_rect = this.scene.sceneRect();
+        ctx.clearRect(scene_rect.left, scene_rect.top, scene_rect.width, scene_rect.height);
+        for (let comment of this.scene.visibleNodes(CommentNode)) {
+            this._ctxFromSceneToNode(ctx, comment);
+            comment.draw(ctx, this.scene.lod);
+            this._ctxFromNodeToScene(ctx);
+        }
+        this._ctxFromSceneToView(ctx);
+    };
+
     Renderer.prototype._renderConnectors = function() {
         let layer = this.layers['connectors'];
         let ctx = this.getDrawingContextFrom(layer.canvas);
@@ -2182,7 +2211,7 @@
         this._ctxFromViewToScene(ctx)
         const scene_rect = this.scene.sceneRect();
         ctx.clearRect(scene_rect.left, scene_rect.top, scene_rect.width, scene_rect.height);
-        for (let node of Object.values(this.scene.visibleNodes())) {
+        for (let node of Object.values(this.scene.visibleNodes(Node, CommentNode))) {
             this._ctxFromSceneToNode(ctx, node);
             node.draw(ctx, this.scene.lod);
             this._ctxFromNodeToScene(ctx);
@@ -2271,8 +2300,8 @@
             this.y_1 > rect.y_2 || rect.y_1 > this.y_2)
     };
 
-    Rect.prototype.isRectInside = function(rect) {
-        return this.isInside(rect.x_1, rect.y_1) && this.isInside(rect.x_2, rect.y_2)
+    Rect.prototype.isInsideRect = function(rect) {
+        return rect.isInside(this.x_1, this.y_1) && rect.isInside(this.x_2, this.y_2)
     }
 
     Rect.prototype.isInside = function(x, y) {
@@ -2448,9 +2477,9 @@
         return Object.values(this.graph.nodes);
     };
 
-    Scene.prototype.visibleNodes = function() {
+    Scene.prototype.visibleNodes = function(include_type, exclude_type) {
         let sceneRect = this.sceneRect();
-        return this.collision_detector.getItemsOverlapWith(sceneRect, Node)
+        return this.collision_detector.getItemsOverlapWith(sceneRect, include_type, exclude_type)
     };
 
     Scene.prototype.deselectNode = function(node, not_to_redraw) {
@@ -2975,6 +3004,9 @@
                 node6.translate= new Point(300, 200);
                 this.execCommand(new AddNodeCommand(this), [ node6]);
 
+                let node7 = type_registry.createNode("Comment");
+                node7.translate= new Point(20, 200);
+                this.execCommand(new AddNodeCommand(this), [ node7]);
                 //this.selectAllNodes();
                 e.preventDefault();
                 e.stopPropagation();
@@ -3105,6 +3137,20 @@
     }
 
     Scene.prototype.mouseHover = function(e, new_hit) {
+        if(new_hit.is_hitted && new_hit.hit_node && new_hit.hit_node.allow_resize){
+            let border = whichBorder(new_hit.hit_local_x, new_hit.hit_local_y, new_hit.hit_node);
+            if (border) {
+                let cursor = mapNodeBorderToCursor[border] || "default";
+                this.setCursor(cursor);
+                debug_log(border);
+            }
+            else {
+                this.setCursor( "default");
+            }
+        }
+        else{
+            this.setCursor( "default");
+        }
         if(this.hit_result &&
             new_hit.hit_node == this.hit_result.hit_node &&
             new_hit.hit_component == this.hit_result.hit_component) {
@@ -3122,11 +3168,6 @@
                 new_hit.hit_node.mouseEnter(new_hit);
             if(new_hit.hit_component && new_hit.hit_component != this.hit_result.hit_component) {
                 new_hit.hit_component.mouseEnter();
-                let border = whichBorder(new_hit.hit_local_x, new_hit.hit_local_y, new_hit.hit_node);
-                if (new_hit.hit_node.allow_resize && border) {
-                    let cursor = mapNodeBorderToCursor[border] || "all-scroll";
-                    this.setCursor(cursor);
-                }
             }
         }
         this.setToRender("nodes");
@@ -3263,19 +3304,33 @@
     function MoveCommand(scene) {
         this.desc = "Move Node";
         this.scene = scene;
+        this.moving_nodes = [];
     }
 
     MoveCommand.prototype.exec = function(e, node) {
         this.start_state = [];
         if(node && !Object.keys(this.scene.selected_nodes).includes(node.id.toString()))
             this.scene.selectNode(node, e.shiftKey || e.ctrlKey, true);
+        let comment_nodes = [];
         for (const node of Object.values(this.scene.selected_nodes)) {
+            if(node instanceof CommentNode)
+                comment_nodes.push(node);
+            this.moving_nodes.push(node);
             this.start_state.push(node.translate);
+        }
+        for(const comment of comment_nodes){
+            let overlap_nodes = this.scene.collision_detector.getItemsInside(comment.getBoundingRect(), Node);
+            for (const node of overlap_nodes) {
+                if(!this.moving_nodes.includes(node)){
+                    this.moving_nodes.push(node);
+                    this.start_state.push(node.translate);
+                }
+            }
         }
     }
 
     MoveCommand.prototype.update = function(e) {
-        for (const node of Object.values(this.scene.selected_nodes)) {
+        for (const node of Object.values(this.moving_nodes)) {
             this.scene.translateNode(node, e.sceneMovementX, e.sceneMovementY);
         }
         this.scene.setToRender("nodes");
@@ -3285,13 +3340,13 @@
     MoveCommand.prototype.end = function(e) {
         this.update(e);
         this.end_state = [];
-        for (const node of Object.values(this.scene.selected_nodes)) {
+        for (const node of Object.values(this.moving_nodes)) {
             this.end_state.push(node.translate);
         }
     }
     MoveCommand.prototype.undo = function() {
         let index = 0;
-        for (const node of Object.values(this.scene.selected_nodes)) {
+        for (const node of Object.values(this.moving_nodes)) {
             this.scene.setNodeTranslation(node, this.start_state[index]);
             index++;
         }
@@ -3318,9 +3373,12 @@
     }
 
     function whichBorder(x, y, node) {
-        let vertical = x < 1 ? "left" : x > node.width - 1 ? "right" : null;
-        let horizontal = y < 1 ? "top" : y > node.height - 1 ? "bottom" : null;
-        let border_name = (horizontal ? "" : horizontal + "_") + (vertical ? "" : vertical);
+        let d = node.resize_detection_distance || 4;
+        let vertical = Math.abs(x) < d? "left" :
+            (Math.abs(x - node.width()) < d ? "right" : null);
+        let horizontal = Math.abs(y) < d? "top" :
+            (Math.abs(y - node.height()) < d ? "bottom" : null);
+        let border_name = (horizontal ? horizontal: "") + (horizontal&&vertical? "_" : "" ) + (vertical ? vertical : "");
         return NodeBorder[border_name];
     }
 
@@ -3329,10 +3387,10 @@
         "bottom": "ns-resize",
         "left": "ew-resize",
         "right": "ew-resize",
-        "top_left": "ne",
-        "top-right": "nw",
-        "bottom_left": "sw",
-        "bottom_right": "se"
+        "top_left": "nw-resize",
+        "top_right": "ne-resize",
+        "bottom_left": "sw-resize",
+        "bottom_right": "se-resize"
     }
 
     function ResizeCommand(scene, resized_node) {
@@ -3346,41 +3404,33 @@
         let cursor = mapNodeBorderToCursor[this.node_border] || "all-scroll";
         this.scene.setCursor(cursor);
         this.start_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
-        this.support_undo = false; // no resize now
+        this.support_undo = false;
     }
 
     ResizeCommand.prototype.update = function(e) {
-        e.sceneMovementX = e.sceneMovementY = 1;
-        switch (this.node_border) {
-            case NodeBorder.top:
-                this.resized_node.addTranslate(0, e.sceneMovementY);
-                break;
-            case NodeBorder.bottom:
-                this.resized_node.setHeight(this.resized_node.height() + e.sceneMovementY);
-                break;
-            case NodeBorder.left:
-                this.resized_node.setWidth(this.resized_node.width() + e.sceneMovementX);
-                break;
-            case NodeBorder.right:
-                this.resized_node.addTranslate(e.sceneMovementX, 0);
-                break;
-            case NodeBorder.top_left:
-                this.resized_node.addTranslate(0, e.sceneMovementY);
-                this.resized_node.setWidth(this.resized_node.width() + e.sceneMovementX);
-                break;
-            case NodeBorder.top_right:
-                this.resized_node.addTranslate(0, e.sceneMovementY);
-                this.resized_node.setHeight(this.resized_node.height() + e.sceneMovementY);
-                break;
-            case NodeBorder.bottom_left:
-                this.resized_node.addTranslate(e.sceneMovementX, 0);
-                this.resized_node.setWidth(this.resized_node.width() + e.sceneMovementX);
-                break;
-            case NodeBorder.bottom_right:
-                this.resized_node.setWidth(this.resized_node.width() + e.sceneMovementX);
-                this.resized_node.setHeight(this.resized_node.height() + e.sceneMovementY);
-                break;
+        // e.sceneMovementX = e.sceneMovementY = 1;
+        let moves = this.node_border.split('_');
+        for (const move of moves) {
+            switch (move){
+                case NodeBorder.top:
+                    let bottom = this.resized_node.translate.y + this.resized_node.height();
+                    this.resized_node.setHeight(this.resized_node.height() - e.sceneMovementY);
+                    this.resized_node.translate.y = bottom - this.resized_node.height();
+                    break;
+                case NodeBorder.bottom:
+                    this.resized_node.setHeight(this.resized_node.height() + e.sceneMovementY);
+                    break;
+                case NodeBorder.left:
+                    let right = this.resized_node.translate.x + this.resized_node.width();
+                    this.resized_node.setWidth(this.resized_node.width() - e.sceneMovementX);
+                    this.resized_node.translate.x = right - this.resized_node.width();
+                    break;
+                case NodeBorder.right:
+                    this.resized_node.setWidth(this.resized_node.width() + e.sceneMovementX);
+                    break;
+            }
         }
+        this.scene.collision_detector.updateBoundingRect(this.resized_node);
         this.scene.setToRender("nodes");
         this.support_undo = true;
     }
@@ -4095,7 +4145,7 @@
             if (rect.owner instanceof Node && rect.isInside(x, y)) {
                 const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
                 const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
-                return new HitResult(true, rect.owner, local_pos[0], local_pos[1], hit_component);
+                return new HitResult(true, rect.owner, local_pos.x, local_pos.y, hit_component);
             }
         }
         return new HitResult(false);
@@ -4112,22 +4162,23 @@
         return null;
     };
 
-    CollisionDetector.prototype.getItemsOverlapWith = function(rect, type) {
+    CollisionDetector.prototype.getItemsOverlapWith = function(rect, include_type, exclude_type) {
         let intersections = [];
         for (const r of Object.values(this._boundingRects)) {
-            let is_this_type = type ? r.owner instanceof type : true;
-            if (is_this_type && rect.isIntersectWith(r)) {
+            let include = include_type ? r.owner instanceof include_type : true;
+            let exclude = exclude_type? r.owner instanceof exclude_type: false;
+            if (include && (!exclude) && rect.isIntersectWith(r)) {
                 intersections.push(r.owner);
             }
         }
         return intersections;
     }
 
-    CollisionDetector.prototype.getItemsInside = function(rect, type) {
+    CollisionDetector.prototype.getItemsInside = function(rect, include_type) {
         let insides = [];
         for (const r of Object.values(this._boundingRects)) {
-            let is_this_type = type ? r.owner instanceof type : true;
-            if (is_this_type && rect.isRectInside(r.getBoundingRect())) {
+            let include = include_type ? r.owner instanceof include_type : true;
+            if (include && r.isInsideRect(rect)) {
                 insides.push(r.owner);
             }
         }
