@@ -4104,12 +4104,22 @@
      * @constructor
      */
     function CollisionDetector() {
-        this._boundingRects = {};
+        this._boundingRectsOfNodes = {};
+        this._boundingRectsOfComments = {};
     };
 
     CollisionDetector.prototype.clear = function() {
-        this._boundingRects = {};
+        this._boundingRectsOfNodes = {};
+        this._boundingRectsOfComments = {};
     };
+
+    CollisionDetector.prototype.allBoundingRectIDs = function (){
+        return Object.keys(this._boundingRectsOfNodes).concat(Object.keys(this._boundingRectsOfComments));
+    }
+
+    CollisionDetector.prototype.allBoundingRects = function (){
+        return Object.values(this._boundingRectsOfNodes).concat(Object.values(this._boundingRectsOfComments));
+    }
 
     CollisionDetector.prototype.addBoundingRect = function(item) {
         if (!item) {
@@ -4126,13 +4136,18 @@
             return;
         }
         rect.owner = item;
-        if (Object.keys(this._boundingRects).includes(rect.owner.id))
+        if (this.allBoundingRectIDs().includes(rect.owner.id))
             throw "The id of bounding rect already in used."
-        this._boundingRects[rect.owner.id] = rect;
+        if(item instanceof CommentNode)
+            this._boundingRectsOfComments[rect.owner.id] = rect;
+        else
+            this._boundingRectsOfNodes[rect.owner.id] = rect;
     };
 
     CollisionDetector.prototype.removeBoundingRect = function(item) {
-        delete this._boundingRects[item.id];
+        delete this._boundingRectsOfNodes[item.id];
+        delete this._boundingRectsOfComments[item.id];
+
     };
 
     CollisionDetector.prototype.updateBoundingRect = function(item) {
@@ -4141,7 +4156,7 @@
     };
 
     CollisionDetector.prototype.getHitResultAtPos = function(x, y) {
-        for (const rect of Object.values(this._boundingRects)) {
+        for (const rect of this.allBoundingRects()) {
             if (rect.owner instanceof Node && rect.isInside(x, y)) {
                 const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
                 const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
@@ -4164,7 +4179,7 @@
 
     CollisionDetector.prototype.getItemsOverlapWith = function(rect, include_type, exclude_type) {
         let intersections = [];
-        for (const r of Object.values(this._boundingRects)) {
+        for (const r of this.allBoundingRects()) {
             let include = include_type ? r.owner instanceof include_type : true;
             let exclude = exclude_type? r.owner instanceof exclude_type: false;
             if (include && (!exclude) && rect.isIntersectWith(r)) {
@@ -4176,7 +4191,7 @@
 
     CollisionDetector.prototype.getItemsInside = function(rect, include_type) {
         let insides = [];
-        for (const r of Object.values(this._boundingRects)) {
+        for (const r of this.allBoundingRects()) {
             let include = include_type ? r.owner instanceof include_type : true;
             if (include && r.isInsideRect(rect)) {
                 insides.push(r.owner);
