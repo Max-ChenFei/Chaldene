@@ -2944,7 +2944,7 @@
         this._mouseMove_callback = null;
         this.canvas.removeEventListener("mouseup", this._mouseUp_callback);
         this._mouseUp_callback = null;
-        this.canvas.removeEventListener("contextmenu", this._DoNothing);
+        //this.canvas.removeEventListener("contextmenu", this._DoNothing);
         this._events_binded = false;
     }
 
