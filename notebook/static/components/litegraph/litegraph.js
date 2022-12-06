@@ -2950,7 +2950,6 @@
             if (e.code == 'Escape') {
                 this.deselectSelectedNodes();
                 e.preventDefault();
-                e.stopPropagation();
             }
             else if (e.code == 'Delete') {
                 let command = new RemoveSelectedNodesCommand(this);
@@ -2959,7 +2958,6 @@
             else if (e.code == "KeyA" && e.ctrlKey) {
                 this.selectAllNodes();
                 e.preventDefault();
-                e.stopPropagation();
             }
             else if (e.code == "KeyQ" && e.ctrlKey) {
                 let node = type_registry.createNode("Image.Read");
@@ -3005,7 +3003,6 @@
                 this.execCommand(new AddNodeCommand(this), [ node7]);
                 //this.selectAllNodes();
                 e.preventDefault();
-                e.stopPropagation();
             }
             else if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 this.copySelectedNodeToClipboard();
@@ -3022,7 +3019,6 @@
                 let command = new DuplicateNodeCommand(this);
                 this.execCommand(command);
                 e.preventDefault();
-                e.stopPropagation();
             }
             else if (e.code == "ArrowUp" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(0, -1, this, e);
@@ -3099,7 +3095,6 @@
         let delta = e.deltaY * -0.002;
         this.zoom(this.viewScale() + delta, new Point(e.offsetX, e.offsetY));
         e.preventDefault();
-        e.stopPropagation();
     }
 
     Scene.prototype.moveAndUpEventsToDocument = function() {
@@ -3183,7 +3178,6 @@
         else if (this.pointer_down == 2)
             this.pan(e.sceneMovementX, e.sceneMovementY);
         this.hit_result = new_hit;
-        e.stopPropagation();
         e.preventDefault();
     }
 
@@ -3203,15 +3197,10 @@
         else if (e.button == 2)
             this.rightMouseUp(e, this.hit_result);
         this.setCursor('default');
-        e.stopPropagation();
         e.preventDefault();
     }
 
     Scene.prototype.getDocument = function() {
-        return this.canvas.ownerDocument;
-    };
-
-    Scene.prototype.getContextMenu = function() {
         return this.canvas.ownerDocument;
     };
 
@@ -3268,7 +3257,6 @@
         scene.execCommand(command, [e]);
         scene.endCommand([e]);
         e.preventDefault();
-        e.stopPropagation();
     }
 
     function Command() {}
