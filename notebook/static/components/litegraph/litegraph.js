@@ -2083,8 +2083,8 @@
         for (const layer of Object.values(this.layers)) {
             layer.updateLayerSize(width, heigth);
         }
-        if(!this.is_rendering)
-            this.renderOneFrame();
+
+        this.renderOneFrame();
     };
 
     /**
