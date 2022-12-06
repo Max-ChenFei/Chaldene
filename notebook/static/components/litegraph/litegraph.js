@@ -2926,15 +2926,8 @@
         this.canvas.addEventListener("mousemove", this._mouseMove_callback, false);
         this._mouseUp_callback = this.onMouseUp.bind(this);
         this.canvas.addEventListener("mouseup", this._mouseUp_callback, false);
-        this.canvas.addEventListener("contextmenu", this._DoNothing);
         this._events_binded = true;
     }
-
-    Scene.prototype._DoNothing = function doNothing(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        return false;
-    };
 
     Scene.prototype.unbindEventToScene = function() {
         if (!this._events_binded)
@@ -2949,7 +2942,6 @@
         this._mouseMove_callback = null;
         this.canvas.removeEventListener("mouseup", this._mouseUp_callback);
         this._mouseUp_callback = null;
-        this.canvas.removeEventListener("contextmenu", this._DoNothing);
         this._events_binded = false;
     }
 

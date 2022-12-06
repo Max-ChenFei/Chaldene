@@ -200,7 +200,12 @@ define([
            fit_to_width_callback();
         });
         window.addEventListener("resize", fit_to_width_callback);
-
+        this._DoNothing = function doNothing(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            return false;
+        };
+        this.canvas.get(0).addEventListener("contextmenu", this._DoNothing);
 
         input_area.append(this.canvas);
         inner_cell.append(input_area);
