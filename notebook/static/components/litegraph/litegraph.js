@@ -2084,6 +2084,10 @@
             layer.updateLayerSize(width, heigth);
         }
 
+        // when the canvas dimensions are set, the canvas is cleared
+        // this means that we need to update the canvas immediately,
+        // as it may be displayed before the next animation frame is
+        // called.
         this.renderOneFrame();
     };
 
