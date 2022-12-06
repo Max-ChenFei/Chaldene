@@ -762,16 +762,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
 
   GraphEditor.prototype.onResize = function(){
-    // this.ctx.canvas.height = this.ctx.canvas.clientHeight;
-    // this.ctx.canvas.width = this.ctx.canvas.clientWidth;
-    this.scene.resize(this.ctx.canvas.clientHeight, this.ctx.canvas.clientWidth);
-/*
-    this.ctx.fillStyle = 'pink';
-    this.ctx.fillRect(0,0,this.ctx.canvas.width,this.ctx.canvas.height);
-
-    this.ctx.fillStyle = 'red';
-    this.ctx.fillRect(0,1,this.ctx.canvas.width,this.ctx.canvas.height-2);
-*/
+    this.scene.resize(this.ctx.canvas.clientWidth,this.ctx.canvas.clientHeight);
   }
 
 
