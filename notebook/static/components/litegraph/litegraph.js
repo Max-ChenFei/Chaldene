@@ -2921,7 +2921,7 @@
         this.canvas.addEventListener("mousemove", this._mouseMove_callback, false);
         this._mouseUp_callback = this.onMouseUp.bind(this);
         this.canvas.addEventListener("mouseup", this._mouseUp_callback, false);
-        this.canvas.addEventListener("contextmenu", this._DoNothing);
+        //this.canvas.addEventListener("contextmenu", this._DoNothing);
         this._events_binded = true;
     }
 
