@@ -206,7 +206,8 @@ define([
             return false;
         };
         this.canvas.get(0).addEventListener("contextmenu", this._DoNothing);
-
+        this.canvas.get(0).addEventListener("keydown", this._DoNothing);
+        
         input_area.append(this.canvas);
         inner_cell.append(input_area);
         this.input_area = input_area;
