@@ -2798,11 +2798,11 @@
             "connectors": []
         };
         config = config || localStorage.getItem("visual_programming_env_clipboard");
-        if (!config || config.is_empty) {
+        let clipboard_info = JSON.parse(config);
+        if (!clipboard_info || clipboard_info.is_empty) {
             return created;
         }
         created.is_empty = false;
-        let clipboard_info = JSON.parse(config);
         let new_nodes = {};
         for (const [old_id, node_config] of Object.entries(clipboard_info.nodes)) {
             let node = type_registry.createNode(node_config.type);
@@ -3948,13 +3948,9 @@
         this.end_state = {
             "config": localStorage.getItem("visual_programming_env_clipboard")
         };
-        if (!this.end_state.config) {
-            this.support_undo = false;
-            return;
-        }
-        this.scene_x = this.scene.last_scene_pos.x;
-        this.scene_y = this.scene.last_scene_pos.y;
-        let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y);
+        this.scene_x = this.scene.last_scene_pos.x || 0;
+        this.scene_y = this.scene.last_scene_pos.y || 0;
+        let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y, this.end_state.config);
         this.support_undo = !created.is_empty;
         this.end_state.nodes = created.nodes;
     }
