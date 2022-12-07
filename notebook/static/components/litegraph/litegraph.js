@@ -3166,7 +3166,7 @@
                 this.hit_result.hit_component.mouseLeave();
         }
         if (new_hit.is_hitted){
-            if(new_hit.hit_node && new_hit.hit_node != this.hit_result.hit_node)
+            if(new_hit.hit_node && this.hit_result && new_hit.hit_node != this.hit_result.hit_node)
                 new_hit.hit_node.mouseEnter(new_hit);
             if(new_hit.hit_component && new_hit.hit_component != this.hit_result.hit_component) {
                 new_hit.hit_component.mouseEnter();
