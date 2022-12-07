@@ -3979,8 +3979,8 @@
             this.support_undo = false;
             return;
         }
-        let did = this.delete_command.exec();
-        this.support_undo = did;
+        this.delete_command.exec();
+        this.support_undo = this.delete_command.support_undo;
     }
 
     CutSelectedNodesCommand.prototype.undo = function() {
