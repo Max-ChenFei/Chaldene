@@ -3430,7 +3430,9 @@
         this.node_border = node_border;
         let cursor = mapNodeBorderToCursor[this.node_border] || "all-scroll";
         this.scene.setCursor(cursor);
-        this.start_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
+        this.start_state = [
+            this.resized_node.translate.x, this.resized_node.translate.y,
+            this.resized_node.width(), this.resized_node.height()];
         this.support_undo = false;
     }
 
@@ -3464,20 +3466,26 @@
 
     ResizeCommand.prototype.end = function(e) {
         this.update(e);
-        this.end_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
+        this.end_state = [
+            this.resized_node.translate.x, this.resized_node.translate.y,
+            this.resized_node.width(), this.resized_node.height()];
         this.scene.setCursor('default');
     }
 
     ResizeCommand.prototype.undo = function() {
-        this.resized_node.translate = this.start_state[0];
-        this.resized_node.setWidth(this.start_state[1]);
-        this.resized_node.setHeight(this.start_state[2]);
+        this.resized_node.translate.x = this.start_state[0];
+        this.resized_node.translate.y = this.start_state[1];
+        this.resized_node.setWidth(this.start_state[2]);
+        this.resized_node.setHeight(this.start_state[3]);
+        this.scene.setToRender("nodes");
     }
 
     ResizeCommand.prototype.redo = function() {
-        this.resized_node.translate = this.end_state[0];
-        this.resized_node.setWidth(this.end_state[1]);
-        this.resized_node.setHeight(this.end_state[2]);
+        this.resized_node.translate.x = this.end_state[0];
+        this.resized_node.translate.y = this.end_state[1];
+        this.resized_node.setWidth(this.end_state[2]);
+        this.resized_node.setHeight(this.end_state[3]);
+        this.scene.setToRender("nodes");
     }
 
     Object.setPrototypeOf(ResizeCommand.prototype, Command.prototype);
