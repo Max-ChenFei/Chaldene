@@ -272,10 +272,12 @@
     }
 
     Graph.prototype.getConnector = function(from_node, from_slot_name, to_node, to_slot_name) {
-        if (!from_node || !from_slot_name || !to_node || !to_slot_name) {
+        if (!from_node || !from_slot_name || !to_node || !to_slot_name
+            || !from_node.getSlot(from_slot_name) || !to_node.getSlot(to_slot_name)) {
             console.warn("Can not get the connector of null");
+            return null;
         }
-        if (from_slot_name.isInput()) {
+        if (from_node.getSlot(from_slot_name).isInput()) {
             [from_node, to_node] = swap(from_node, to_node);
             [from_slot_name, to_slot_name] = swap(from_slot_name, to_slot_name);
         }
@@ -2549,7 +2551,7 @@
             return false;
         }
         if (!(connector instanceof Connector)) {
-            console.warn(`The ${node} is not the instance of the Connector`);
+            console.warn(`The ${connector} is not the instance of the Connector`);
             return false;
         }
         return true;
@@ -2828,6 +2830,10 @@
 
     Scene.prototype.connectors = function() {
         return Object.values(this.graph.connectors);
+    };
+
+    Scene.prototype.getConnector = function(from_node, from_slot_name, to_node, to_slot_name) {
+        return this.graph.getConnector(from_node, from_slot_name, to_node, to_slot_name);
     };
 
     Scene.prototype.getConnectorsLinkedToNodes = function(nodes) {
@@ -3182,6 +3188,7 @@
             }
         }
         this.setToRender("nodes");
+        this.setToRender("connectors");
     }
 
     Scene.prototype.onMouseMove = function(e) {
@@ -3640,18 +3647,18 @@
             this.end_state = {};
             let target_node = this.last_hit.hit_node;
             let target_slot = this.last_hit.hit_component;
+            let existed_connector = null;
             if (this.connection.method == SlotConnectionMethod.replace) {
-                let connector = null;
                 if(!this.from_slot.allowMultipleConnections()) {
-                    connector = this.scene.getConnectorsLinkedToSlot(this.from_node, this.from_slot)[0];
+                    existed_connector = this.scene.getConnectorsLinkedToSlot(this.from_node, this.from_slot)[0];
                 }
                 if(!target_slot.allowMultipleConnections()) {
-                    connector = this.scene.getConnectorsLinkedToSlot(target_node, target_slot);
+                    existed_connector = this.scene.getConnectorsLinkedToSlot(target_node, target_slot)[0];
                 }
-                if(connector)
+                if(existed_connector)
                     this.end_state['removed_connector'] = [
-                        connector.out_node, connector.out_slot_name,
-                        connector.in_node, connector.in_slot_name
+                        existed_connector.out_node, existed_connector.out_slot_name,
+                        existed_connector.in_node, existed_connector.in_slot_name
                     ];
             }
             if (this.from_slot.isInput()) {
@@ -3661,16 +3668,25 @@
                 this.connector.in_node = target_node;
                 this.connector.in_slot_name = target_slot.name;
             }
-            this.scene.addConnector(this.connector);
+            if(existed_connector)
+               if(existed_connector.out_node == this.connector.out_node
+                   && existed_connector.out_slot_name == this.connector.out_slot_name
+                   && existed_connector.in_node == this.connector.in_node
+                   && existed_connector.in_slot_name == this.connector.in_slot_name){
+                   this.support_undo = false;
+                   return;
+               }
+            this.scene.addConnector(this.connector, true);
             this.end_state['added_connector'] = [
                 this.connector.out_node, this.connector.out_slot_name,
                 this.connector.in_node, this.connector.in_slot_name
             ];
-        } else {
-            //todo search menu
+            this.support_undo = true;
+            this.scene.setToRender('nodes');
+            this.scene.setToRender('connectors');
+        } else{
+            this.support_undo = false;
         }
-        this.scene.setToRender('nodes');
-        this.scene.setToRender('connectors');
     }
 
     ConnectCommand.prototype.draw = function(ctx, lod) {
@@ -3678,20 +3694,24 @@
             this.connector.draw(ctx, lod);
     }
 
+    ConnectCommand.prototype.replaceConnector = function(to_add, to_remove) {
+        if(to_add)
+            this.scene.addConnector(new Connector(null, to_add[0], to_add[1], to_add[2], to_add[3]), true);
+        // when scene adds connector will replace the old one, so we don't remove again here
+        if(!to_add && to_remove){
+            let connector = this.scene.getConnector(to_remove[0], to_remove[1], to_remove[2], to_remove[3]);
+            this.scene.removeConnector(connector, true);
+        }
+        this.scene.setToRender('nodes');
+        this.scene.setToRender('connectors');
+    }
+
     ConnectCommand.prototype.undo = function() {
-        let removed = this.end_state['removed_connector'];
-        if (removed)
-            this.scene.addConnector(new Connector(null, removed[0], removed[1], removed[2], removed[3]));
-        this.scene.removeConnector(this.connector);
+        this.replaceConnector(this.end_state['removed_connector'], this.end_state['added_connector']);
     }
 
     ConnectCommand.prototype.redo = function() {
-        let removed = this.end_state['removed_connector'];
-        if (removed) {
-            let connector = this.scene.getConnector(removed[0], removed[1], removed[2], removed[3]);
-            this.scene.removeConnector(connector);
-        }
-        this.scene.addConnector(this.connector);
+        this.replaceConnector(this.end_state['added_connector'], this.end_state['removed_connector']);
     }
 
     Object.setPrototypeOf(ConnectCommand.prototype, Command.prototype);
