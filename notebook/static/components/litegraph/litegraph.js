@@ -1350,14 +1350,13 @@
 
     function CommentNode() {
         this._ctor();
+        this.title = "Comment";
+        this.type = "Comment";
+        this.desc = "Comment";
         this.allow_resize = true;
         //for resize detection
         this.resize_detection_distance = 4;
     }
-
-    CommentNode.title = "Comment";
-    CommentNode.type = "comment";
-    CommentNode.desc = "Comment";
 
     CommentNode.prototype.getBoundingRect = function() {
         const size = this.size();
