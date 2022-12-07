@@ -3926,7 +3926,7 @@
     }
 
     RemoveConnectorsCommand.prototype.redo = function() {
-        this.exec(null, this.end_state);
+        this.exec(this.end_state);
     }
 
     Object.setPrototypeOf(RemoveConnectorsCommand.prototype, Command.prototype);
