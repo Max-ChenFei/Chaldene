@@ -4044,7 +4044,7 @@
         this.max_scale = 3;
         this.min_scale = 0.3;
         Object.defineProperty(this, "lod", {
-            get() {return this.scale > (this.max_scale + this.min_scale) / 3.0 ? 0 : 1;}
+            get() {return this.scale > (this.max_scale - this.min_scale) / 5.0 ? 0 : 1;}
         })
         Object.defineProperty(this, "viewport", {
             get() {return new Rect(0, 0, this.canvas().width, this.canvas().height);}
