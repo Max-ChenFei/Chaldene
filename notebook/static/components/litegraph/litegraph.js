@@ -3001,28 +3001,28 @@
                 node2.translate= new Point(200, 100);
                 this.execCommand(new AddNodeCommand(this), [node2]);
                 let connector = new Connector(null, node, 'out_exec', node2, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [connector]);
+                this.addConnector(connector);
                 let node3 = type_registry.createNode("Image.Write");
                 node3.translate= new Point(400, 40);
                 this.execCommand(new AddNodeCommand(this), [node3]);
                 let connector2 = new Connector(null, node, 'image', node3, 'image');
-                this.execCommand(new AddConnectorCommand(this), [connector2]);
+                this.addConnector(connector2);
                 let connector3 = new Connector(null, node2, 'out_exec', node3, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [connector3]);
+                this.addConnector(connector3);
 
                 let node4 = type_registry.createNode("Image.Write");
                 node4.translate= new Point(550, 100);
                 this.execCommand(new AddNodeCommand(this), [ node4]);
                 let connector4 = new Connector(null, node3, 'out_exec', node4, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [connector4]);
+                this.addConnector(connector4);
                 let connector5 = new Connector(null, node2, 'image', node4, 'image');
-                this.execCommand(new AddConnectorCommand(this), [connector5]);
+                this.addConnector(connector5);
 
                 let connector6 = new Connector(null, node, 'image', node2, 'input');
-                this.execCommand(new AddConnectorCommand(this), [connector6]);
+                this.addConnector(connector6);
 
-                let connector8 = new Connector(null, node, 'out_exec', node2, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [connector8]);
+                let connector8 = new Connector(null, node, 'out_exec', node4, 'in_exec');
+                this.addConnector(connector8);
 
                 let node5 = type_registry.createNode("Image.Image");
                 node5.translate= new Point(300, 100);
@@ -3829,30 +3829,6 @@
     }
 
     Object.setPrototypeOf(CreateNodeCommand.prototype, Command.prototype);
-
-    function AddConnectorCommand(scene) {
-        this.desc = "Add Connector";
-        this.scene = scene;
-    }
-
-    AddConnectorCommand.prototype.exec = function(connector) {
-        let did = this.scene.addConnector(connector);
-        if(!did) {
-            this.support_undo = false;
-            return;
-        }
-        this.end_state = connector;
-    }
-
-    AddConnectorCommand.prototype.undo = function() {
-        this.scene.removeConnector(this.end_state);
-    }
-
-    AddConnectorCommand.prototype.redo = function() {
-        this.exec(null, this.end_state);
-    }
-
-    Object.setPrototypeOf(AddConnectorCommand.prototype, Command.prototype);
 
     function RemoveConnectorCommand(scene) {
         this.label = "Break Node Link(s)";
