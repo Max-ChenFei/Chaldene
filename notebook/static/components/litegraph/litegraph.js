@@ -2623,29 +2623,18 @@
         return true;
     };
 
-    Scene.prototype.removeSelectedNodes = function(not_to_redraw) {
-        if(Object.keys(this.selected_nodes).length === 0)
-            return false;
-        let remove_connector = false;
-        for (const node of Object.values(this.selected_nodes)) {
-            let connectors = this.graph.getConnectorsLinkedToNodes([node]);
-            for (const connector of connectors) {
-                this.collision_detector.removeBoundingRect(connector);
-                remove_connector = true;
-            }
-            this.graph.removeNode(node);
-            this.collision_detector.removeBoundingRect(node);
-        }
+    Scene.prototype.removeSelectedNodes = function() {
+        this.removeNodes(Object.values(this.selected_nodes));
         this.selected_nodes = {};
-        if (!not_to_redraw)
-            this.setToRender("nodes");
-        if(remove_connector)
-            this.setToRender("connectors")
         return true;
     };
 
     Scene.prototype.removeNode = function(node, not_to_redraw) {
         this.deselectNode(node);
+        let connectors = this.graph.getConnectorsLinkedToNodes([node]);
+        for (const connector of connectors) {
+            this.collision_detector.removeBoundingRect(connector);
+        }
         let did = this.graph.removeNode(node);
         if(!did)
             return false;
@@ -2656,15 +2645,15 @@
     };
 
     Scene.prototype.removeNodes = function(nodes, not_to_redraw) {
-        this.deselectNodes(nodes);
         let did = false;
         for (const node of nodes) {
-            did = this.removeNode(node) || did;
+            did = this.removeNode(node, true) || did;
         }
         if(!did)
             return false;
         if (!not_to_redraw)
             this.setToRender("nodes");
+            this.setToRender("connectors");
         return true;
     };
 
@@ -3966,18 +3955,17 @@
         this.scene_x = this.scene.last_scene_pos.x;
         this.scene_y = this.scene.last_scene_pos.y;
         let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y);
-        this.support_undo = created.is_empty;
+        this.support_undo = !created.is_empty;
         this.end_state.nodes = created.nodes;
-        this.end_state.connectors = created.connectors;
     }
 
     PasteFromClipboardCommand.prototype.undo = function() {
         this.scene.removeNodes(this.end_state.nodes);
-        this.scene.removeConnector(this.end_state.connectors);
     }
 
     PasteFromClipboardCommand.prototype.redo = function() {
-        this.scene.pasteFromClipboard(this.scene_x, this.scene_y, this.end_state.config);
+        let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y, this.end_state.config);
+        this.end_state.nodes = created.nodes;
     }
 
     Object.setPrototypeOf(PasteFromClipboardCommand.prototype, Command.prototype);
