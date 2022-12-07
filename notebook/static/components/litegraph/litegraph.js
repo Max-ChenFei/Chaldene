@@ -2730,20 +2730,24 @@
             return false;
         connector.pluginRenderingTemplate(this.rendering_template['Connector']);
         this.collision_detector.addBoundingRect(connector);
-        if (!not_to_redraw)
+        if (!not_to_redraw) {
+            this.setToRender("nodes");
             this.setToRender("connectors");
+        }
         return true;
     };
 
     Scene.prototype.addConnectors = function(connectors, not_to_redraw) {
         let did = false;
         for (const connector of connectors) {
-            did = this.addConnector(connectors, true) || did;
+            did = this.addConnector(connector, true) || did;
         }
         if(!did)
             return false;
-        if (!not_to_redraw)
+        if (!not_to_redraw) {
+            this.setToRender("nodes");
             this.setToRender("connectors");
+        }
         return true;
     };
 
@@ -2752,8 +2756,10 @@
         let did = this.graph.removeConnector(connector);
         if(!did)
             return false;
-        if (!not_to_redraw)
+        if (!not_to_redraw) {
+            this.setToRender("nodes");
             this.setToRender("connectors");
+        }
         return true;
     };
 
@@ -2764,8 +2770,10 @@
         }
         if(!did)
             return false;
-        if (!not_to_redraw)
+        if (!not_to_redraw) {
+            this.setToRender("nodes");
             this.setToRender("connectors");
+        }
         return true;
     };
 
@@ -3866,7 +3874,7 @@
     }
 
     RemoveConnectorCommand.prototype.redo = function() {
-        this.exec(null, this.end_state);
+        this.exec(this.end_state);
     }
 
     Object.setPrototypeOf(RemoveConnectorCommand.prototype, Command.prototype);
