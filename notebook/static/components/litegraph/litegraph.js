@@ -237,11 +237,13 @@
             if (!node) continue;
             node.configure(node_config);
             this.nodes[node.id] = node;
+            this.next_unique_id = Math.max(node.id+1, this.next_unique_id);
         }
         for (const connector_config of config.connectors) {
             let connector = new Connector(connector_config[0], this.nodes[connector_config[1]], connector_config[2],
                 this.nodes[connector_config[3]], connector_config[4]);
             this.connectors[connector.id] = connector;
+            this.next_unique_id = Math.max(connector.id+1, this.next_unique_id);
         }
         for (const v of config.local_vars) {
             this.addLocalVar(v[0], v[1], v[2]);
