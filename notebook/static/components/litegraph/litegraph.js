@@ -3781,28 +3781,21 @@
         this.scene = scene;
     }
 
-    AddNodeCommand.prototype.exec = function(node, connector) {
+    AddNodeCommand.prototype.exec = function(node) {
         let did = this.scene.addNode(node);
         if(!did){
             this.support_undo = false;
             return;
         }
-        if (connector)
-            this.scene.addConnector(connector);
-        this.end_state = {
-            'node': node,
-            'connector': connector
-        };
+        this.end_state = node;
     }
 
     AddNodeCommand.prototype.undo = function() {
-        this.scene.removeNode(this.end_state['node']);
-        if (this.end_state['connector'])
-            this.scene.removeConnector(this.end_state['connector']);
+        this.scene.removeNode(this.end_state);
     }
 
     AddNodeCommand.prototype.redo = function() {
-        this.exec(null, this.end_state['node'], this.end_state['connector']);
+        this.exec(this.end_state);
     }
 
     Object.setPrototypeOf(AddNodeCommand.prototype, Command.prototype);
