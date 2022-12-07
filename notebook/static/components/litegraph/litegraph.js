@@ -2324,9 +2324,10 @@
     }
 
     UndoHistory.prototype.updateDesc = function() {
+        let length = this.undo_history.length;
         let this_command = this.undo_history[length - this.reverse_index - 1];
         this.undo_desc = this_command ? this_command.desc : "Nothing to undo";
-        let next_command = this.undo_history[length - this.reverse_index - 1];
+        let next_command = this.undo_history[length - this.reverse_index];
         this.redo_desc = next_command ? next_command.desc : "Nothing to redo";
     }
 
@@ -2345,6 +2346,7 @@
         if (this.reverse_index == 0) {
             return null;
         }
+        let length = this.undo_history.length;
         let command = this.undo_history[length - this.reverse_index];
         command.redo();
         this.reverse_index--;
