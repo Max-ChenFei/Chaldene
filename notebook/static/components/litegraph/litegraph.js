@@ -235,7 +235,7 @@
         for (const node_config of config.nodes) {
             let node = type_registry.createNode(node_config.type);
             if (!node) continue;
-            node.configure(config);
+            node.configure(node_config);
             this.nodes[node.id] = node;
         }
         for (const connector_config of config.connectors) {
@@ -2383,6 +2383,7 @@
         this.command_in_process = undefined;
         this.undo_history = new UndoHistory();
         this.pluginSceneRenderingConfig();
+        this.pluginRenderingConfigForItems();
         this.updateBoundingRectInGraph();
         this.last_client_pos = [0, 0];
         this.pointer_down = null; //pointer means any input devices like mouse, pen, touch surfaces
@@ -2462,6 +2463,13 @@
         for (const item of this.graph.getItems()) {
             this.collision_detector.addBoundingRect(item);
         }
+    }
+
+    Scene.prototype.pluginRenderingConfigForItems = function() {
+        for (const node of Object.values(this.graph.nodes))
+            node.pluginRenderingTemplate(this.rendering_template);
+        for (const connector of Object.values(this.graph.connectors))
+            connector.pluginRenderingTemplate(this.rendering_template['Connector']);
     }
 
     Scene.prototype.start = function(event_capture){
@@ -3259,6 +3267,25 @@
         }
         return context_command_names;
     };
+
+    Scene.prototype.serialize = function () {
+        let config = this.graph.serialize();
+        config['view'] = {
+            "translate": [this.view.translate.x, this.view.translate.y],
+            "scale": this.view.scale}
+        return config;
+    }
+
+    Scene.prototype.configure = function (config) {
+        if(config['view'])
+            if(config.view.translate instanceof Array && config.view.translate.length == 2)
+                this.view.translate = new Point(config.view.translate[0], config.view.translate[1]);
+            if(config.view.scale != null ||　config.view.scale != undefined)
+                this.view.scale = config.view.scale;
+        this.graph.configure(config);
+        this.pluginRenderingConfigForItems();
+        this.updateBoundingRectInGraph();
+    }
 
     function NudgetNode(delta_x, delta_y, scene, e) {
         let command = new MoveCommand(scene);

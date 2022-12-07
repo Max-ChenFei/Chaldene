@@ -207,7 +207,7 @@ define([
         };
         this.canvas.get(0).addEventListener("contextmenu", this._DoNothing);
         this.canvas.get(0).addEventListener("keydown", this._DoNothing);
-        
+
         input_area.append(this.canvas);
         inner_cell.append(input_area);
         this.input_area = input_area;
@@ -635,10 +635,8 @@ function htmlToElement(html) {
 
 
     ImageProcessingCell.prototype.get_text = function () {
-        var data = this.scene.graph.serialize();
-
+        var data = this.scene.serialize();
         return JSON.stringify(data);
-        //return ;this.code_mirror.getValue();
     };
 
     ImageProcessingCell.prototype.get_source_code = function () {
@@ -652,7 +650,7 @@ function htmlToElement(html) {
         if(!code)
             return;
         var code_string =  JSON.parse(code);
-        return this.scene.graph.configure( code_string );
+        return this.scene.configure(code_string);
     };
 
 
