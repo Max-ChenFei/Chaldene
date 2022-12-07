@@ -2958,6 +2958,14 @@
                 let command = new RemoveSelectedNodesCommand(this);
                 this.execCommand(command);
             }
+            else if (e.code == "KeyZ" && e.ctrlKey) {
+                this.undo_history.undo();
+                e.preventDefault();
+            }
+            else if (e.code == "KeyY" && e.ctrlKey) {
+                this.undo_history.redo();
+                e.preventDefault();
+            }
             else if (e.code == "KeyA" && e.ctrlKey) {
                 this.selectAllNodes();
                 e.preventDefault();
