@@ -2845,7 +2845,7 @@
     };
 
     Scene.prototype.getConnectorsLinkedToNodes = function(nodes) {
-        this.graph.getConnectorsLinkedToNodes(nodes);
+        return this.graph.getConnectorsLinkedToNodes(nodes);
     };
 
     Scene.prototype.getConnectorsLinkedToSlot = function(node, slot) {
