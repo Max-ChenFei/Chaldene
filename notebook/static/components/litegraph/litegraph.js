@@ -233,7 +233,7 @@
         for (const node_config of config.nodes) {
             let node = type_registry.createNode(node_config.type);
             if (!node) continue;
-            node.configure(config);
+            node.configure(node_config);
             this.nodes[node.id] = node;
         }
         for (const connector_config of config.connectors) {
@@ -2323,9 +2323,10 @@
     }
 
     UndoHistory.prototype.updateDesc = function() {
+        let length = this.undo_history.length;
         let this_command = this.undo_history[length - this.reverse_index - 1];
         this.undo_desc = this_command ? this_command.desc : "Nothing to undo";
-        let next_command = this.undo_history[length - this.reverse_index - 1];
+        let next_command = this.undo_history[length - this.reverse_index];
         this.redo_desc = next_command ? next_command.desc : "Nothing to redo";
     }
 
@@ -2344,6 +2345,7 @@
         if (this.reverse_index == 0) {
             return null;
         }
+        let length = this.undo_history.length;
         let command = this.undo_history[length - this.reverse_index];
         command.redo();
         this.reverse_index--;
@@ -2380,6 +2382,7 @@
         this.command_in_process = undefined;
         this.undo_history = new UndoHistory();
         this.pluginSceneRenderingConfig();
+        this.pluginRenderingConfigForItems();
         this.updateBoundingRectInGraph();
         this.last_client_pos = [0, 0];
         this.pointer_down = null; //pointer means any input devices like mouse, pen, touch surfaces
@@ -2461,8 +2464,16 @@
         }
     }
 
-    Scene.prototype.start = function(){
+    Scene.prototype.pluginRenderingConfigForItems = function() {
+        for (const node of Object.values(this.graph.nodes))
+            node.pluginRenderingTemplate(this.rendering_template);
+        for (const connector of Object.values(this.graph.connectors))
+            connector.pluginRenderingTemplate(this.rendering_template['Connector']);
+    }
+
+    Scene.prototype.start = function(event_capture){
         this.renderer.startRender();
+        this.event_capture = event_capture == true;
         this.bindEventToScene();
     }
 
@@ -2916,24 +2927,17 @@
         if (this._events_binded)
             return;
         this._keyDown_callback = this.onKeyDown.bind(this);
-        this.canvas.addEventListener("keydown", this._keyDown_callback, false);
+        this.canvas.addEventListener("keydown", this._keyDown_callback, this.event_capture);
         this._mousewheel_callback = this.onMouseWheel.bind(this);
-        this.canvas.addEventListener("mousewheel", this._mousewheel_callback, false);
+        this.canvas.addEventListener("mousewheel", this._mousewheel_callback, this.event_capture);
         this._mouseDown_callback = this.onMouseDown.bind(this);
-        this.canvas.addEventListener("mousedown", this._mouseDown_callback, false);
+        this.canvas.addEventListener("mousedown", this._mouseDown_callback, this.event_capture);
         this._mouseMove_callback = this.onMouseMove.bind(this);
-        this.canvas.addEventListener("mousemove", this._mouseMove_callback, false);
+        this.canvas.addEventListener("mousemove", this._mouseMove_callback, this.event_capture);
         this._mouseUp_callback = this.onMouseUp.bind(this);
-        this.canvas.addEventListener("mouseup", this._mouseUp_callback, false);
-        //this.canvas.addEventListener("contextmenu", this._DoNothing);
+        this.canvas.addEventListener("mouseup", this._mouseUp_callback, this.event_capture);
         this._events_binded = true;
     }
-
-    Scene.prototype._DoNothing = function doNothing(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        return false;
-    };
 
     Scene.prototype.unbindEventToScene = function() {
         if (!this._events_binded)
@@ -2948,7 +2952,6 @@
         this._mouseMove_callback = null;
         this.canvas.removeEventListener("mouseup", this._mouseUp_callback);
         this._mouseUp_callback = null;
-        //this.canvas.removeEventListener("contextmenu", this._DoNothing);
         this._events_binded = false;
     }
 
@@ -2957,16 +2960,22 @@
             if (e.code == 'Escape') {
                 this.deselectSelectedNodes();
                 e.preventDefault();
-                e.stopPropagation();
             }
             else if (e.code == 'Delete') {
                 let command = new RemoveSelectedNodesCommand(this);
                 this.execCommand(command);
             }
+            else if (e.code == "KeyZ" && e.ctrlKey) {
+                this.undo_history.undo();
+                e.preventDefault();
+            }
+            else if (e.code == "KeyY" && e.ctrlKey) {
+                this.undo_history.redo();
+                e.preventDefault();
+            }
             else if (e.code == "KeyA" && e.ctrlKey) {
                 this.selectAllNodes();
                 e.preventDefault();
-                e.stopPropagation();
             }
             else if (e.code == "KeyQ" && e.ctrlKey) {
                 let node = type_registry.createNode("Image.Read");
@@ -3012,7 +3021,6 @@
                 this.execCommand(new AddNodeCommand(this), [ node7]);
                 //this.selectAllNodes();
                 e.preventDefault();
-                e.stopPropagation();
             }
             else if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 this.copySelectedNodeToClipboard();
@@ -3029,7 +3037,6 @@
                 let command = new DuplicateNodeCommand(this);
                 this.execCommand(command);
                 e.preventDefault();
-                e.stopPropagation();
             }
             else if (e.code == "ArrowUp" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(0, -1, this, e);
@@ -3106,7 +3113,6 @@
         let delta = e.deltaY * -0.002;
         this.zoom(this.viewScale() + delta, new Point(e.offsetX, e.offsetY));
         e.preventDefault();
-        e.stopPropagation();
     }
 
     Scene.prototype.moveAndUpEventsToDocument = function() {
@@ -3118,7 +3124,7 @@
 
     Scene.prototype.moveAndUpEventsToScene = function() {
         //restore the mousemove event back to the canvas
-        this.canvas.addEventListener("mousemove", this._mouseMove_callback, false);
+        this.canvas.addEventListener("mousemove", this._mouseMove_callback, this.event_capture);
         this.getDocument().removeEventListener("mousemove", this._mouseMove_callback);
         this.getDocument().removeEventListener("mouseup", this._mouseUp_callback);
     }
@@ -3167,9 +3173,9 @@
                 this.hit_result.hit_component.mouseLeave();
         }
         if (new_hit.is_hitted){
-            if(new_hit.hit_node && new_hit.hit_node != this.hit_result.hit_node)
+            if(new_hit.hit_node && this.hit_result && new_hit.hit_node != this.hit_result.hit_node)
                 new_hit.hit_node.mouseEnter(new_hit);
-            if(new_hit.hit_component && new_hit.hit_component != this.hit_result.hit_component) {
+            if(new_hit.hit_component && this.hit_result.hit_component && new_hit.hit_component != this.hit_result.hit_component) {
                 new_hit.hit_component.mouseEnter();
             }
         }
@@ -3190,7 +3196,6 @@
         else if (this.pointer_down == 2)
             this.pan(e.sceneMovementX, e.sceneMovementY);
         this.hit_result = new_hit;
-        e.stopPropagation();
         e.preventDefault();
     }
 
@@ -3210,15 +3215,10 @@
         else if (e.button == 2)
             this.rightMouseUp(e, this.hit_result);
         this.setCursor('default');
-        e.stopPropagation();
         e.preventDefault();
     }
 
     Scene.prototype.getDocument = function() {
-        return this.canvas.ownerDocument;
-    };
-
-    Scene.prototype.getContextMenu = function() {
         return this.canvas.ownerDocument;
     };
 
@@ -3267,6 +3267,25 @@
         return context_command_names;
     };
 
+    Scene.prototype.serialize = function () {
+        let config = this.graph.serialize();
+        config['view'] = {
+            "translate": [this.view.translate.x, this.view.translate.y],
+            "scale": this.view.scale}
+        return config;
+    }
+
+    Scene.prototype.configure = function (config) {
+        if(config['view'])
+            if(config.view.translate instanceof Array && config.view.translate.length == 2)
+                this.view.translate = new Point(config.view.translate[0], config.view.translate[1]);
+            if(config.view.scale != null ||　config.view.scale != undefined)
+                this.view.scale = config.view.scale;
+        this.graph.configure(config);
+        this.pluginRenderingConfigForItems();
+        this.updateBoundingRectInGraph();
+    }
+
     function NudgetNode(delta_x, delta_y, scene, e) {
         let command = new MoveCommand(scene);
         command.desc = 'Nudge Node';
@@ -3275,7 +3294,6 @@
         scene.execCommand(command, [e]);
         scene.endCommand([e]);
         e.preventDefault();
-        e.stopPropagation();
     }
 
     function Command() {}
@@ -3319,14 +3337,14 @@
             if(node instanceof CommentNode)
                 comment_nodes.push(node);
             this.moving_nodes.push(node);
-            this.start_state.push(node.translate);
+            this.start_state.push(new Point(node.translate.x, node.translate.y));
         }
         for(const comment of comment_nodes){
             let overlap_nodes = this.scene.collision_detector.getItemsInside(comment.getBoundingRect(), Node);
             for (const node of overlap_nodes) {
                 if(!this.moving_nodes.includes(node)){
                     this.moving_nodes.push(node);
-                    this.start_state.push(node.translate);
+                    this.start_state.push(new Point(node.translate.x, node.translate.y));
                 }
             }
         }
@@ -3344,7 +3362,7 @@
         this.update(e);
         this.end_state = [];
         for (const node of Object.values(this.moving_nodes)) {
-            this.end_state.push(node.translate);
+            this.end_state.push(new Point(node.translate.x, node.translate.y));
         }
     }
     MoveCommand.prototype.undo = function() {
@@ -3353,13 +3371,19 @@
             this.scene.setNodeTranslation(node, this.start_state[index]);
             index++;
         }
+        this.scene.deselectSelectedNodes(true);
+        this.scene.setToRender("nodes");
+        this.scene.setToRender("connectors");
     }
     MoveCommand.prototype.redo = function() {
         let index = 0;
-        for (const node of Object.values(this.scene.selected_nodes)) {
+        for (const node of Object.values(this.moving_nodes)) {
             this.scene.setNodeTranslation(node, this.end_state[index]);
             index++;
         }
+        this.scene.deselectSelectedNodes(true);
+        this.scene.setToRender("nodes");
+        this.scene.setToRender("connectors");
     }
 
     Object.setPrototypeOf(MoveCommand.prototype, Command.prototype);
@@ -4019,7 +4043,7 @@
         this.max_scale = 3;
         this.min_scale = 0.3;
         Object.defineProperty(this, "lod", {
-            get() {return this.scale > (this.max_scale + this.min_scale) / 3.0 ? 0 : 1;}
+            get() {return this.scale > (this.max_scale - this.min_scale) / 5.0 ? 0 : 1;}
         })
         Object.defineProperty(this, "viewport", {
             get() {return new Rect(0, 0, this.canvas().width, this.canvas().height);}
