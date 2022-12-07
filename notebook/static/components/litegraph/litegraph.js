@@ -3311,14 +3311,14 @@
             if(node instanceof CommentNode)
                 comment_nodes.push(node);
             this.moving_nodes.push(node);
-            this.start_state.push(node.translate);
+            this.start_state.push(new Point(node.translate.x, node.translate.y));
         }
         for(const comment of comment_nodes){
             let overlap_nodes = this.scene.collision_detector.getItemsInside(comment.getBoundingRect(), Node);
             for (const node of overlap_nodes) {
                 if(!this.moving_nodes.includes(node)){
                     this.moving_nodes.push(node);
-                    this.start_state.push(node.translate);
+                    this.start_state.push(new Point(node.translate.x, node.translate.y));
                 }
             }
         }
@@ -3336,7 +3336,7 @@
         this.update(e);
         this.end_state = [];
         for (const node of Object.values(this.moving_nodes)) {
-            this.end_state.push(node.translate);
+            this.end_state.push(new Point(node.translate.x, node.translate.y));
         }
     }
     MoveCommand.prototype.undo = function() {
@@ -3345,13 +3345,19 @@
             this.scene.setNodeTranslation(node, this.start_state[index]);
             index++;
         }
+        this.scene.deselectSelectedNodes(true);
+        this.scene.setToRender("nodes");
+        this.scene.setToRender("connectors");
     }
     MoveCommand.prototype.redo = function() {
         let index = 0;
-        for (const node of Object.values(this.scene.selected_nodes)) {
+        for (const node of Object.values(this.moving_nodes)) {
             this.scene.setNodeTranslation(node, this.end_state[index]);
             index++;
         }
+        this.scene.deselectSelectedNodes(true);
+        this.scene.setToRender("nodes");
+        this.scene.setToRender("connectors");
     }
 
     Object.setPrototypeOf(MoveCommand.prototype, Command.prototype);
