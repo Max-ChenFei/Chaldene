@@ -52,24 +52,29 @@
 
     TypeRegistry.prototype.getNodeTypesInAllCategories = function(from_node, from_slot) {
         let categories = {};
-        for (const node_type of Object.values(this.registered_node_types)) {
-            let path = node_type.type.split(".");
-            this.addToCategories(path, categories, from_node, from_slot, node_type);
+        for (const [node_type, node_constructor] of Object.entries(this.registered_node_types)) {
+            let path = node_type.split(".");
+            console.log(path);
+            this.addToCategories(path, categories, from_node, from_slot, node_constructor);
         }
+        console.log(categories);
         return categories;
     };
 
-    TypeRegistry.prototype.addToCategories = function(path, categories, from_node, from_slot, to_node){
+    TypeRegistry.prototype.addToCategories = function(path, categories, from_node, from_slot, to_node_type){
         if(path.length <= 1){
-            if(from_node.allowConnectToAnySlot(from_slot.name, to_node))
-                categories[node.type] = node;
+            console.log(path);
+            console.log(categories);
+            if(!from_node || from_node.allowConnectToAnySlot(from_slot.name, to_node_type))
+                categories[path[0]] = to_node_type;
                 return;
         }
         else{
-            if(!(path[0] in Object.keys(categories)))
+            if(!(categories[path[0]]))
                 categories[path[0]] = {};
-            let last_paht = path.shift();
-            this.addToCategories(path, categories[last_paht], from_node, from_slot, to_node);
+            //this marks that the object is a category, and not a node
+            categories[path[0]].__is_category = true;
+            this.addToCategories(path.slice(1), categories[path[0]], from_node, from_slot, to_node_type);
         }
     };
     /**
@@ -1351,6 +1356,7 @@
         this.allow_resize = true;
         //for resize detection
         this.resize_detection_distance = 4;
+        this.type = "comment";
     }
 
     CommentNode.title = "Comment";
@@ -3233,6 +3239,10 @@
     Scene.prototype.commands_for_slot = [
         RemoveAllConnectorsOfSlotCommand];
 
+    Scene.prototype.general_commands = [
+        AddNodeCommand
+    ];
+
     Scene.prototype.getAllContextCommands = function() {
 
         let that = this;
@@ -3246,7 +3256,7 @@
         }
 
         let context_commands = [];
-        for (const c of this.commands_for_node.concat(this.commands_for_slot)) {
+        for (const c of this.commands_for_node.concat(this.commands_for_slot).concat(this.general_commands)) {
             let context_command = toContextCommand(c);
             context_command.exec.bind(this);
             context_commands.push(context_command);
@@ -3750,6 +3760,8 @@
     }
 
     AddNodeCommand.prototype.exec = function(node, connector) {
+        if(!node.translate)
+            node.translate = new Point(0,0);
         let did = this.scene.addNode(node);
         if(!did){
             this.support_undo = false;

@@ -319,7 +319,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   }
 
   class SearchMenu extends Widget {
-  constructor(graph){
+  constructor(graph,gs){
       let node = document.createElement('div');
 
       super({ node: node });
@@ -373,10 +373,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (
             }
             else {
               if(s1.length>0){
-                node[category] = createLabel(category, s1);
+                node[category] = {label: createLabel(category, s1),node_type:group.node_type};
               }
               else if(addEverything){
-                node[category] = category;
+                node[category] = {label: category, node_type:group.node_type};
               }
             }
           }
@@ -401,24 +401,25 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       node.appendChild(this._list);
       this._groups = {};
 
-      this.addMember = function(category,name){
+      this.addMember = function(category,member){
+        console.log(category,member);
 
-        function addMember(node,category,name){
+        function addMember(node,category,member){
           if(!Object.keys(category).length>0){
-            if(node[name]){
-              console.error("Member  was already added");
+            if(node[member.label]){
+              console.error("Member"+member+"was already added");
               return;
             } else {
-              node[name] = name;
+              node[member.label] = member;
             }
           } else {
             if(!node[category[0]]){
               node[category[0]] = {name: category[0], list: {}, show: true};
             }
-            addMember(node[category[0]].list, category.slice(1), name);
+            addMember(node[category[0]].list, category.slice(1), member);
           }
         }
-        addMember(this._groups, category,name);
+        addMember(this._groups, category,member);
       }
       let prevObj = null;
 
@@ -428,6 +429,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
         prevObj = obj;
         obj.classList.add("selected");
+        let node = VPE.TypeRegistry.createNode(obj.node_type);
+        //todo: add translation
+        graph.commands.execute("litegraph:AddNodeCommand", {_content: [node]});
+        //graph.scene.execCommand(new VPE.AddNodeCommand(graph.scene),[node]);
       }
 
       function groupClick(group){
@@ -482,12 +487,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (
                 addNodes(list,group.list,indent+1);
             } else {
               let p = document.createElement('p');
-              p.innerHTML = group;
+              p.innerHTML = group.label;
               let memberEl = document.createElement('div')
               memberEl.appendChild(d);
               memberEl.appendChild(p);
               memberEl.classList.add('memberEl');
               memberEl.onclick = function(){onclick(memberEl);};
+              memberEl.node_type = group.node_type;
               that._list.appendChild(memberEl);
             }
           }
@@ -514,7 +520,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
       }
 
-      let gs = mockLiteGraphGetRegisteredNodes();
       addToMenu([],gs);
 
 
@@ -655,8 +660,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     }
   }
 
-  function createSearchMenu(name){
-    return new SearchMenu(name)
+  function createSearchMenu(graph,registered_nodes){
+    return new SearchMenu(graph,registered_nodes);
   }
 
   class GraphEditor extends Widget {
@@ -709,11 +714,37 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
       let that = this;
       this.ctx = ctx;
-      let searchMenu =createSearchMenu({name:"main"});
+
+      function getRegisteredNodes(reg){
+        let cats = reg.getNodeTypesInAllCategories();
+        function putInCat(object){
+
+          let array = [];
+          for(const [key,obj] of Object.entries(object)){
+            if(key == "__is_category")
+              continue;
+            if(!obj.__is_category){
+              array.push({label:key, node_type: (new obj()).type});
+            } else {
+              let help = putInCat(obj);
+              array.push({name:key,value:help});
+            }
+          }
+          return array;
+        }
+
+        return putInCat(cats);
+      }
+
+      let gs = getRegisteredNodes(VPE.TypeRegistry);
+      console.log(gs);
+
       this.scene = new VPE.Scene(canvas);
+      graph.scene = this.scene;
+      let searchMenu =createSearchMenu(graph,gs);
       this.scene.start();
 
-      this.commands = new CommandRegistry();
+      graph.commands = new CommandRegistry();
 
       function fillCommandRegistry(commands, allCommands){
         let helper = that.scene.getAllContextCommands();
@@ -733,20 +764,20 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
       }
 
-      fillCommandRegistry(this.commands, this.scene.getAllContextCommands());
+      fillCommandRegistry(graph.commands, this.scene.getAllContextCommands());
 
 
       node.addEventListener('contextmenu', function (event) {
         let cs = that.scene.getContextCommands();
         if(cs.length >0){
-          let m = createMenu(cs,"", that.commands);
+          let m = createMenu(cs,"", graph.commands);
           m.open(event.clientX,event.clientY);
         }
 
-        //} else {
-        //  console.log("Search");
-        //  searchMenu.open(event.clientX,event.clientY);
-        //}
+         else {
+          console.log("Search");
+          searchMenu.open(event.clientX,event.clientY);
+        }
         event.preventDefault();
         event.stopPropagation();
       });
