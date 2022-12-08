@@ -4270,27 +4270,16 @@
     //API *************************************************
     //like rect but rounded corners
     if (typeof(window) != "undefined" && window.CanvasRenderingContext2D && !window.CanvasRenderingContext2D.prototype.roundRect) {
-        window.CanvasRenderingContext2D.prototype.roundRect = function(
-            x,
-            y,
-            w,
-            h,
-            radius,
-            radius_low
-        ) {
-            var top_left_radius = 0;
-            var top_right_radius = 0;
-            var bottom_left_radius = 0;
-            var bottom_right_radius = 0;
-
+        window.CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radius, radius_low) {
+            let top_left_radius = 0;
+            let top_right_radius = 0;
+            let bottom_left_radius = 0;
+            let bottom_right_radius = 0;
             if (radius === 0) {
                 this.rect(x, y, w, h);
                 return;
             }
-
-            if (radius_low === undefined)
-                radius_low = radius;
-
+            radius_low = radius_low || radius;
             //make it compatible with official one
             if (radius != null && radius.constructor === Array) {
                 if (radius.length == 1)
@@ -4312,30 +4301,21 @@
                 bottom_left_radius = radius_low || 0;
                 bottom_right_radius = radius_low || 0;
             }
-
             //top right
             this.moveTo(x + top_left_radius, y);
             this.lineTo(x + w - top_right_radius, y);
             this.quadraticCurveTo(x + w, y, x + w, y + top_right_radius);
-
             //bottom right
             this.lineTo(x + w, y + h - bottom_right_radius);
-            this.quadraticCurveTo(
-                x + w,
-                y + h,
-                x + w - bottom_right_radius,
-                y + h
-            );
-
+            this.quadraticCurveTo(x + w, y + h, x + w - bottom_right_radius, y + h);
             //bottom left
             this.lineTo(x + bottom_left_radius, y + h);
             this.quadraticCurveTo(x, y + h, x, y + h - bottom_left_radius);
-
             //top left
             this.lineTo(x, y + top_left_radius);
             this.quadraticCurveTo(x, y, x + top_left_radius, y);
         };
-    } //if
+    }
 
     function distance(a, b) {
         return Math.sqrt(
