@@ -1,7 +1,9 @@
 //packer version
 
 //*********************************************************************************
-// Renderer: multiple layers rendering using offscreen canvans
+// Renderer: multiple layers rendering using offscreen canvas
+// Collision detection: the scene will generate one bounding rect for each item inside
+// for quick detection. Each item can also override collision detection method (`isCollided`)
 //*********************************************************************************\
 (function(global) {
     let type_registry = new TypeRegistry();
@@ -1752,7 +1754,9 @@
                     height: this.height()
                 }
             },
-
+            isCollided: function(){
+                return true;
+            },
             style: {
                 normal: {
                     ctx_style: {
@@ -1915,7 +1919,9 @@
                     height: this.height()
                 }
             },
-
+            isCollided: function(){
+                return true;
+            },
             style: {
                 normal: {
                     ctx_style: {
@@ -2008,6 +2014,9 @@
                 ctx.stroke();
                 ctx.restore();
             },
+            isCollided: function(x, y){
+                return isPointOnCubicCurve(x, y, this.fromPos(), this.cp1, this.cp2, this.toPos(), this.detect_distance);
+            }
         }
     }
 
@@ -4220,9 +4229,12 @@
         this.addBoundingRect(item)
     };
 
-    CollisionDetector.prototype.getHitResultAtPos = function(x, y) {
+    CollisionDetector.prototype.getHitResultAtPos = function(x, y, type) {
+        let type_match = type ? rect.owner instanceof type : true;
         for (const rect of this.allZOrderedBoundingRects()) {
-            if (rect.owner instanceof Node && rect.isInside(x, y)) {
+            if (type_match && rect.isInside(x, y) && rect.owner.isCollided()) {
+                if(rect.owner instanceof Connector)
+                    return new HitResult(true, rect.owner, undefined, undefined, undefined);
                 const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
                 const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
                 return new HitResult(true, rect.owner, local_pos.x, local_pos.y, hit_component);
