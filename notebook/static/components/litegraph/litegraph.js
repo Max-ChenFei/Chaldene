@@ -2061,6 +2061,7 @@
         this.scene = scene;
         this.layers = {};
         this.is_rendering = false;
+        this.is_debug = false;
         this.render_method_for_layer = {
             "action": this._renderActions.bind(this),
             "nodes": this._renderNodes.bind(this),
@@ -2165,6 +2166,10 @@
                 layer.re_render = false;
             }
         }
+        if(this.is_debug) {
+            this.layers['debug'].render_method();
+            re_render_any_layer = true;
+        }
         return re_render_any_layer;
     }
 
@@ -2254,6 +2259,37 @@
         ctx.clearRect(scene_rect.left, scene_rect.top, scene_rect.width, scene_rect.height);
         if(this.scene.command_in_process && this.scene.command_in_process.draw)
             this.scene.command_in_process.draw(ctx, this.scene.lod);
+        this._ctxFromSceneToView(ctx);
+    };
+
+    Renderer.prototype.debug = function() {
+        if(!this.is_debug) {
+            if(!this.layers['debug'])
+                this.layers['debug'] = new RenderedLayer(true, this.createNewCanvas(), this._renderDebugInfo.bind(this));
+            this.render_order_upwards.push('debug');
+            this.is_debug = true;
+        }
+        else {
+            this.render_order_upwards.pop();
+            this.is_debug = false;
+            this.forceRenderLayers();
+        }
+    };
+
+    Renderer.prototype._renderDebugInfo = function() {
+        let layer = this.layers['debug'];
+        let ctx = this.getDrawingContextFrom(layer.canvas);
+        this._ctxFromViewToScene(ctx);
+        const rect = this.scene.sceneRect();
+        ctx.clearRect(rect.left, rect.top, rect.width, rect.height);
+        let z_value = 0;
+        for (const item of this.scene.collision_detector.allZOrderedBoundingRects()) {
+            ctx.fillStyle = 'rgba(249,59,81,0.3)';
+            ctx.fillRect(item.left, item.top, item.width, item.height);
+            ctx.fillStyle = '#000000';
+            ctx.fillText("z-order: " + z_value.toString(), item.left + item.width, item.top);
+            z_value++;
+        }
         this._ctxFromSceneToView(ctx);
     };
 
