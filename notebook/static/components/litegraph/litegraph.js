@@ -3158,7 +3158,7 @@
     }
 
     Scene.prototype.leftMouseUp = function(e, hit) {
-        if (hit.is_hitted) {
+        if (hit.is_hitted && hit.hit_node instanceof Node) {
             if (hit.hit_component)
                 return;
             if (e.ctrlKey && !e.shiftKey) {
@@ -3205,7 +3205,7 @@
         if (e.button == 0) {
             if (!this.hit_result.is_hitted || !this.hit_result.hit_node)
                 this.leftMouseDownOnScene(e);
-            else
+            else if(this.hit_result.hit_node instanceof Node)
                 this.leftMouseDownOnNode(e, this.hit_result);
         }
         e.preventDefault();
@@ -3257,7 +3257,7 @@
             this.updateCommand([e, new_hit]);
         else if (this.pointer_down == null)
             this.mouseHover(e, new_hit);
-        else if (this.pointer_down == 0) {
+        else if (this.pointer_down == 0 && this.hit_result.hit_node instanceof Node) {
             this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_node]);
         }
         else if (this.pointer_down == 2)
