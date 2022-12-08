@@ -105,21 +105,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       }
     });
 
-    let helper = mockLiteGraphGetCommands();
-    for(let i = 0; i< helper.length; i++){
-      commands.addCommand(
-        "litegraph:"+helper[i].name,{
-          label: helper[i].label,
-          mnemonic:0,
-          execute: function(args){
-            return helper[i].exec(args._content);
-          },
-          isEnabled: function(args){
-            return args._active;
-          }
-        }
-      )
-    }
   }
   class PropertiesPanel extends Widget {
     constructor(graph) {
@@ -157,7 +142,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   class MembersPanel extends Widget {
     constructor(graph) {
       let node = document.createElement('div');
-
       super({ node: node });
       node.classList.add('membersPanel');
       let input = document.createElement('input');
@@ -420,7 +404,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       this.addMember = function(category,name){
 
         function addMember(node,category,name){
-          console.log(category);
           if(!Object.keys(category).length>0){
             if(node[name]){
               console.error("Member  was already added");
@@ -471,7 +454,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
         let that = this;
         function addNodes(list, groups,indent){
-          console.log(groups);
           for (const [category, group] of Object.entries(groups)){
 
             let d = document.createElement('div');
@@ -525,7 +507,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       function addToMenu(category, list){
         for(let i = 0; i<list.length; i++){
           if(!list[i].name){
-            console.log("heey",category, list[i]);
             that.addMember(category,list[i]);
           } else {
             addToMenu(category.concat([list[i].name]), list[i].value);
@@ -682,7 +663,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     constructor(graph) {
       let node = document.createElement('div');
 
-      function createMenu(items,label='',inactive){
+
+      function createMenu(items,label='',commands,inactive){
 
         let m = new Menu({commands:commands});
         for(let i =0; i<items.length; i++){
@@ -702,7 +684,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
           } else {
             m.addItem({type: 'submenu',
             submenu: createMenu(items[i].submenu.items,
-                              items[i].submenu.label,items[i].inactive)});
+                              items[i].submenu.label,commands,items[i].inactive)});
           }
 
         }
@@ -713,33 +695,62 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
 
       let canvas = document.createElement('canvas');
+
       canvas.style.margin = "0px";
       canvas.style.height="100%";
       canvas.style.width = "100%";
       node.appendChild(canvas);
       let ctx = canvas.getContext('2d');
       ctx.fillStyle = 'pink';
+      canvas.tabIndex=-1;
       ctx.fillRect(0,0,canvas.width,canvas.height);
 
       super({ node: node });
 
       let that = this;
       this.ctx = ctx;
-      let serachMenu =createSearchMenu({name:"main"});
-      node.addEventListener('contextmenu', function (event) {
-        let cs = mockLiteGraphGetContextMenu(event);
-        if(cs.type === "ContextMenu"){
-          let m = createMenu(cs.items);
-          m.open(event.clientX,event.clientY);
-        } else {
-          console.log("Search");
-          serachMenu.open(event.clientX,event.clientY);
+      let searchMenu =createSearchMenu({name:"main"});
+      this.scene = new VPE.Scene(canvas);
+      this.scene.start();
+
+      this.commands = new CommandRegistry();
+
+      function fillCommandRegistry(commands, allCommands){
+        let helper = that.scene.getAllContextCommands();
+        for(let i = 0; i< helper.length; i++){
+          commands.addCommand(
+            "litegraph:"+helper[i].name,{
+              label: helper[i].label,
+              mnemonic:0,
+              execute: function(args){
+                return helper[i].exec(args._content);
+              },
+              isEnabled: function(args){
+                return args._active;
+              }
+            }
+          )
         }
+      }
+
+      fillCommandRegistry(this.commands, this.scene.getAllContextCommands());
+
+
+      node.addEventListener('contextmenu', function (event) {
+        let cs = that.scene.getContextCommands();
+        if(cs.length >0){
+          let m = createMenu(cs,"", that.commands);
+          m.open(event.clientX,event.clientY);
+        }
+
+        //} else {
+        //  console.log("Search");
+        //  searchMenu.open(event.clientX,event.clientY);
+        //}
         event.preventDefault();
         event.stopPropagation();
       });
-      this.scene = new VPE.Scene(canvas);
-      this.scene.start();
+
       // let fit_to_parent_callback = this.scene.fitToParentSize().bind(this.scene);
       // // The width of scene parent is zero at current frame
       // window.requestAnimationFrame(function(){

@@ -2926,6 +2926,7 @@
     Scene.prototype.bindEventToScene = function() {
         if (this._events_binded)
             return;
+        console.log("binding");
         this._keyDown_callback = this.onKeyDown.bind(this);
         this.canvas.addEventListener("keydown", this._keyDown_callback, this.event_capture);
         this._mousewheel_callback = this.onMouseWheel.bind(this);
@@ -2942,6 +2943,8 @@
     Scene.prototype.unbindEventToScene = function() {
         if (!this._events_binded)
             return;
+
+        console.log("unbinding");
         this.canvas.removeEventListener("keydown", this._keyDown_callback);
         this._keyDown_callback = null;
         this.canvas.removeEventListener("mousewheel", this._mousewheel_callback);
@@ -2956,6 +2959,7 @@
     }
 
     Scene.prototype.onKeyDown = function(e) {
+        console.log("KeyDown!");
         if (e.type == "keydown") {
             if (e.code == 'Escape') {
                 this.deselectSelectedNodes();
@@ -3142,7 +3146,7 @@
             else
                 this.leftMouseDownOnNode(e, this.hit_result);
         }
-        e.preventDefault();
+        //e.preventDefault();
     }
 
     Scene.prototype.mouseHover = function(e, new_hit) {
@@ -3230,12 +3234,14 @@
         RemoveAllConnectorsOfSlotCommand];
 
     Scene.prototype.getAllContextCommands = function() {
+
+        let that = this;
         function toContextCommand(command_class){
-            let command = new command_class(this);
+            let command = new command_class(that);
             return {name: command.constructor.name,
             label: command.label || command.constructor.name,
             exec: function(args){
-                this.execCommand(command, args);
+                that.execCommand(command, args);
             }}
         }
 
