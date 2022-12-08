@@ -708,7 +708,15 @@
         const to = this.toPos();
         let x = Math.min(from.x, to.x);
         let y = Math.min(from.y, to.y);
-        return new Rect(x, y, Math.abs(from.x - to.x) , Math.abs(from.y - to.y));
+        let x_padding = 0;
+        let y_padding = 0;
+        if(from.x == to.x)
+            x_padding = this.detect_distance || 2;
+        if(from.y == to.y)
+            y_padding = this.detect_distance  || 2;
+        return new Rect(
+            x - x_padding, y - y_padding,
+            Math.abs(from.x - to.x) + 2 * x_padding, Math.abs(from.y - to.y) + 2 * y_padding);
     }
 
     Connector.prototype.mouseEnter = function() {
@@ -1967,6 +1975,7 @@
 
         Connector: {
             default_color: "#bdbbbb",
+            detect_distance: 1,
             style: {
                 normal: {
                     ctx_style: {
@@ -2002,13 +2011,16 @@
                 ctx.lineWidth = ctx_style.line_width;
                 ctx.strokeStyle = ctx_style.stroke_style;
                 ctx.globalAlpha = ctx_style.alpha;
+                this.detect_distance = ctx.lineWidth;
                 const from = this.fromPos();
                 const to = this.toPos();
                 const distance = from.distanceTo(to);
                 ctx.moveTo(from.x, from.y);
+                this.cp1 = new Point(from.x + distance * 0.3, from.y);
+                this.cp2 = new Point(to.x - distance * 0.3, to.y);
                 ctx.bezierCurveTo(
-                    from.x + distance * 0.3, from.y,
-                    to.x - distance * 0.3, to.y,
+                    this.cp1.x, this.cp1.y,
+                    this.cp2.x, this.cp2.y,
                     to.x, to.y
                 );
                 ctx.stroke();
@@ -4155,7 +4167,10 @@
 
     CollisionDetector.prototype.addExcludeCommentsBoundingRect = function(rect) {
         this._boundingRectsExcludeComments[rect.owner.id] = rect;
-        this._idsOfNoCommentsWithDescendZOrder.unshift(rect.owner.id);
+        if(rect.owner instanceof Connector)
+            this._idsOfNoCommentsWithDescendZOrder.push(rect.owner.id);
+        else
+            this._idsOfNoCommentsWithDescendZOrder.unshift(rect.owner.id);
     };
 
     CollisionDetector.prototype.addCommentNodeBoundingRect = function(rect) {
