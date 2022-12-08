@@ -2744,6 +2744,10 @@
     Scene.prototype.translateNode= function(node, delta_x, delta_y){
          node.addTranslate(delta_x, delta_y);
          this.collision_detector.updateBoundingRect(node);
+         let connectors = this.getConnectorsLinkedToNodes([node]);
+         for (const connector of connectors) {
+            this.collision_detector.updateBoundingRect(connector);
+         }
     };
 
     Scene.prototype.setNodeTranslation = function(node, translation){
