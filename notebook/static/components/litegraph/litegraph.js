@@ -2299,16 +2299,68 @@
         this._ctxFromViewToScene(ctx);
         const rect = this.scene.sceneRect();
         ctx.clearRect(rect.left, rect.top, rect.width, rect.height);
+        this._renderBoundingRects(ctx);
+        this._renderMousePos(ctx);
+        this._ctxFromSceneToView(ctx);
+        this._renderUndoHistory(ctx);
+    };
+
+    Renderer.prototype._renderMousePos = function (ctx){
+        if(this.scene.last_scene_pos){
+            ctx.fillStyle = 'rgba(255,197,0,1)';
+            ctx.beginPath();
+            ctx.arc(this.scene.last_scene_pos.x, this.scene.last_scene_pos.y, 3, 0, Math.PI * 2, true);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    Renderer.prototype._renderBoundingRects = function(ctx){
         let z_value = 0;
+        let line_height = 10;
         for (const item of this.scene.collision_detector.allZOrderedBoundingRects()) {
             ctx.fillStyle = 'rgba(249,59,81,0.3)';
             ctx.fillRect(item.left, item.top, item.width, item.height);
             ctx.fillStyle = '#000000';
-            ctx.fillText("z-order: " + z_value.toString(), item.left + item.width, item.top);
+            ctx.textAlign = "right";
+            ctx.textBaseline = "top";
+            if(!item.owner.title)
+                ctx.fillText("title: " + item.owner.constructor.name, item.left - 2, item.top);
+            ctx.fillText("z-order: " + z_value.toString(), item.left - 2, item.top + line_height);
+            ctx.fillText("state: " + item.owner.current_state, item.left, item.top + 2*line_height);
             z_value++;
         }
-        this._ctxFromSceneToView(ctx);
-    };
+    }
+
+    Renderer.prototype._renderUndoHistory = function(ctx){
+        ctx.save();
+        ctx.textBaseline = "top";
+        let undo_history = this.scene.undo_history
+        let length = undo_history.undo_history.length;
+        let reverse_index = undo_history.reverse_index;
+        let line_height = 15;
+        let text_x = 3;
+        let text_y = 3;
+        ctx.fontStyle = "20px Arial";
+        ctx.fillText("Undo History", text_x, text_y);
+        let max_rows = Math.max(Math.floor((this.scene.canvas.height - text_y) / line_height) - 1, 0) ;
+
+        let start_render_index = length - 1;
+        reverse_index = Math.min(reverse_index, start_render_index);
+        if(reverse_index + 1 >= max_rows){
+            start_render_index = start_render_index - (reverse_index + 1 - max_rows);
+        }
+        for (let i=0; i < Math.min(length, max_rows); i++){
+            let index = start_render_index - i;
+            if((length - index - 1) == this.scene.undo_history.reverse_index)
+                ctx.fillStyle = 'rgb(247,0,0)';
+            else
+                ctx.fillStyle = 'rgb(1,1,1)'
+            ctx.fillText(index.toString() + " " + undo_history.undo_history[index].desc,
+                text_x, text_y + (i + 1)*line_height);
+        }
+        ctx.restore();
+    }
 
     Renderer.prototype.startRender = function() {
         if (this.is_rendering) return;
@@ -2392,7 +2444,11 @@
         return v >= min && v <= max;
     }
 
-
+    /**
+     * the reverse index of the command to be undo = this.reverse_index, [0, undo_history.length]
+     * the reverse index of the command to be redo = this.reverse_index + 1
+     * @constructor
+     */
     function UndoHistory() {
         this.reverse_index = 0;
         this.undo_history = [];
@@ -3132,6 +3188,9 @@
             }
             else if (e.code == "ArrowRight" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(1, 0, this, e);
+            }
+            else if (e.code == "KeyD" && e.ctrlKey && e.shiftKey) {
+                this.renderer.debug();
             }
         }
     }
