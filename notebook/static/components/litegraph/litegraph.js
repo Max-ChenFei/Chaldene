@@ -1370,6 +1370,10 @@
         this.allow_resize = true;
         //for resize detection
         this.resize_detection_distance = 4;
+        this._width = 200;
+        this._height = 200;
+        this._min_width = 10;
+        this._min_height=10;
     }
 
     CommentNode.prototype.setWidth = function(w) {
