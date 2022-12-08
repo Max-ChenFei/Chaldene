@@ -1372,6 +1372,26 @@
         this.resize_detection_distance = 4;
     }
 
+    CommentNode.prototype.setWidth = function(w) {
+        this._width = Math.max(this._min_width, w);
+    };
+
+    CommentNode.prototype.width = function() {
+        return this._width;
+    };
+
+    CommentNode.prototype.setHeight = function(h) {
+         this._height = Math.max(this._min_height, h);
+    };
+
+    CommentNode.prototype.height = function() {
+        return this._height;
+    };
+
+    CommentNode.prototype.size = function() {
+        return {left: 0, top: 0, width: this.width(), height: this.height()}
+    },
+
     CommentNode.prototype.getBoundingRect = function() {
         const size = this.size();
         return new Rect(this.translate.x + size.left - this.resize_detection_distance,
@@ -1379,6 +1399,25 @@
             size.width + 2 * this.resize_detection_distance,
             size.height + 2 * this.resize_detection_distance);
     };
+
+    CommentNode.prototype.serialize = function() {
+        return {
+            id: this.id,
+            type: this.type,
+            translate: [this.translate.x, this.translate.y],
+            width: this.width(),
+            height: this.height(),
+        };
+    }
+
+    CommentNode.prototype.configure = function(config) {
+        if (!config)
+            return;
+        this.id = config.id;
+        this.translate = new Point(config.translate[0], config.translate[1]);
+        this.setWidth(config.width || 0);
+        this.setHeight(config.height || 0);
+    }
 
     type_registry.registerNodeType("Comment", CommentNode);
 
@@ -1901,32 +1940,6 @@
         },
         CommentNode: {
             alpha: 0.5,
-            _width: 200,
-            _height: 200,
-            _min_width: 10,
-            _min_height: 10,
-            width: function() {
-                return this._width;
-            },
-            setWidth: function(w) {
-                this._width = w;
-                this._width = Math.max(this._min_width, this._width);
-            },
-            height: function() {
-                return this._height;
-            },
-            setHeight: function(h) {
-                this._height = h;
-                this._height = Math.max(this._min_height, this._height);
-            },
-            size: function() {
-                return {
-                    left: 0,
-                    top: 0,
-                    width: this.width(),
-                    height: this.height()
-                }
-            },
             isCollided: function(){
                 return true;
             },
