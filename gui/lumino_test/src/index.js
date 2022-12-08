@@ -429,10 +429,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
         prevObj = obj;
         obj.classList.add("selected");
-        let node = VPE.TypeRegistry.createNode(obj.node_type);
-        //todo: add translation
-        graph.commands.execute("litegraph:AddNodeCommand", {_content: [node]});
-        //graph.scene.execCommand(new VPE.AddNodeCommand(graph.scene),[node]);
+        graph.commands.execute("litegraph:CreateNodeCommand", {_content: [obj.node_type]});
       }
 
       function groupClick(group){

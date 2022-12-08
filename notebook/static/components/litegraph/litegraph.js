@@ -3240,7 +3240,7 @@
         RemoveAllConnectorsOfSlotCommand];
 
     Scene.prototype.general_commands = [
-        AddNodeCommand
+        CreateNodeCommand
     ];
 
     Scene.prototype.getAllContextCommands = function() {
