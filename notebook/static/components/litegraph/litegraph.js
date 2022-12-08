@@ -2026,8 +2026,8 @@
                 ctx.stroke();
                 ctx.restore();
             },
-            isCollided: function(x, y){
-                return isPointOnCubicCurve(x, y, this.fromPos(), this.cp1, this.cp2, this.toPos(), this.detect_distance);
+            isCollided: function(scene_x, scene_y){
+                return isPointOnCubicCurve(scene_x, scene_y, this.fromPos(), this.cp1, this.cp2, this.toPos(), this.detect_distance);
             }
         }
     }
@@ -4287,7 +4287,7 @@
     CollisionDetector.prototype.getHitResultAtPos = function(x, y, type) {
         let type_match = type ? rect.owner instanceof type : true;
         for (const rect of this.allZOrderedBoundingRects()) {
-            if (type_match && rect.isInside(x, y) && rect.owner.isCollided()) {
+            if (type_match && rect.isInside(x, y) && rect.owner.isCollided(x, y)) {
                 if(rect.owner instanceof Connector)
                     return new HitResult(true, rect.owner, undefined, undefined, undefined);
                 const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
@@ -4403,6 +4403,78 @@
             ")"
         );
     }
+
+    function isPointOnCubicCurve(x, y, p0, p1, p2, p3, distance){
+        // rearrange cubic bezier function to cubic function of t
+        // p = p_0(1 - t)^3 + 3p_1t(1 - t)^2 + 3p_2t^2(1 - t) + p_3t^3
+        // t^3(p_3 - 3p_2 + 3p_1 - p_0) + t^23(p_2 - 2p_1 + p_0) + t3(p_1 - p_0) + p_0 - p = 0
+        function coefficient(v0, v1, v2, v3){
+            let a = v3 - 3*v2 + 3*v1 - v0;
+            let b = 3*(v2 - 2*v1 + v0);
+            let c = 3*(v1 - v0);
+            return [a, b, c]
+        }
+        let [a, b, c] = coefficient(p0.x, p1.x, p2.x, p3.x);
+        let d = p0.x - x;
+        let roots = solveCubic(a, b, c, d);
+        [a, b, c] = coefficient(p0.y, p1.y, p2.y, p3.y);
+        d = p0.y
+        for(const t of roots){
+            let y_on_curve = a*Math.pow(t, 3) + b*Math.pow(t, 2) + c*t + d;
+            if(Math.abs(y - y_on_curve) < distance){
+                return true;
+            }
+        }
+        return false;
+    }
+    //from https://stackoverflow.com/questions/27176423/function-to-solve-cubic-equation-analytically
+    function solveCubic(a, b, c, d) {
+        if (Math.abs(a) < 1e-8) { // Quadratic case, ax^2+bx+c=0
+            a = b; b = c; c = d;
+            if (Math.abs(a) < 1e-8) { // Linear case, ax+b=0
+                a = b; b = c;
+                if (Math.abs(a) < 1e-8) // Degenerate case
+                    return [];
+                return [-b/a];
+            }
+
+            let D = b*b - 4*a*c;
+            if (Math.abs(D) < 1e-8)
+                return [-b/(2*a)];
+            else if (D > 0)
+                return [(-b+Math.sqrt(D))/(2*a), (-b-Math.sqrt(D))/(2*a)];
+            return [];
+        }
+
+        // Convert to depressed cubic t^3+pt+q = 0 (subst x = t - b/3a)
+        let p = (3*a*c - b*b)/(3*a*a);
+        let q = (2*b*b*b - 9*a*b*c + 27*a*a*d)/(27*a*a*a);
+        let roots;
+
+        if (Math.abs(p) < 1e-8) { // p = 0 -> t^3 = -q -> t = -q^1/3
+            roots = [Math.cbrt(-q)];
+        } else if (Math.abs(q) < 1e-8) { // q = 0 -> t^3 + pt = 0 -> t(t^2+p)=0
+            roots = [0].concat(p < 0 ? [Math.sqrt(-p), -Math.sqrt(-p)] : []);
+        } else {
+            let D = q*q/4 + p*p*p/27;
+            if (Math.abs(D) < 1e-8) {       // D = 0 -> two roots
+                roots = [-1.5*q/p, 3*q/p];
+            } else if (D > 0) {             // Only one real root
+                let u = Math.cbrt(-q/2 - Math.sqrt(D));
+                roots = [u - p/(3*u)];
+            } else {                        // D < 0, three roots, but needs to use complex numbers/trigonometric solution
+                let u = 2*Math.sqrt(-p/3);
+                let t = Math.acos(3*q/p/u)/3;  // D < 0 implies p < 0 and acos argument in [-1..1]
+                let k = 2*Math.PI/3;
+                roots = [u*Math.cos(t), u*Math.cos(t-k), u*Math.cos(t-2*k)];
+            }
+        }
+        // Convert back from depressed cubic
+        for (let i = 0; i < roots.length; i++)
+            roots[i] -= b/(3*a);
+        return roots;
+    }
+
 })(this);
 
 //import './nodes/scipy.js'
