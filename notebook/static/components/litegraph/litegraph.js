@@ -682,8 +682,8 @@
      * @method node slot class
      * @param {String} name unique name of this slot on the node
      * @param {SlotPos} slot_pos
-     * @param {String} data_type: if the slot type is data_in or data_out
-     * @param {String} default_value: if the slot type is data_in or data_out
+     * @param {String} data_type
+     * @param {String} default_value: value when the slot type is data_in or data_out
      */
     function NodeSlot(name, slot_pos, data_type, default_value) {
         this.name = name;
