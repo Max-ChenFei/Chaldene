@@ -21,10 +21,6 @@
         return JSON.parse(JSON.stringify(obj));
     }
 
-    //*********************************************************************************
-    // TypeRegistry CLASS
-    //*********************************************************************************
-
     /**
      * TypeRegistry is the class that supports nodes types register, unregister, search.
      *
@@ -34,12 +30,6 @@
         this.registered_node_types = {}; // type_name: node_type
     }
 
-    /**
-     * Register a node class so it can be listed when the user wants to create a new one
-     * @method registerNodeType
-     * @param {String} type name of the node and path
-     * @param {Class} node_class
-     */
     TypeRegistry.prototype.registerNodeType = function(type, node_class) {
         if (!node_class.prototype) {
             throw "Cannot register a simple object, it must be a class with a prototype";
@@ -76,11 +66,7 @@
             this.addToCategories(path, categories[last_paht], from_node, from_slot, to_node);
         }
     };
-    /**
-     * removes a node type
-     * @method unregisterNodeType
-     * @param {String|Object} type name of the node or the node constructor itself
-     */
+
     TypeRegistry.prototype.unregisterNodeType = function(type) {
         let node_class = type.constructor === String ? this.registered_node_types[type] : type;
         if (!node_class)
@@ -88,11 +74,6 @@
         delete this.registered_node_types[node_class.type];
     };
 
-    /**
-     * Create a node of a given type with a name. The node is not attached to any graph yet.
-     * @method createNode
-     * @param {String} type full name of the node class. p.e. "math.sin"
-     */
     TypeRegistry.prototype.createNode = function(type_name) {
         let node_class = this.registered_node_types[type_name];
         if (!node_class) {
@@ -119,12 +100,6 @@
         return cloned_node;
     };
 
-    /**
-     * Returns a registered node type with a given name
-     * @method getNodeType
-     * @param {String} name_filter full name contain the name_filter string
-     * @return {Class} the node class
-     */
     TypeRegistry.prototype.getNodeTypesByNameFilter = function(name_filter) {
         name_filter = name_filter ? name_filter : "";
         let node_classes = [];
@@ -135,9 +110,6 @@
         return node_classes;
     };
 
-    /**
-     * Removes all previously registered node's types
-     */
     TypeRegistry.prototype.clearRegisteredTypes = function() {
         this.registered_node_types = {};
         this.node_types_in_categories = {};
@@ -183,22 +155,6 @@
     Variable.prototype.serialize = function() {
         return [this.name, this.type, this.value];
     };
-
-
-    //*********************************************************************************
-    // LGraph CLASS
-    //*********************************************************************************
-
-    /**
-     * Graph is the class that contain a full graph. We instantiate one and add nodes to it.
-     * supported callbacks:
-     + onNodeAdded: when a new node is added to the graph
-     + onNodeRemoved: when a node inside this graph is removed
-     + onNodeConnectionChange: some connection has changed in the graph (connected or disconnected)
-     *
-     * @class Graph
-     * @constructor
-     */
 
     function Graph() {
         this.init();
@@ -297,19 +253,9 @@
         return this.next_unique_id++;
     };
 
-    /**
-     * Clear the graph
-     * @method clear
-     */
     Graph.prototype.clear = function() {
-        for (const node of Object.values(this.nodes)) {
-            if (node.onRemoved) {
-                node.onRemoved();
-            }
-        }
         this.init();
     };
-
 
     Graph.prototype.isNodeValid = function(node) {
         if (!node) {
@@ -323,24 +269,11 @@
         return true;
     };
 
-    /**
-     * Adds a new node instance to this graph
-     * @method add
-     * @param {Node} node the instance of the node
-     */
     Graph.prototype.addNode = function(node) {
         if (!this.isNodeValid(node))
             return false;
         node.id = this.getUniqueId();
         this.nodes[node.id] = node;
-
-        if (node.onAdded) {
-            node.onAdded();
-        }
-
-        if (this.onNodeAdded) {
-            this.onNodeAdded(node);
-        }
         return true;
     };
 
@@ -447,24 +380,13 @@
     Graph.prototype.removeNode = function(node) {
         if (!this.isNodeValid(node))
             return false;
-        if (this.onNodeRemoved) {
-            this.onNodeRemoved(node.id);
-        }
         if(!this.nodes[node.id])
             return false;
         this.clearConnectorsOfNode(node);
-        if (node.onRemoved) {
-            node.onRemoved();
-        }
         delete this.nodes[node.id];
         return true;
     };
 
-    /**
-     * Returns a node by its id.
-     * @method getNodeById
-     * @param {Number} id
-     */
     Graph.prototype.getNodeById = function(id) {
         if (!id) return null;
         return this.nodes[id];
@@ -483,41 +405,26 @@
         return this.subgraphs[name];
     };
 
-    /**
-     * @method add variable to objects
-     * @param {String} name
-     * @param {String} type
-     * @param {*} value [optional]
-     */
-    Graph.prototype.addVarTo = function(name, type, value, obj, callback) {
+    Graph.prototype.addVarTo = function(name, type, value, obj) {
         assertNameUniqueIn(name, Object.keys(this.inputs));
         assertNameUniqueIn(name, Object.keys(this.outputs));
         assertNameUniqueIn(name, Object.keys(this.local_vars));
         let v = new Variable(name, type, value);
         obj[name] = v;
-
-        if (callback) {
-            callback(v);
-        }
     };
 
     Graph.prototype.addInput = function(name, type, value) {
-        this.addVarTo(name, type, value, this.inputs, this.onInputAdded);
+        this.addVarTo(name, type, value, this.inputs);
     };
 
     Graph.prototype.addOutput = function(name, type, value) {
-        this.addVarTo(name, type, value, this.outputs, this.onOutputAdded);
+        this.addVarTo(name, type, value, this.outputs);
     };
 
     Graph.prototype.addLocalVar = function(name, type, value) {
         this.addVarTo(name, type, value, this.local_vars);
     };
 
-    /**
-     * @method getVarValue
-     * @param {String} name
-     * @return {*} the value
-     */
     Graph.prototype.getVarValueFrom = function(name, obj) {
         let v = obj[name];
         if (!v) return null;
@@ -536,12 +443,6 @@
         this.getVarValueFrom(name, this.local_vars)
     };
 
-    /**
-     * Assign a data to the global graph variable
-     * @method setGlobalInputData
-     * @param {String} name
-     * @param {*} data
-     */
     Graph.prototype.setVarValueOf = function(name, new_value, obj) {
         let v = obj[name];
         if (!v) return;
@@ -560,11 +461,6 @@
         this.setVarValueOf(name, new_value, this.local_vars)
     };
 
-    /**
-     * @method renameInput
-     * @param {String} name
-     * @param {String} new_name
-     */
     Graph.prototype.renameVarOf = function(name, new_name, obj, callback) {
         if (name == new_name) return;
 
@@ -594,12 +490,6 @@
         this.renameVarOf(name, new_name, this.local_vars);
     };
 
-    /**
-     * Changes the type of a variable
-     * @method changeInputType
-     * @param {String} name
-     * @param {String} type
-     */
     Graph.prototype.changeVarTypeOf = function(name, new_type, obj) {
         let v = obj[name];
         if (!v) return;
@@ -618,12 +508,6 @@
         this.changeVarTypeOf(name, new_type, this.local_vars)
     };
 
-    /**
-     * Removes a variable
-     * @method removeInput
-     * @param {String} name
-     * @param {String} type
-     */
     Graph.prototype.removeVarOf = function(name, obj) {
         let v = obj[name];
         if (!v) return;
@@ -744,25 +628,12 @@
         data_out: 3
     });
 
-    /**
-     * areMultipleValuesInArray
-     * @method areMultipleValuesInArray
-     * @param {Array} values
-     * @param {Array} array
-     */
     function areMultipleValuesInArray(values, array) {
         return values.every(s => {
             return array.includes(s)
         });
     }
 
-    /**
-     * Node slot
-     * @method node slot class
-     * @param {SlotPos} t_a
-     * @param {SlotPos} t_b
-     * @return {Boolean} do these two slot type match
-     */
     function isSlotPosMatch(t_a, t_b) {
         if (t_a === t_b)
             return false;
@@ -786,12 +657,6 @@
     });
 
 
-    /**
-     * SlotConnection
-     * @method SlotConnection
-     * @param {SlotConnectionMethod} method
-     * @param {String} desc
-     */
     function SlotConnection(method, desc) {
         this.method = method;
         this.desc = desc;
@@ -952,50 +817,6 @@
         hovered: "hovered",
         pressed: "pressed"
     }
-    // *************************************************************
-    //   Node CLASS                                          *******
-    // *************************************************************
-
-    /*
-	title: string
-
-	node operations callbacks:
-		+ onAdded: when added to graph (warning: this is called BEFORE the node is configured when loading)
-		+ onRemoved: when removed from graph
-		+ onInputAdded
-		+ onInputRemoved
-		+ onOutputAdded
-		+ onOutputRemoved
-     	+ onAddConnection
-     	+ onBreakConnection
-     	+ onClearConnection
-		+ onDropItem : DOM item dropped over the node
-		+ onDropFile : file dropped over the node
-	interaction callbacks:
-		+ onSelected
-		+ onDeselected
-		+ onMouseDown
-		+ onMouseUp
-		+ onMouseEnter
-		+ onMouseLeave
-		+ onMove
-		+ onDblClick: double clicked in the node
-		+ onInputDblClick: input slot double clicked
-		+ onOutputDblClick: output slot double clicked
-	Serialization callback
-		+ onConfigure: called after the node has been configured
-		+ onSerialize: to add extra info when serializing (the callback receives the object that should be filled with the data)
-    Context menu
-		+ getExtraMenuOptions: to add option to context menu
-		+ onGetInputs: returns an array of possible inputs
-		+ onGetOutputs: returns an array of possible outputs
-*/
-
-    /**
-     * Base Class for all the node type classes
-     * @class Node
-     * @param {String} name a name for the node
-     */
 
     function Node() {
         this._ctor();
@@ -1067,16 +888,13 @@
      * @param {Object} extra_info this can be used to have special properties
      * @param {Array} slots
      */
-    Node.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots, call_back) {
+    Node.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots) {
         assertNameUniqueIn(slot_name, Object.keys(this.inputs));
         assertNameUniqueIn(slot_name, Object.keys(this.outputs));
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
         slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
         this.collidable_components[slot_name] = slot;
-        if (call_back) {
-            call_back(slot);
-        }
     };
 
     /**
@@ -1089,7 +907,7 @@
      */
     Node.prototype.addInput = function(slot_name, type, default_value, extra_info) {
         const slot_type = type === SlotType.Exec ? SlotPos.exec_in : SlotPos.data_in;
-        this.addSlotTo(slot_name, slot_type, type, default_value, extra_info, this.inputs, this.onInputAdded);
+        this.addSlotTo(slot_name, slot_type, type, default_value, extra_info, this.inputs);
     };
 
     /**
@@ -1101,69 +919,38 @@
      */
     Node.prototype.addOutput = function(slot_name, type, extra_info) {
         const slot_type = type === SlotType.Exec ? SlotPos.exec_out : SlotPos.data_out;
-        this.addSlotTo(slot_name, slot_type, type, undefined, extra_info, this.outputs, this.onOutputAdded);
+        this.addSlotTo(slot_name, slot_type, type, undefined, extra_info, this.outputs);
     };
 
-    /**
-     * add several new input slots in this node
-     * @method addInputs
-     * @param {Array} inputs array of triplets like [[name, type, default_value, extra_info],[...]]
-     */
     Node.prototype.addInputs = function(inputs) {
         for (const input of inputs) {
             this.addInput(input.name, input.type, default_value, input.extra_info)
         }
     };
 
-    /**
-     * add many output slots to use in this node
-     * @method addOutputs
-     * @param {Array} outputs array of triplets like [[name, type, extra_info],[...]]
-     */
     Node.prototype.addOutputs = function(outputs) {
         for (const output of outputs) {
             this.addOutput(output.name, output.type, output.extra_info)
         }
     };
 
-    /**
-     * remove one slot from the inputs or outputs, here we don't deal with connections, the graph will handle it.
-     * @method addOutputs
-     * @param {String} slot_name the name of the slot to be removed
-     * @param {Arrary}  slots intput or outputs slots
-     */
-    Node.prototype.removeSlotFrom = function(slot_name, slots, call_back) {
+    Node.prototype.removeSlotFrom = function(slot_name, slots) {
         delete this.collidable_components[slot_name];
         delete slots[slot_name];
-
-        if (call_back) {
-            call_back(slot_name);
-        }
     };
 
-    /**
-     * remove an existing input slot
-     * @method removeInput
-     * @param {String} slot_name
-     */
     Node.prototype.removeInput = function(slot_name) {
-        this.removeSlotFrom(slot_name, this.inputs, this.onInputRemoved);
+        this.removeSlotFrom(slot_name, this.inputs);
     };
 
-    /**
-     * remove an existing output slot
-     * @method removeOutput
-     * @param {String} slot_name
-     */
     Node.prototype.removeOutput = function(slot_name) {
-        this.removeSlotFrom(slot_name, this.outputs, this.onOutputRemoved);
+        this.removeSlotFrom(slot_name, this.outputs);
     };
 
     Node.prototype.getSlot = function(slot_name) {
         return this.inputs[slot_name] || this.outputs[slot_name];
     };
 
-    // *********************** node manipulation **************************************
     Node.prototype.allowConnectTo = function(slot_name, to_node, to_slot) {
         let slot = this.inputs[slot_name] || this.outputs[slot_name];
         if (!slot || !to_node || !to_slot) {
@@ -1210,10 +997,6 @@
             return;
         }
         slot.addConnection()
-
-        if (this.onAddConnection) {
-            this.onAddConnection(slot);
-        }
     };
 
     Node.prototype.addConnectionOfInput = function(slot_name) {
@@ -1229,10 +1012,6 @@
             return;
         }
         slot.breakConnection()
-
-        if (this.onBreakConnection) {
-            this.onBreakConnection(slot);
-        }
     };
 
     Node.prototype.breakConnectionOfOutput = function(slot_name) {
@@ -1243,20 +1022,11 @@
         this.breakConnectionOf(this.inputs[slot_name])
     };
 
-    /**
-     * disconnect one output to an specific node
-     * @method disconnectOutput
-     * @param {String} slot_name
-     */
     Node.prototype.clearConnectionsOf = function(slot) {
         if (!slot) {
             return;
         }
         slot.clearConnections()
-
-        if (this.onClearConnection) {
-            this.onClearConnection(slot_name);
-        }
     };
 
     Node.prototype.clearInConnections = function() {
@@ -1278,9 +1048,6 @@
 
     Node.prototype.addTranslate = function(delta_x, delta_y) {
         this.translate.add(delta_x, delta_y);
-        if (this.onMove) {
-            this.onMove(delta_x, delta_y);
-        }
     };
 
     Node.prototype.getBoundingRect = function() {
@@ -1336,18 +1103,12 @@
         if (this.isSelected())
             return;
         this.current_state = VisualState.pressed;
-        if (this.onSelected) {
-            this.onSelected();
-        }
     }
 
     Node.prototype.deselected = function() {
         if (!this.isSelected())
             return;
         this.current_state = VisualState.normal;
-        if (this.onDeselected) {
-            this.onDeselected();
-        }
     }
 
     Node.prototype.toggleSelection = function() {
@@ -2134,10 +1895,6 @@
         this.renderOneFrame();
     };
 
-    /**
-     * @method getCanvasWindow
-     * @return {window} returns the window where the canvas is attached (the DOM root node)
-     */
     Renderer.prototype.getRenderWindow = function() {
         let doc = this.getCanvas().ownerDocument;
         return doc.defaultView || doc.parentWindow;
@@ -2384,15 +2141,6 @@
         this.is_rendering = false;
     };
 
-    /**
-     * The Rect class defines a rectangle in the plane using number.
-     * @class Rect
-     * @param {Number} left
-     * @param {Number} top
-     * @param {Number} width
-     * @param {Number} height
-     * @constructor
-     */
     function Rect(left, top, width, height) {
         this.left = left;
         this.top = top;
@@ -4156,13 +3904,6 @@
 
     Object.setPrototypeOf(DuplicateNodeCommand.prototype, Command.prototype);
 
-    //****************************************
-
-    /**
-     *
-     * @param {Scene} scene
-     * @constructor
-     */
     function View(scene) {
         this.scene = scene;
         // (pos_scene + translate) * scale = pos_view
