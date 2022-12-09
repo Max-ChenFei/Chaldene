@@ -699,7 +699,6 @@
         this.data_type = data_type;
         this.default_value = default_value;
         this.connections = 0;
-        this.extra_info = {};
         this.current_state = VisualState.normal;
         this.translate = new Point(0, 0);
     };
@@ -723,10 +722,6 @@
     NodeSlot.prototype.isInput = function() {
         return this.slot_pos == SlotPos.exec_in || this.slot_pos == SlotPos.data_in;
     }
-
-    NodeSlot.prototype.addExtraInfo = function(extra_info) {
-        Object.assign(this.extra_info, extra_info);
-    };
 
     NodeSlot.prototype.isConnected = function() {
         return this.connections > 0;
@@ -885,14 +880,12 @@
      * @param {SlotPos} slot_pos
      * @param {string} data_type string defining the input type ("vec3","number",...), it its a generic one use *
      * @param {string} default_value
-     * @param {Object} extra_info this can be used to have special properties
      * @param {Array} slots
      */
-    Node.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots) {
+    Node.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, slots) {
         assertNameUniqueIn(slot_name, Object.keys(this.inputs));
         assertNameUniqueIn(slot_name, Object.keys(this.outputs));
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
-        slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
         this.collidable_components[slot_name] = slot;
     };
@@ -903,11 +896,10 @@
      * @param {string} slot_name
      * @param {string} type string defining the input type ("vec3","number",...), it its a generic one use *
      * @param {string} default_value
-     * @param {Object} extra_info this can be used to have special properties of an input (label, color, position, etc)
      */
-    Node.prototype.addInput = function(slot_name, type, default_value, extra_info) {
+    Node.prototype.addInput = function(slot_name, type, default_value) {
         const slot_type = type === SlotType.Exec ? SlotPos.exec_in : SlotPos.data_in;
-        this.addSlotTo(slot_name, slot_type, type, default_value, extra_info, this.inputs);
+        this.addSlotTo(slot_name, slot_type, type, default_value, this.inputs);
     };
 
     /**
@@ -915,22 +907,21 @@
      * @method addOutput
      * @param {string} slot_name
      * @param {string} type string defining the output type ("vec3","number",...)
-     * @param {Object} extra_info this can be used to have special properties of an output (label, special color, position, etc)
      */
-    Node.prototype.addOutput = function(slot_name, type, extra_info) {
+    Node.prototype.addOutput = function(slot_name, type) {
         const slot_type = type === SlotType.Exec ? SlotPos.exec_out : SlotPos.data_out;
-        this.addSlotTo(slot_name, slot_type, type, undefined, extra_info, this.outputs);
+        this.addSlotTo(slot_name, slot_type, type, undefined, this.outputs);
     };
 
     Node.prototype.addInputs = function(inputs) {
         for (const input of inputs) {
-            this.addInput(input.name, input.type, default_value, input.extra_info)
+            this.addInput(input.name, input.type, default_value)
         }
     };
 
     Node.prototype.addOutputs = function(outputs) {
         for (const output of outputs) {
-            this.addOutput(output.name, output.type, output.extra_info)
+            this.addOutput(output.name, output.type)
         }
     };
 
