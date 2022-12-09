@@ -227,21 +227,20 @@
         let tmp = a;
         a = b;
         b = tmp;
+        return [a, b];
     }
 
     Graph.prototype.getConnector = function(from_node, from_slot_name, to_node, to_slot_name) {
-        if (!from_node || !from_slot_name || !to_node || !to_slot_name
-            || !from_node.getSlot(from_slot_name) || !to_node.getSlot(to_slot_name)) {
+        if (!from_node || !from_slot_name || !to_node || !to_slot_name ||
+            !from_node.getSlot(from_slot_name) || !to_node.getSlot(to_slot_name)) {
             console.warn("Can not get the connector of null");
             return null;
         }
-        if (from_node.getSlot(from_slot_name).isInput()) {
-            [from_node, to_node] = swap(from_node, to_node);
-            [from_slot_name, to_slot_name] = swap(from_slot_name, to_slot_name);
-        }
         for (const connector of Object.values(this.connectors)) {
-            if (connector.out_node == from_node && connector.out_slot_name == from_slot_name &&
-                connector.in_node == to_node && connector.in_slot_name == to_slot_name) {
+            if ((connector.out_node == from_node && connector.out_slot_name == from_slot_name &&
+                connector.in_node == to_node && connector.in_slot_name == to_slot_name) ||
+                (connector.out_node == to_node && connector.out_slot_name == to_slot_name &&
+                connector.in_node == from_node && connector.in_slot_name == from_slot_name)) {
                 return connector;
             }
         }
@@ -290,15 +289,9 @@
             let in_slot = in_node.getSlot(connector.in_slot_name);
             let connection = out_node.allowConnectTo(connector.out_slot_name, in_node, in_slot);
             if (connection.method == SlotConnectionMethod.replace) {
-                if(!in_slot.allowMultipleConnections()) {
-                    let connectors = this.getConnectorsLinkedToSlot(in_node, in_slot);
-                    this.removeConnector(connectors[0]);
-                }
-                let out_slot = out_node.getSlot(connector.out_slot_name);
-                if(!out_slot.allowMultipleConnections()) {
-                    let connectors = this.getConnectorsLinkedToSlot(out_node, out_slot);
-                    this.removeConnector(connectors[0]);
-                }
+                let as_output = connection.args.node == out_node;
+                let connectors = this.getConnectorsLinkedToSlot(connection.args.node, connection.args.slot, as_output);
+                this.removeConnector(connectors[0]);
             }
             if(connection.method == SlotConnectionMethod.replace || connection.method == SlotConnectionMethod.add){
                 out_node.addConnectionOfOutput(connector.out_slot_name);
@@ -353,20 +346,18 @@
         return connectors;
     }
 
-    Graph.prototype.getConnectorsLinkedToSlot = function(node, slot) {
+    Graph.prototype.getConnectorsLinkedToSlot = function(node, slot, as_output) {
         let connectors = [];
+        let both = as_output == undefined || as_output == null;
         for (const connector of Object.values(this.connectors)) {
-            let target_node_id = null;
-            let target_slot_name = "";
-            if (slot.isInput()) {
-                target_node_id = connector.in_node.id;
-                target_slot_name = connector.in_slot_name;
-            } else {
-                target_node_id = connector.out_node.id;
-                target_slot_name = connector.out_slot_name;
+            if(both || as_output){
+                if(node.id == connector.out_node.id && slot.name == connector.out_slot_name)
+                    connectors.push(connector);
             }
-            if (node.id == target_node_id && slot.name == target_slot_name)
-                connectors.push(connector);
+            if(both || (!as_output)){
+                if(node.id == connector.in_node.id && slot.name == connector.in_slot_name)
+                    connectors.push(connector);
+            }
         }
         return connectors;
     }
@@ -657,9 +648,10 @@
     });
 
 
-    function SlotConnection(method, desc) {
+    function SlotConnection(method, desc, args) {
         this.method = method;
         this.desc = desc;
+        this.args = args;
     };
 
     function Point(x, y) {
@@ -731,23 +723,19 @@
         if (!isSlotPosMatch(this.slot_pos, other_slot.slot_pos))
             return new SlotConnection(SlotConnectionMethod.null,
                 '{this.data_type} is not compatible with {other_slot.data_type}');
-
         if (!type_registry.isDataTypeMatch(this.data_type, other_slot.data_type))
             return new SlotConnection(SlotConnectionMethod.null,
                 '{this.data_type} is not compatible with {other_slot.data_type}');
-
         if (this.isConnected() && !this.allowMultipleConnections()) {
             return new SlotConnection(SlotConnectionMethod.replace,
-                'Replace the existing connections');
+                'Replace the existing connections', {slot:this});
         }
-
-        if (other_slot.isConnected() && !other_slot.allowMultipleConnections()) {
+        let as_input = this.isInput();
+        if (other_slot.isConnected(!as_input) && !other_slot.allowMultipleConnections(!as_input)) {
             return new SlotConnection(SlotConnectionMethod.replace,
-                'Replace the existing connections');
+                'Replace the existing connections', {slot:other_slot});
         }
-
-        return new SlotConnection(SlotConnectionMethod.add,
-            'Add a connection');
+        return new SlotConnection(SlotConnectionMethod.add, 'Add a connection');
     };
 
     NodeSlot.prototype.addConnection = function() {
@@ -951,9 +939,14 @@
         if (this == to_node) {
             return new SlotConnection(SlotConnectionMethod.null, 'Both are on the same node.');
         }
-
-        return slot.allowConnectTo(to_slot)
+        let connection = slot.allowConnectTo(to_slot);
+        if(connection.method == SlotConnectionMethod.replace){
+            let node = connection.args.slot == slot? this : to_node;
+            connection.args['node'] = node;
+        }
+        return connection;
     };
+
     Node.prototype.allowConnectToAnySlot = function(slot_name, to_node) {
         let slot = this.inputs[slot_name] || this.outputs[slot_name];
         if (!slot || !to_node) {
@@ -998,19 +991,19 @@
         this.addConnectionOf(this.outputs[slot_name])
     };
 
-    Node.prototype.breakConnectionOf = function(slot) {
+    Node.prototype.breakConnectionOf = function(slot, as_output) {
         if (!slot) {
             return;
         }
-        slot.breakConnection()
+        slot.breakConnection(as_output);
     };
 
     Node.prototype.breakConnectionOfOutput = function(slot_name) {
-        this.breakConnectionOf(this.outputs[slot_name])
+        this.breakConnectionOf(this.outputs[slot_name], true);
     };
 
     Node.prototype.breakConnectionOfInput = function(slot_name) {
-        this.breakConnectionOf(this.inputs[slot_name])
+        this.breakConnectionOf(this.inputs[slot_name], false)
     };
 
     Node.prototype.clearConnectionsOf = function(slot) {
@@ -2577,15 +2570,9 @@
         if (connection.method == SlotConnectionMethod.null)
             return false;
         if (connection.method == SlotConnectionMethod.replace) {
-            if(!in_slot.allowMultipleConnections()) {
-                let connectors = this.graph.getConnectorsLinkedToSlot(in_node, in_slot);
-                this.collision_detector.removeBoundingRect(connectors[0]);
-            }
-            let out_slot = out_node.getSlot(connector.out_slot_name);
-            if(!out_slot.allowMultipleConnections()) {
-                let connectors = this.graph.getConnectorsLinkedToSlot(out_node, out_slot);
-                this.collision_detector.removeBoundingRect(connectors[0]);
-            }
+            let as_output = connection.args.node == out_node;
+            let connectors = this.graph.getConnectorsLinkedToSlot(connection.args.node, connection.args.slot, as_output);
+            this.collision_detector.removeBoundingRect(connectors[0]);
         }
         let did = this.graph.addConnector(connector);
         if(!did)
@@ -2710,8 +2697,8 @@
         return this.graph.getConnectorsLinkedToNodes(nodes);
     };
 
-    Scene.prototype.getConnectorsLinkedToSlot = function(node, slot) {
-        return this.graph.getConnectorsLinkedToSlot(node, slot);
+    Scene.prototype.getConnectorsLinkedToSlot = function(node, slot, as_output) {
+        return this.graph.getConnectorsLinkedToSlot(node, slot, as_output);
     };
 
     Scene.prototype.visibleConnectors = function() {
@@ -3485,6 +3472,7 @@
         this.from_slot = from_node.getSlot(from_slot_name);
         this.last_hit_slot = this.from_slot;
         this.target_node.pos = new Point(e.sceneX, e.sceneY);
+        // the link direction matters for rendering
         if (this.from_slot.isInput())
             this.connector = new Connector(null, this.target_node, null, this.from_node, from_slot_name);
         else
@@ -3522,19 +3510,16 @@
             let target_slot = this.last_hit.hit_component;
             let existed_connector = null;
             if (this.connection.method == SlotConnectionMethod.replace) {
-                if(!this.from_slot.allowMultipleConnections()) {
-                    existed_connector = this.scene.getConnectorsLinkedToSlot(this.from_node, this.from_slot)[0];
-                }
-                if(!target_slot.allowMultipleConnections()) {
-                    existed_connector = this.scene.getConnectorsLinkedToSlot(target_node, target_slot)[0];
-                }
+                let as_output = this.connection.args.node == this.from_node;
+                let existed_connector = this.scene.getConnectorsLinkedToSlot(this.connection.args.node,
+                    this.connection.args.slot, as_output)[0];
                 if(existed_connector)
                     this.end_state['removed_connector'] = [
                         existed_connector.out_node, existed_connector.out_slot_name,
                         existed_connector.in_node, existed_connector.in_slot_name
                     ];
             }
-            if (this.from_slot.isInput()) {
+            if (this.from_slot.isInput(target_slot)) {
                 this.connector.out_node = target_node;
                 this.connector.out_slot_name = target_slot.name;
             } else {
