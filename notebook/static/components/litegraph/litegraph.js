@@ -602,7 +602,8 @@
         this.current_state = VisualState.normal;
     };
 
-    const SlotType = {
+    const DataType = {
+        Wild: "*",
         Exec: "exec",
         number: "number",
         string: "string",
@@ -890,8 +891,8 @@
      * @param {string} default_value
      */
     Node.prototype.addInput = function(slot_name, type, default_value) {
-        const slot_type = type === SlotType.Exec ? SlotPos.exec_in : SlotPos.data_in;
-        this.addSlotTo(slot_name, slot_type, type, default_value, this.inputs);
+        const slot_pos = type === DataType.Exec ? SlotPos.exec_in : SlotPos.data_in;
+        this.addSlotTo(slot_name, slot_pos, type, default_value, this.inputs);
     };
 
     /**
@@ -901,8 +902,8 @@
      * @param {string} type string defining the output type ("vec3","number",...)
      */
     Node.prototype.addOutput = function(slot_name, type) {
-        const slot_type = type === SlotType.Exec ? SlotPos.exec_out : SlotPos.data_out;
-        this.addSlotTo(slot_name, slot_type, type, undefined, this.outputs);
+        const slot_pos = type === DataType.Exec ? SlotPos.exec_out : SlotPos.data_out;
+        this.addSlotTo(slot_name, slot_pos, type, undefined, this.outputs);
     };
 
     Node.prototype.addInputs = function(inputs) {
