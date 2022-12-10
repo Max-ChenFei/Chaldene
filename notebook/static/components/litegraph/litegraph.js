@@ -723,7 +723,7 @@
     NodeSlot.prototype.allowConnectTo = function(other_slot) {
         if (!isSlotPosMatch(this.slot_pos, other_slot.slot_pos))
             return new SlotConnection(SlotConnectionMethod.null,
-                `${this.data_type} is not compatible with ${other_slot.data_type}`);
+                `${this.slot_pos} is not compatible with ${other_slot.slot_pos}`);
         if (!type_registry.isDataTypeMatch(this.data_type, other_slot.data_type))
             return new SlotConnection(SlotConnectionMethod.null,
                 `${this.data_type} is not compatible with ${other_slot.data_type}`);
