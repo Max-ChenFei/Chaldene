@@ -820,6 +820,10 @@
         this.lod = 0;
     }
 
+    Node.prototype.allSlots = function() {
+        return Object.values(this.inputs).concat(Object.values(this.outputs));
+    }
+
     Node.prototype.serialize = function() {
         let o = {
             id: this.id,
@@ -827,7 +831,7 @@
             translate: [this.translate.x, this.translate.y],
             connections: []
         };
-        for (const slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+        for (const slot of this.allSlots()) {
             o["connections"].push(slot.connections)
         }
         return o;
@@ -839,7 +843,7 @@
         this.id = config.id;
         this.translate = new Point(config.translate[0], config.translate[1]);
         let i = 0;
-        for (const slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+        for (const slot of this.allSlots()) {
             slot.connections = config.connections[i];
             i++;
         }
@@ -1063,11 +1067,11 @@
             this[name] = value;
         }
         this.overrideRenderingTemplate();
-        for (let slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+        for (const slot of this.allSlots()) {
             slot.pluginRenderingTemplate(template['NodeSlot']);
             this.overrideRenderingTemplateOfSlot(slot);
         }
-        if(Object.keys(this.inputs).length > 0 || Object.keys(this.outputs).length > 0)
+        if(this.allSlots().length > 0)
             this.setSlotsTranslation();
     }
 
@@ -1667,7 +1671,7 @@
             },
 
             _drawSlots: function(ctx, lod) {
-                for (let slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+                for (const slot of this.allSlots()) {
                     ctx.save();
                     ctx.translate(slot.translate.x, slot.translate.y);
                     slot.draw(ctx, lod);
