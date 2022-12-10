@@ -980,19 +980,19 @@
      * @method connect
      * @param {String} slot_name
      */
-    Node.prototype.addConnectionOf = function(slot) {
+    Node.prototype.addConnectionOf = function(slot, as_output) {
         if (!slot) {
             return;
         }
-        slot.addConnection()
+        slot.addConnection(as_output)
     };
 
     Node.prototype.addConnectionOfInput = function(slot_name) {
-        this.addConnectionOf(this.inputs[slot_name])
+        this.addConnectionOf(this.inputs[slot_name], false)
     };
 
     Node.prototype.addConnectionOfOutput = function(slot_name) {
-        this.addConnectionOf(this.outputs[slot_name])
+        this.addConnectionOf(this.outputs[slot_name], true)
     };
 
     Node.prototype.breakConnectionOf = function(slot, as_output) {
