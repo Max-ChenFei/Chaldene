@@ -763,6 +763,15 @@
         for (const [name, value] of Object.entries(template)) {
             this[name] = value;
         }
+        if(!this.type_style) {
+            let default_style = this.style['default']
+            this.type_style = this.style[this.data_type];
+            if (this.type_style) {
+                Object.setPrototypeOf(this.type_style, default_style);
+            } else {
+                this.type_style = default_style;
+            }
+        }
     };
 
     NodeSlot.prototype.getBoundingRect = function() {
@@ -773,15 +782,6 @@
     NodeSlot.prototype.draw = function(ctx, lod) {
         if (!this.style)
             return;
-        if(!this.type_style) {
-            let default_style = this.style['default']
-            this.type_style = this.style[this.data_type];
-            if (this.type_style) {
-                Object.setPrototypeOf(this.type_style, default_style);
-            } else {
-                this.type_style = default_style;
-            }
-        }
         const connected_state = this.isConnected() ? "connected" : "unconnected";
         let ctx_style = this.type_style[connected_state][this.current_state].ctx_style;
         this.type_style.owner = this;
