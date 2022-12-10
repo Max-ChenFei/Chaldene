@@ -2377,6 +2377,7 @@
             return false;
         node.deselected();
         delete this.selected_nodes[node.id];
+        this.collision_detector.updateBoundingRect(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
         return true;
@@ -2399,6 +2400,7 @@
             return false;
         for (const node of Object.values(this.selected_nodes)) {
             node.deselected();
+            this.collision_detector.updateBoundingRect(node);
         }
         this.selected_nodes = {};
         if (!not_to_redraw)
@@ -2448,6 +2450,7 @@
         node.selected();
         this.selected_nodes[node.id] = node;
         this.collision_detector.setTopZOrder(node);
+        this.collision_detector.updateBoundingRect(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
         return true;
@@ -2479,6 +2482,7 @@
             delete this.selected_nodes[node.id];
         else
             this.selected_nodes[node.id] = node;
+        this.collision_detector.updateBoundingRect(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
         return true;
