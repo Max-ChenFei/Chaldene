@@ -3044,23 +3044,23 @@
         else{
             this.setCursor( "default");
         }
-        if(this.hit_result &&
-            new_hit.hit_node == this.hit_result.hit_node &&
-            new_hit.hit_component == this.hit_result.hit_component) {
+        let new_node = new_hit.hit_node;
+        let new_comp = new_hit.hit_component;
+        let old_node = this.hit_result.hit_node;
+        let old_comp = this.hit_result.hit_component;
+        if(this.hit_result && new_node == old_node && new_comp == old_comp)
             return;
-        }
         if(this.hit_result){
-            if(new_hit.hit_node != this.hit_result.hit_node && this.hit_result.hit_node)
-                this.hit_result.hit_node.mouseLeave(this.hit_result);
-            if (new_hit.hit_component != this.hit_result.hit_component && this.hit_result.hit_component)
-                this.hit_result.hit_component.mouseLeave();
+            if(new_node != old_node && old_node)
+                old_node.mouseLeave(this.hit_result);
+            if (new_comp != old_comp && old_comp)
+                old_comp.mouseLeave();
         }
         if (new_hit.is_hitted){
-            if(new_hit.hit_node && (this.hit_result? new_hit.hit_node != this.hit_result.hit_node : true))
-                new_hit.hit_node.mouseEnter(new_hit);
-            if(new_hit.hit_component && (this.hit_result? new_hit.hit_component != this.hit_result.hit_component : true)) {
-                new_hit.hit_component.mouseEnter();
-            }
+            if(new_node && (this.hit_result? new_node != old_node : true))
+                new_node.mouseEnter(new_hit);
+            if(new_comp && (this.hit_result? new_comp != old_comp : true))
+                new_comp.mouseEnter();
         }
         this.setToRender("nodes");
         this.setToRender("connectors");
