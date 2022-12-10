@@ -2822,6 +2822,7 @@
         this.canvas.removeEventListener("mouseup", this._mouseUp_callback);
         this._mouseUp_callback = null;
         this._events_binded = false;
+        this.last_scene_pos = undefined;
     }
 
     Scene.prototype.onKeyDown = function(e) {
@@ -3035,7 +3036,6 @@
         if(this.hit_result &&
             new_hit.hit_node == this.hit_result.hit_node &&
             new_hit.hit_component == this.hit_result.hit_component) {
-            this.hit_result = new_hit;
             return;
         }
         if(this.hit_result){
@@ -3045,9 +3045,9 @@
                 this.hit_result.hit_component.mouseLeave();
         }
         if (new_hit.is_hitted){
-            if(new_hit.hit_node && this.hit_result && new_hit.hit_node != this.hit_result.hit_node)
+            if(new_hit.hit_node && (this.hit_result? new_hit.hit_node != this.hit_result.hit_node : true))
                 new_hit.hit_node.mouseEnter(new_hit);
-            if(new_hit.hit_component && this.hit_result.hit_component && new_hit.hit_component != this.hit_result.hit_component) {
+            if(new_hit.hit_component && (this.hit_result? new_hit.hit_component != this.hit_result.hit_component : true)) {
                 new_hit.hit_component.mouseEnter();
             }
         }
