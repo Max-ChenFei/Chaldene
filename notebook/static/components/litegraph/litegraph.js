@@ -4095,13 +4095,14 @@
     CollisionDetector.prototype.getHitResultAtPos = function(x, y, type) {
         let type_match = type ? rect.owner instanceof type : true;
         for (const rect of this.allZOrderedBoundingRects()) {
-            let complex_collided = rect.owner.isCollided == undefined? true : rect.owner.isCollided(x, y);
-            if (type_match && rect.isInside(x, y) && complex_collided) {
-                if(rect.owner instanceof Connector)
-                    return new HitResult(true, rect.owner, undefined, undefined, undefined);
-                const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
-                const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
-                return new HitResult(true, rect.owner, local_pos.x, local_pos.y, hit_component);
+            if (type_match && rect.isInside(x, y)){
+                if(rect.owner.isCollided == undefined || rect.owner.isCollided(x, y)){
+                    if(rect.owner instanceof Connector)
+                        return new HitResult(true, rect.owner, undefined, undefined, undefined);
+                    const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
+                    const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
+                    return new HitResult(true, rect.owner, local_pos.x, local_pos.y, hit_component);
+                }
             }
         }
         return new HitResult(false);
