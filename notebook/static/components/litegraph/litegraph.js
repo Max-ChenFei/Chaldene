@@ -1058,13 +1058,12 @@
 
     Node.prototype.pluginRenderingTemplate = function(template) {
         let default_node = template['Node'];
-        let this_node = template[this.constructor.name];
-        if (this_node)
-            Object.setPrototypeOf(this_node, default_node);
-        else
-            this_node = default_node;
-        for (const [name, value] of Object.entries(this_node)) {
+        for (const [name, value] of Object.entries(default_node))
             this[name] = value;
+        let this_node = template[this.constructor.name];
+        if (this_node){
+            for (const [name, value] of Object.entries(this_node))
+                this[name] = value;
         }
         this.overrideRenderingTemplate();
         for (const slot of this.allSlots()) {
@@ -1144,6 +1143,12 @@
     CommentNode.prototype.size = function() {
         return {left: 0, top: 0, width: this.width(), height: this.height()}
     },
+
+    CommentNode.prototype.pluginRenderingTemplate = function(template) {
+        let this_node = template['CommentNode'];
+        for (const [name, value] of Object.entries(this_node))
+            this[name] = value;
+    }
 
     CommentNode.prototype.getBoundingRect = function() {
         const size = this.size();
@@ -2060,6 +2065,14 @@
         for (const item of this.scene.collision_detector.allZOrderedBoundingRects()) {
             ctx.fillStyle = 'rgba(249,59,81,0.3)';
             ctx.fillRect(item.left, item.top, item.width, item.height);
+            ctx.fillStyle = 'rgba(255,193,0,0.71)';
+            let child_items = item.owner.collidable_components? Object.values(item.owner.collidable_components) : [];
+            for (const comp of child_items) {
+                this._ctxFromSceneToNode(ctx, item.owner);
+                let rect = comp.getBoundingRect();
+                ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+                this._ctxFromNodeToScene(ctx);
+            }
             ctx.fillStyle = '#000000';
             ctx.textAlign = "right";
             ctx.textBaseline = "top";
