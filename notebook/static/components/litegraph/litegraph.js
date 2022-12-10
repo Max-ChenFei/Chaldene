@@ -850,7 +850,7 @@
     }
 
     Node.prototype.getSlotCtxStyle = function(slot_name){
-      let slot = this.inputs[slot_name] || this.outputs[slot_name];
+      let slot = this.getSlot(slot_name);
       return slot.getCtxStyle();
     };
 
@@ -859,7 +859,7 @@
     };
 
     Node.prototype.getConnectedAnchorPosInScene = function(slot_name) {
-        const slot = this.inputs[slot_name] || this.outputs[slot_name];
+        const slot = this.getSlot(slot_name);
         if (!slot) return undefined;
         let local_pos = slot.getConnectedAnchorPos();
         return new Point(this.translate.x + local_pos.x, this.translate.y + local_pos.y);
@@ -935,7 +935,7 @@
     };
 
     Node.prototype.allowConnectTo = function(slot_name, to_node, to_slot) {
-        let slot = this.inputs[slot_name] || this.outputs[slot_name];
+        let slot = this.getSlot(slot_name);
         if (!slot || !to_node || !to_slot) {
             return new SlotConnection(SlotConnectionMethod.null, 'Some input parameters are undefined.');
         }
@@ -952,7 +952,7 @@
     };
 
     Node.prototype.allowConnectToAnySlot = function(slot_name, to_node) {
-        let slot = this.inputs[slot_name] || this.outputs[slot_name];
+        let slot = this.getSlot(slot_name);
         if (!slot || !to_node) {
             return false;
         }
