@@ -1554,9 +1554,6 @@
                     height: this.height()
                 }
             },
-            isCollided: function(){
-                return true;
-            },
             style: {
                 normal: {
                     ctx_style: {
@@ -1693,9 +1690,6 @@
         },
         CommentNode: {
             alpha: 0.5,
-            isCollided: function(){
-                return true;
-            },
             style: {
                 normal: {
                     ctx_style: {
@@ -4084,7 +4078,8 @@
     CollisionDetector.prototype.getHitResultAtPos = function(x, y, type) {
         let type_match = type ? rect.owner instanceof type : true;
         for (const rect of this.allZOrderedBoundingRects()) {
-            if (type_match && rect.isInside(x, y) && rect.owner.isCollided(x, y)) {
+            let complex_collided = rect.owner.isCollided == undefined? true : rect.owner.isCollided(x, y);
+            if (type_match && rect.isInside(x, y) && complex_collided) {
                 if(rect.owner instanceof Connector)
                     return new HitResult(true, rect.owner, undefined, undefined, undefined);
                 const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
