@@ -3046,8 +3046,8 @@
         }
         let new_node = new_hit.hit_node;
         let new_comp = new_hit.hit_component;
-        let old_node = this.hit_result.hit_node;
-        let old_comp = this.hit_result.hit_component;
+        let old_node = this.hit_result != undefined? this.hit_result.hit_node : undefined;
+        let old_comp = this.hit_result != undefined? this.hit_result.hit_component : undefined;
         if(this.hit_result && new_node == old_node && new_comp == old_comp)
             return;
         if(this.hit_result){
