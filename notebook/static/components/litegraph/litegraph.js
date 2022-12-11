@@ -116,6 +116,8 @@
     };
 
     TypeRegistry.prototype.isDataTypeMatch = function(type_a, type_b) {
+        if(type_a == DataType.Wild || type_b == DataType.Wild)
+            return true;
         return type_a == type_b;
     };
 
@@ -627,6 +629,8 @@
     }
 
     function isSlotPosMatch(t_a, t_b) {
+        if(t_a == '*' || t_b == '*')
+            return true;
         if (t_a === t_b)
             return false;
 
