@@ -3145,6 +3145,10 @@
                 let node7 = type_registry.createNode("Comment");
                 node7.translate= new Point(20, 200);
                 this.execCommand(new AddNodeCommand(this), [ node7]);
+
+                let node8 = type_registry.createNode("RerouteNode");
+                node8.translate= new Point(100, 200);
+                this.execCommand(new AddNodeCommand(this), [ node8]);
                 //this.selectAllNodes();
                 e.preventDefault();
             }
@@ -3175,6 +3179,14 @@
             }
             else if (e.code == "ArrowRight" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(1, 0, this, e);
+            }
+            else if(e.code == "KeyZ"){
+                let command = new RemoveAllConnectorsOfNodeCommand(this);
+                this.execCommand(command);
+            }
+            else if(e.code == "KeyQ"){
+                let command = new RemoveAllConnectorsOfSlotCommand(this);
+                this.execCommand(command);
             }
             else if (e.code == "KeyD" && e.ctrlKey && e.shiftKey) {
                 this.renderer.debug();
