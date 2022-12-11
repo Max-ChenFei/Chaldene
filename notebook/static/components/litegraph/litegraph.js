@@ -1935,10 +1935,13 @@
                return this.slot.height() + this.margin[0] +　this.margin[2];
             },
             size: function() {
-                let y = this.title_bar.to_render ? -this.title_bar.height : 0;
-                if(this.current_state != VisualState.pressed)
-                    return {left: this.margin[3], top: this.margin[0], width: this.width(), height: this.height()}
-                return {left: 0, top:  0, width: this.width(), height: this.height()}
+                let left = - this.slot.width() / 2.0;
+                let top = - this.slot.height() / 2.0;
+                if(this.current_state == VisualState.pressed){
+                    left = - this.width() / 2.0;
+                    top = - this.height() / 2.0;
+                }
+                return {left: left, top:  top, width: this.width(), height: this.height()}
             },
             style: {
                 normal: {
@@ -1968,8 +1971,8 @@
                 },
             },
             setSlotsTranslation: function(){
-                this.slot.translate.x = this.margin[3];
-                this.slot.translate.y = this.margin[0];
+                this.slot.translate.x = - this.slot.width() / 2.0;
+                this.slot.translate.y = - this.slot.height() / 2.0;
             },
             _draw: function(ctx, ctx_style, lod) {
                 if(this.current_state == VisualState.pressed)
