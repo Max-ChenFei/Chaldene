@@ -993,11 +993,11 @@
     };
 
     Node.prototype.addConnectionOfInput = function(slot_name) {
-        this.addConnectionOf(this.inputs[slot_name], false)
+        this.addConnectionOf(this.getSlot(slot_name), false)
     };
 
     Node.prototype.addConnectionOfOutput = function(slot_name) {
-        this.addConnectionOf(this.outputs[slot_name], true)
+        this.addConnectionOf(this.getSlot(slot_name), true)
     };
 
     Node.prototype.breakConnectionOf = function(slot, as_output) {
@@ -1008,11 +1008,11 @@
     };
 
     Node.prototype.breakConnectionOfOutput = function(slot_name) {
-        this.breakConnectionOf(this.outputs[slot_name], true);
+        this.breakConnectionOf(this.getSlot(slot_name), true);
     };
 
     Node.prototype.breakConnectionOfInput = function(slot_name) {
-        this.breakConnectionOf(this.inputs[slot_name], false)
+        this.breakConnectionOf(this.getSlot(slot_name), false)
     };
 
     Node.prototype.clearConnectionsOf = function(slot) {
