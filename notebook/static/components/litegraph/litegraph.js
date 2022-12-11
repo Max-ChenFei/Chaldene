@@ -1205,7 +1205,9 @@
         this.type = "RerouteNode";
         this.desc = "Reroute Node";
         this.slot = new WildNodeSlot(data_type);
-        this.collidable_components = {"wildslot": this.slot};
+        this.slot_name = 'wildslot';
+        this.collidable_components = {};
+        this.collidable_components[this.slot_name] = this.slot;
     }
 
     RerouteNode.prototype.allSlots = function(){
@@ -3068,6 +3070,8 @@
         this.canvas.addEventListener("mousemove", this._mouseMove_callback, this.event_capture);
         this._mouseUp_callback = this.onMouseUp.bind(this);
         this.canvas.addEventListener("mouseup", this._mouseUp_callback, this.event_capture);
+        this._dblclick_callback = this.onDblclick.bind(this);
+        this.canvas.addEventListener("dblclick", this._dblclick_callback, this.event_capture);
         this._events_binded = true;
     }
 
@@ -3084,6 +3088,8 @@
         this._mouseMove_callback = null;
         this.canvas.removeEventListener("mouseup", this._mouseUp_callback);
         this._mouseUp_callback = null;
+        this.canvas.removeEventListener("dblclick", this._dblclick_callback);
+        this._dblclick_callback = null;
         this._events_binded = false;
         this.last_scene_pos = undefined;
     }
@@ -3364,6 +3370,13 @@
             this.rightMouseUp(e, this.hit_result);
         this.setCursor('default');
         e.preventDefault();
+    }
+
+    Scene.prototype.onDblclick = function(e){
+        debug_log('mouse double click ' +　e.button);
+        if (e.button == 0 &&　this.hit_result.hit_node instanceof Connector) {
+            this.execCommand(new AddRerouteToConnectorCommand(this), [this.hit_result.hit_node]);
+        }
     }
 
     Scene.prototype.getDocument = function() {
@@ -3953,6 +3966,7 @@
         node.translate = new Point(this.scene.last_scene_pos.x, this.scene.last_scene_pos.y);
         this._add_node.exec(node);
         this.support_undo = this._add_node.support_undo;
+        return node;
     }
 
     CreateNodeCommand.prototype.undo = function() {
@@ -4171,6 +4185,47 @@
     }
 
     Object.setPrototypeOf(DuplicateNodeCommand.prototype, Command.prototype);
+
+    function AddRerouteToConnectorCommand(scene) {
+        this.scene = scene;
+        this.add_command = new CreateNodeCommand(this.scene);
+        this.reroute = undefined;
+        this.reroute_pos = undefined;
+        this.output_connector = undefined;
+        this.input_connector = undefined;
+        this.origin_connector = undefined;
+        this.desc = "Create Reroute Node";
+    }
+
+    AddRerouteToConnectorCommand.prototype.replaceConnectors = function(connector){
+        this.reroute_pos = [this.reroute.translate.x, this.reroute.translate.y];
+        this.origin_connector = connector;
+        this.input_connector = new Connector(null, connector.out_node, connector.out_slot_name, this.reroute, this.reroute.slot_name);
+        this.scene.addConnector(this.input_connector, true);
+        this.output_connector = new Connector(null, this.reroute, this.reroute.slot_name, connector.in_node, connector.in_slot_name),
+        this.scene.addConnector(this.output_connector, true);
+        this.scene.setToRender("nodes");
+        this.scene.setToRender("connectors");
+    }
+
+    AddRerouteToConnectorCommand.prototype.exec = function(connector) {
+        this.reroute = this.add_command.exec('RerouteNode');
+        this.replaceConnectors(connector);
+    }
+
+    AddRerouteToConnectorCommand.prototype.undo = function() {
+        this.add_command.undo();
+        this.scene.addConnector(this.origin_connector);
+    }
+
+    AddRerouteToConnectorCommand.prototype.redo = function() {
+        let old_pos = this.reroute_pos;
+        this.add_command.redo();
+        [this.reroute.translate.x, this.reroute.translate.y] = old_pos;
+        this.replaceConnectors(this.origin_connector);
+    }
+
+    Object.setPrototypeOf(AddRerouteToConnectorCommand.prototype, Command.prototype);
 
     function View(scene) {
         this.scene = scene;
