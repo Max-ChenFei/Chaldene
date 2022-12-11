@@ -768,15 +768,7 @@
         for (const [name, value] of Object.entries(template)) {
             this[name] = value;
         }
-        if(!this.type_style) {
-            let default_style = this.style['default']
-            this.type_style = this.style[this.data_type];
-            if (this.type_style) {
-                Object.setPrototypeOf(this.type_style, default_style);
-            } else {
-                this.type_style = default_style;
-            }
-        }
+        this.updateStyleForNewType();
     };
 
     NodeSlot.prototype.getBoundingRect = function() {
@@ -784,6 +776,15 @@
         return new Rect(this.translate.x + size.left, this.translate.y + size.top, size.width, size.height);
     };
 
+    NodeSlot.prototype.updateStyleForNewType = function(){
+        let default_style = this.style['default']
+        this.type_style = this.style[this.data_type];
+        if (this.type_style) {
+            Object.setPrototypeOf(this.type_style, default_style);
+        } else {
+            this.type_style = default_style;
+        }
+    };
     NodeSlot.prototype.draw = function(ctx, lod) {
         if (!this.style)
             return;
@@ -798,6 +799,7 @@
             return null;
         const connected_state = this.isConnected() ? "connected" : "unconnected";
         return this.type_style[connected_state][this.current_state].ctx_style;
+    };
 
      /**
      * Wild Node slot, input or output
@@ -811,6 +813,11 @@
         this.current_state = VisualState.normal;
         this.translate = new Point(0, 0);
     };
+
+    WildNodeSlot.prototype.setDataType = function (new_type){
+        this.data_type = new_type;
+        this.updateStyleForNewType();
+    }
 
     WildNodeSlot.prototype.isInput = function(to_slot) {
         if(to_slot == undefined)
@@ -849,7 +856,6 @@
         } else {
             this.connections[+as_output] = 1;
         }
-        // todo color
     };
 
     WildNodeSlot.prototype.breakConnection = function(as_output) {
@@ -857,6 +863,7 @@
             this.connections[+as_output] -= 1;
         if(this.connections[0] == 0 && this.connections[1] == 0 && this.data_type != "*"){
             this.data_type = "*";
+            this.updateStyleForNewType();
         };
     };
 
@@ -1199,10 +1206,6 @@
         this.desc = "Reroute Node";
         this.slot = new WildNodeSlot(data_type);
         this.collidable_components = {"wildslot": this.slot};
-    }
-
-    RerouteNode.prototype.setDataType = function (new_type){
-        this.slot.data_type = new_type;
     }
 
     RerouteNode.prototype.allSlots = function(){
@@ -2780,6 +2783,11 @@
             this.collision_detector.removeBoundingRect(connectors[0]);
         }
         let did = this.graph.addConnector(connector);
+        let out_slot = out_node.getSlot(connector.out_slot_name);
+        if(in_slot.data_type == "*" && out_slot.data_type != "*")
+            in_slot.setDataType(out_slot.data_type);
+        if(out_slot.data_type == "*" && in_slot.data_type != "*")
+            out_slot.setDataType(in_slot.data_type);
         if(!did)
             return false;
         connector.pluginRenderingTemplate(this.rendering_template['Connector']);
