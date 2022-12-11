@@ -1636,6 +1636,52 @@
                         },
                     },
                 },
+                "numpy.ndarray": {
+                    unconnected: {
+                        normal: {
+                            ctx_style: {
+                                fillStyle: null,
+                                strokeStyle: "#00b2ff",
+                                lineWidth: 2,
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            }
+                        },
+                        hovered: {
+                            ctx_style: {
+                                fillStyle: null,
+                                strokeStyle: "#00b2ff",
+                                lineWidth: 5,
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            }
+                        },
+                    },
+                    connected: {
+                        normal: {
+                            ctx_style: {
+                                fillStyle: "#00b2ff",
+                                strokeStyle: "#00b2ff",
+                                lineWidth: 2,
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            }
+                        },
+                        hovered: {
+                            ctx_style: {
+                                fillStyle: "#00b2ff",
+                                strokeStyle: "#00b2ff",
+                                lineWidth: 5,
+                            },
+                            draw: function(this_style, ctx, ctx_style, lod) {
+                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            }
+                        },
+                    },
+                },
             }
         },
         Node: {
