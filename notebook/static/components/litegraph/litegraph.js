@@ -1562,7 +1562,8 @@
                     drawShape: function(ctx, style, lod) {
                         ctx.save();
                         let start_x = 0;
-                        if (!this.owner.isInput())
+                        let is_input = this.owner.isInput() == undefined? true : this.owner.isInput();
+                        if (!is_input)
                             start_x = - this.owner.icon_width;
                         if (style.fillStyle) {
                             ctx.fillStyle = style.fillStyle;
@@ -1574,7 +1575,7 @@
                         if(lod > 0){
                             if (style.fillStyle)
                                 ctx.fillRect(start_x, 0, this.owner.icon_width, this.owner.icon_height);
-                            ctx.strokeRect((this.owner.isInput()-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                            ctx.strokeRect((is_input-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
                         }
                         else {
                             ctx.beginPath();
