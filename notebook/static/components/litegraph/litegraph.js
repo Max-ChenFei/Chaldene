@@ -966,6 +966,9 @@
             return false;
         }
         let to_slots = [];
+        if(slot.isInput() == undefined){
+            return true;
+        }
         if(slot.isInput()){
            to_slots = Object.values(to_node.outputs);
         }
@@ -1255,7 +1258,8 @@
                 return pos;
             },
             size: function() {
-                let x = this.isInput() ? 0 : -this.width();
+                let is_input = this.isInput() == undefined? true : this.isInput();
+                let x = is_input ? 0 : -this.width();
                 return {
                     left: x,
                     top: 0,
@@ -1334,15 +1338,16 @@
                             ctx.lineWidth = style.lineWidth;
                             ctx.strokeStyle = style.strokeStyle;
                         }
+                        let is_input = this.owner.isInput() == undefined? true : this.owner.isInput();
                         if(lod > 0){
                             if (style.fillStyle)
-                                ctx.fillRect((this.owner.isInput()-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
-                            ctx.strokeRect((this.owner.isInput()-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                                ctx.fillRect((is_input-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                            ctx.strokeRect((is_input-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
                         }
                         else{
                             ctx.beginPath();
                             ctx.arc(
-                                this.owner.icon_width / 2.0 + (this.owner.isInput()-1) * this.owner.icon_width,
+                                this.owner.icon_width / 2.0 + (is_input-1) * this.owner.icon_width,
                                 this.owner.icon_width / 2.0,
                                 this.owner.icon_width / 2.0, 0, Math.PI * 2, true);
                             ctx.closePath();
