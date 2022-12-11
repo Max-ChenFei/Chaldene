@@ -885,7 +885,7 @@
     const VisualState = {
         normal: "normal",
         hovered: "hovered",
-        pressed: "pressed"
+        selected: "selected"
     }
 
     function Node() {
@@ -1173,13 +1173,13 @@
     };
 
     Node.prototype.isSelected = function() {
-        return this.current_state == VisualState.pressed;
+        return this.current_state == VisualState.selected;
     }
 
     Node.prototype.selected = function() {
         if (this.isSelected())
             return;
-        this.current_state = VisualState.pressed;
+        this.current_state = VisualState.selected;
     }
 
     Node.prototype.deselected = function() {
@@ -1192,11 +1192,11 @@
         if (this.isSelected())
             this.current_state = VisualState.normal;
         else
-            this.current_state = VisualState.pressed;
+            this.current_state = VisualState.selected;
     }
 
     Node.prototype.pressed = function() {
-        this.current_state = VisualState.pressed;
+        this.current_state = VisualState.selected;
     };
 
     function RerouteNode(data_type) {
@@ -1768,7 +1768,7 @@
                         node._draw(ctx, this.ctx_style, lod);
                     }
                 },
-                pressed: {
+                selected: {
                     ctx_style: {
                         fill_style: "#b6b6b6",
                         stroke_style: "#ffcc00",
@@ -1892,7 +1892,7 @@
                        node._draw(ctx, this.ctx_style, lod);
                     }
                 },
-                pressed: {
+                selected: {
                     ctx_style: {
                         fill_style: "#CBCBCBFF",
                         stroke_style: "#ffcc00",
@@ -1927,19 +1927,19 @@
         RerouteNode: {
             margin: [5, 8, 6, 8], //top right bottom left
             width: function() {
-                if(this.current_state != VisualState.pressed)
+                if(this.current_state != VisualState.selected)
                     return this.slot.width();
                 return this.slot.width() + this.margin[1] +　this.margin[3];
             },
             height: function() {
-               if(this.current_state != VisualState.pressed)
+               if(this.current_state != VisualState.selected)
                     return this.slot.height();
                return this.slot.height() + this.margin[0] +　this.margin[2];
             },
             size: function() {
                 let left = - this.slot.width() / 2.0;
                 let top = - this.slot.height() / 2.0;
-                if(this.current_state == VisualState.pressed){
+                if(this.current_state == VisualState.selected){
                     left = - this.width() / 2.0;
                     top = - this.height() / 2.0;
                 }
@@ -1960,7 +1960,7 @@
                         node._draw(ctx, this.ctx_style, lod);
                     }
                 },
-                pressed: {
+                selected: {
                     ctx_style: {
                         fill_style: "#b6b6b6",
                         stroke_style: "#ffcc00",
@@ -1977,7 +1977,7 @@
                 this.slot.translate.y = - this.slot.height() / 2.0;
             },
             _draw: function(ctx, ctx_style, lod) {
-                if(this.current_state == VisualState.pressed)
+                if(this.current_state == VisualState.selected)
                     this._drawBackground(ctx, ctx_style, lod);
                 this._drawSlots(ctx, lod);
             },
