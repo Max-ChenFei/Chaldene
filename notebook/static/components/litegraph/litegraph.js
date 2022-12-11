@@ -2816,6 +2816,10 @@
     Scene.prototype.setNodeTranslation = function(node, translation){
          node.translate = translation;
          this.collision_detector.updateBoundingRect(node);
+         let connectors = this.getConnectorsLinkedToNodes([node]);
+         for (const connector of connectors) {
+            this.collision_detector.updateBoundingRect(connector);
+         }
     };
 
     Scene.prototype.addConnector = function(connector, not_to_redraw) {
@@ -3933,7 +3937,7 @@
     }
 
     AddNodeCommand.prototype.redo = function() {
-        this.exec(this.end_state);
+        this.scene.addNode(this.end_state);
     }
 
     Object.setPrototypeOf(AddNodeCommand.prototype, Command.prototype);
