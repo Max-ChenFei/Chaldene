@@ -1253,7 +1253,10 @@
             },
             getConnectedAnchorPos: function() {
                 let pos = {};
-                pos.x = this.icon_width / 2.0 + (this.isInput()-1) * this.icon_width + this.translate.x;
+                if(this.isInput() == undefined)
+                    pos.x = this.try_as_output * this.icon_width +　this.translate.x;
+                else
+                    pos.x = this.translate.x;
                 pos.y = this.icon_height / 2.0 + this.translate.y
                 return pos;
             },
