@@ -799,7 +799,83 @@
         const connected_state = this.isConnected() ? "connected" : "unconnected";
         return this.type_style[connected_state][this.current_state].ctx_style;
 
+     /**
+     * Wild Node slot, input or output
+     */
+    function WildNodeSlot(data_type) {
+        this.data_type = data_type || "*";
+        this.slot_pos = data_type || "*";
+        this.name = 'wildslot';
+        //[in connections, out connections]
+        this.connections = [0, 0];
+        this.current_state = VisualState.normal;
+        this.translate = new Point(0, 0);
+        this.try_as_output = true;
     };
+
+    WildNodeSlot.prototype.isInput = function(to_slot) {
+        if(to_slot == undefined)
+            return undefined;
+        else if(to_slot instanceof WildNodeSlot)
+            return false
+        else
+            return !to_slot.isInput();
+    }
+
+    WildNodeSlot.prototype.isConnected = function(as_output) {
+        if(as_output == undefined)
+            return this.connections[0] > 0 && this.connections[1] > 0;
+        return this.connections[+as_output] > 0;
+    };
+
+    WildNodeSlot.prototype.allowConnectTo = function(other_slot) {
+        if (!type_registry.isDataTypeMatch(this.data_type, other_slot.data_type))
+            return new SlotConnection(SlotConnectionMethod.null,
+                `${this.data_type} is not compatible with ${other_slot.data_type}`);
+        let as_output = !this.isInput(other_slot);
+        if (this.isConnected(as_output) && !this.allowMultipleConnections(as_output)) {
+            return new SlotConnection(SlotConnectionMethod.replace,
+                'Replace the existing connections', {slot:this});
+        }
+        if (other_slot.isConnected(!as_output) && !other_slot.allowMultipleConnections(!as_output)) {
+            return new SlotConnection(SlotConnectionMethod.replace,
+                'Replace the existing connections', {slot:other_slot});
+        }
+        return new SlotConnection(SlotConnectionMethod.add, 'Add a connection');
+    };
+
+    WildNodeSlot.prototype.addConnection = function(as_output) {
+        if (this.allowMultipleConnections(as_output)) {
+            this.connections[+as_output] += 1;
+        } else {
+            this.connections[+as_output] = 1;
+        }
+        // todo color
+    };
+
+    WildNodeSlot.prototype.breakConnection = function(as_output) {
+        if (this.connections[+as_output] > 0)
+            this.connections[+as_output] -= 1;
+        if(this.connections[0] == 0 && this.connections[1] == 0 && this.data_type != "*"){
+            this.data_type = "*";
+        };
+    };
+
+    WildNodeSlot.prototype.clearConnections = function() {
+        this.connections = [0, 0];
+    };
+
+    WildNodeSlot.prototype.allowMultipleConnections = function(as_output) {
+        if(as_output){
+            return this.data_type != DataType.Exec
+        }
+        else{
+            return this.data_type == DataType.Exec
+        }
+    };
+
+    Object.setPrototypeOf(WildNodeSlot.prototype, NodeSlot.prototype);
+
     const VisualState = {
         normal: "normal",
         hovered: "hovered",
@@ -1117,6 +1193,51 @@
         this.current_state = VisualState.pressed;
     };
 
+    function RerouteNode(data_type) {
+        this._ctor();
+        this.title = "RerouteNode";
+        this.type = "RerouteNode";
+        this.desc = "Reroute Node";
+        this.slot = new WildNodeSlot(data_type);
+        this.collidable_components = {"wildslot": this.slot};
+    }
+
+    RerouteNode.prototype.setDataType = function (new_type){
+        this.slot.data_type = new_type;
+    }
+
+    RerouteNode.prototype.allSlots = function(){
+        return [this.slot];
+    }
+
+    RerouteNode.prototype.getSlot = function(){
+        return this.slot;
+    }
+
+    RerouteNode.prototype.allowConnectTo = function(slot_name, to_node, to_slot) {
+        if (!to_node || !to_slot) {
+            return new SlotConnection(SlotConnectionMethod.null, 'Some input parameters are undefined.');
+        }
+        if (this == to_node) {
+            return new SlotConnection(SlotConnectionMethod.null, 'Both are on the same node.');
+        }
+        let connection = this.slot.allowConnectTo(to_slot);
+        if(connection.method == SlotConnectionMethod.replace){
+            let node = connection.args.slot == this.slot? this : to_node;
+            connection.args['node'] = node;
+        }
+        return connection;
+    };
+
+    RerouteNode.prototype.overrideRenderingTemplateOfSlot = function(slot) {
+        slot.to_render_text = false;
+    };
+
+    RerouteNode.prototype.clearAllConnections = function() {
+       this.slot.clearConnections()
+    };
+
+    type_registry.registerNodeType("RerouteNode", RerouteNode);
 
     function CommentNode() {
         this._ctor();
@@ -1748,6 +1869,62 @@
                 ctx.fillStyle = "#2b2b2b";
                 ctx.fillText("Gaussian Filter", 0, 0);
                 ctx.restore();
+            },
+        },
+
+        RerouteNode: {
+            margin: [5, 8, 6, 8], //top right bottom left
+            width: function() {
+                if(this.current_state != VisualState.pressed)
+                    return this.slot.width();
+                return this.slot.width() + this.margin[1] +　this.margin[3];
+            },
+            height: function() {
+               if(this.current_state != VisualState.pressed)
+                    return this.slot.height();
+               return this.slot.height() + this.margin[0] +　this.margin[2];
+            },
+            size: function() {
+                let y = this.title_bar.to_render ? -this.title_bar.height : 0;
+                if(this.current_state != VisualState.pressed)
+                    return {left: this.margin[3], top: this.margin[0], width: this.width(), height: this.height()}
+                return {left: 0, top:  0, width: this.width(), height: this.height()}
+            },
+            style: {
+                normal: {
+                    ctx_style: {
+                    },
+                    draw: function(node, ctx, lod) {
+                        node._draw(ctx, this.ctx_style, lod);
+                    }
+                },
+                hovered: {
+                    ctx_style: {
+                    },
+                    draw: function(node, ctx, lod) {
+                        node._draw(ctx, this.ctx_style, lod);
+                    }
+                },
+                pressed: {
+                    ctx_style: {
+                        fill_style: "#b6b6b6",
+                        stroke_style: "#ffcc00",
+                        line_width: 3,
+                        round_radius: 8
+                    },
+                    draw: function(node, ctx, lod) {
+                       node._draw(ctx, this.ctx_style, lod);
+                    }
+                },
+            },
+            setSlotsTranslation: function(){
+                this.slot.translate.x = this.margin[3];
+                this.slot.translate.y = this.margin[0];
+            },
+            _draw: function(ctx, ctx_style, lod) {
+                if(this.current_state == VisualState.pressed)
+                    this._drawBackground(ctx, ctx_style, lod);
+                this._drawSlots(ctx, lod);
             },
         },
 
@@ -2967,7 +3144,7 @@
                 this.execCommand(new RemoveConnectorCommand(this), [connectors]);
             return;
         }
-        else if (e.ctrlKey && connectors.length>0) {
+        else if (e.ctrlKey && connectors.length>0 && hit.hit_node instanceof RerouteNode) {
             this.execCommand(new ReconnectCommand(this), [e, connectors, hit.hit_component.isInput()]);
             return;
         }
