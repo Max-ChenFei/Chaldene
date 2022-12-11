@@ -1,0 +1,56 @@
+<!--
+  ~ Copyright (c) Jupyter Development Team.
+  ~ Distributed under the terms of the Modified BSD License.
+-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>example-dockpanel-iife</title>
+
+  <link href="http://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.auto.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.js"></script>
+  <script src="../../notebook/static/components/litegraph/litegraph.js"></script>
+  <script>
+    require.config({
+      baseUrl: ".",
+      paths: {
+        // CDN testing ---
+        // "@lumino": "https://cdn.jsdelivr.net/npm/@lumino",
+
+        // Local testing ---
+        "@lumino/algorithm": "https://cdn.jsdelivr.net/npm/@lumino/algorithm/dist/index.min",
+        "@lumino/collections": "https://cdn.jsdelivr.net/npm/@lumino/collections/dist/index.min",
+        "@lumino/properties": "https://cdn.jsdelivr.net/npm/@lumino/properties/dist/index.min",
+        "@lumino/messaging": "https://cdn.jsdelivr.net/npm/@lumino/messaging/dist/index.min",
+        "@lumino/signaling": "https://cdn.jsdelivr.net/npm/@lumino/signaling/dist/index.min",
+        "@lumino/disposable": "https://cdn.jsdelivr.net/npm/@lumino/disposable/dist/index.min",
+        "@lumino/domutils": "https://cdn.jsdelivr.net/npm/@lumino/domutils/dist/index.min",
+        "@lumino/coreutils": "https://cdn.jsdelivr.net/npm/@lumino/coreutils/dist/index.min",
+        "@lumino/keyboard": "https://cdn.jsdelivr.net/npm/@lumino/keyboard/dist/index.min",
+        "@lumino/commands": "https://cdn.jsdelivr.net/npm/@lumino/commands/dist/index.min",
+        "@lumino/dragdrop": "https://cdn.jsdelivr.net/npm/@lumino/dragdrop/dist/index.min",
+        "@lumino/virtualdom": "https://cdn.jsdelivr.net/npm/@lumino/virtualdom/dist/index.min",
+        "@lumino/widgets": "https://cdn.jsdelivr.net/npm/@lumino/widgets/dist/index.min",
+        "@litegraph": "../../notebook/static/components/litegraph/litegraph"
+
+      }
+    });
+  </script>
+
+  <link href="./style/index.css" rel="stylesheet">
+</head>
+
+<body>
+  <script>
+    requirejs(['./src/index'], function (main) {
+      main();
+    });
+  </script>
+</body>
+
+</html>
