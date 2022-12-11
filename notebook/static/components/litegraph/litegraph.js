@@ -736,7 +736,7 @@
                 'Replace the existing connections', {slot:this});
         }
         let as_input = this.isInput();
-        if (other_slot.isConnected(!as_input) && !other_slot.allowMultipleConnections(!as_input)) {
+        if (other_slot.isConnected(as_input) && !other_slot.allowMultipleConnections(as_input)) {
             return new SlotConnection(SlotConnectionMethod.replace,
                 'Replace the existing connections', {slot:other_slot});
         }
