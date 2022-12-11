@@ -564,12 +564,12 @@
 
     Connector.prototype.fromPos = function() {
         if (!this.out_node) return new Point(0, 0);
-        return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name);
+        return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name, true);
     };
 
     Connector.prototype.toPos = function() {
         if (!this.in_node) return new Point(0, 0);
-        return this.in_node.getConnectedAnchorPosInScene(this.in_slot_name);
+        return this.in_node.getConnectedAnchorPosInScene(this.in_slot_name, false);
     };
 
     Connector.prototype.width = function() {
@@ -810,7 +810,6 @@
         this.connections = [0, 0];
         this.current_state = VisualState.normal;
         this.translate = new Point(0, 0);
-        this.try_as_output = true;
     };
 
     WildNodeSlot.prototype.isInput = function(to_slot) {
@@ -939,10 +938,10 @@
         return this.title || this.constructor.title;
     };
 
-    Node.prototype.getConnectedAnchorPosInScene = function(slot_name) {
+    Node.prototype.getConnectedAnchorPosInScene = function(slot_name, as_output) {
         const slot = this.getSlot(slot_name);
         if (!slot) return undefined;
-        let local_pos = slot.getConnectedAnchorPos();
+        let local_pos = slot.getConnectedAnchorPos(as_output);
         return new Point(this.translate.x + local_pos.x, this.translate.y + local_pos.y);
     };
 
@@ -1372,10 +1371,11 @@
             height: function() {
                 return this.icon_height;
             },
-            getConnectedAnchorPos: function() {
+            getConnectedAnchorPos: function(as_output) {
                 let pos = {};
-                if(this.isInput() == undefined)
-                    pos.x = this.try_as_output * this.icon_width +　this.translate.x;
+                let wild_slot = this.isInput() == undefined;
+                if(wild_slot)
+                    pos.x = as_output * this.icon_width +　this.translate.x;
                 else
                     pos.x = this.translate.x;
                 pos.y = this.icon_height / 2.0 + this.translate.y
@@ -3658,8 +3658,8 @@
     function ConnectCommand(scene) {
         this.desc = "Create Connector";
         this.scene = scene;
-        //the target_node always follow the mouse move
-        this.target_node = {
+        //the dummy_target_node always follow the mouse move
+        this.dummy_target_node = {
             pos: new Point(0, 0),
             getConnectedAnchorPosInScene: function() {
                 return this.pos
@@ -3676,17 +3676,27 @@
         this.from_node = from_node;
         this.from_slot = from_node.getSlot(from_slot_name);
         this.last_hit_slot = this.from_slot;
-        this.target_node.pos = new Point(e.sceneX, e.sceneY);
-        // the link direction matters for rendering
+        this.dummy_target_node.pos = new Point(e.sceneX, e.sceneY);
+        // when unknown, drag from the reroute node
+        this.connector_dir_unknown = this.from_slot.isInput() == undefined;
+        // the link direction matters for rendering.
         if (this.from_slot.isInput())
-            this.connector = new Connector(null, this.target_node, null, this.from_node, from_slot_name);
+            this.connector = new Connector(null, this.dummy_target_node, null, this.from_node, from_slot_name);
         else
-            this.connector = new Connector(null, this.from_node, from_slot_name, this.target_node, null);
+            this.connector = new Connector(null, this.from_node, from_slot_name, this.dummy_target_node, null);
         this.connector.pluginRenderingTemplate(this.scene.rendering_template['Connector']);
     }
 
+    ConnectCommand.prototype.setDragFrom = function(is_from_output) {
+        if ((!is_from_output && this.connector.out_node == this.from_node) ||
+            (is_from_output && this.connector.in_node == this.from_node)) {
+            [this.connector.out_node, this.connector.in_node] = swap(this.connector.out_node, this.connector.in_node);
+            [this.connector.out_slot_name, this.connector.in_slot_name] = swap(this.connector.out_slot_name, this.connector.in_slot_name);
+        }
+    }
+
     ConnectCommand.prototype.update = function(e, new_hit) {
-        this.target_node.pos = new Point(e.sceneX, e.sceneY);
+        this.dummy_target_node.pos = new Point(e.sceneX, e.sceneY);
         if(this.from_node == new_hit.hit_node && this.last_hit_slot == new_hit.hit_component)
             return;
         if(this.last_hit_slot)
@@ -3697,8 +3707,11 @@
         this.last_hit = new_hit;
         let target_slot = new_hit.hit_component;
         if (target_slot instanceof NodeSlot) {
+            if(this.connector_dir_unknown)
+                this.setDragFrom((this.last_hit.hit_node instanceof RerouteNode) || this.last_hit.hit_component.isInput());
             this.connection = this.from_node.allowConnectTo(this.from_slot.name, new_hit.hit_node, target_slot);
-        }
+        } else if(this.connector_dir_unknown)
+             this.setDragFrom((e.sceneX - this.from_node.translate.x) >= this.from_slot.translate.x);
         this.scene.setToRender('nodes');
         this.scene.setToRender('connectors');
     }
@@ -3724,7 +3737,7 @@
                         existed_connector.in_node, existed_connector.in_slot_name
                     ];
             }
-            if (this.from_slot.isInput(target_slot)) {
+            if (this.connector.out_node == this.dummy_target_node) {
                 this.connector.out_node = target_node;
                 this.connector.out_slot_name = target_slot.name;
             } else {
