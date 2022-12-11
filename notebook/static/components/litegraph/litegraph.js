@@ -3219,7 +3219,7 @@
     }
 
     Scene.prototype.leftMouseDownOnSlot = function(e, hit) {
-        let connectors = this.getConnectorsLinkedToSlot(hit.hit_node, hit.hit_component);
+        let connectors = this.getConnectorsLinkedToSlot(hit.hit_item, hit.hit_component);
         if (e.shiftKey)
             return;
         else if(e.altKey){
@@ -3227,17 +3227,17 @@
                 this.execCommand(new RemoveConnectorCommand(this), [connectors]);
             return;
         }
-        else if (e.ctrlKey && connectors.length>0 && hit.hit_node instanceof RerouteNode) {
+        else if (e.ctrlKey && connectors.length>0 && hit.hit_item instanceof RerouteNode) {
             this.execCommand(new ReconnectCommand(this), [e, connectors, hit.hit_component.isInput()]);
             return;
         }
-        this.execCommand(new ConnectCommand(this), [e, hit.hit_node, hit.hit_component.name]);
+        this.execCommand(new ConnectCommand(this), [e, hit.hit_item, hit.hit_component.name]);
     }
 
     Scene.prototype.leftMouseDownOnNode = function(e, hit) {
-        let border = whichBorder(hit.hit_local_x, hit.hit_local_y, hit.hit_node);
-        if (hit.hit_node.allow_resize && border)
-            this.execCommand(new ResizeCommand(this, hit.hit_node), [e, border]);
+        let border = whichBorder(hit.hit_local_x, hit.hit_local_y, hit.hit_item);
+        if (hit.hit_item.allow_resize && border)
+            this.execCommand(new ResizeCommand(this, hit.hit_item), [e, border]);
         else if (hit.hit_component instanceof NodeSlot) {
             this.leftMouseDownOnSlot(e, hit);
         }
@@ -3249,14 +3249,14 @@
     }
 
     Scene.prototype.leftMouseUp = function(e, hit) {
-        if (hit.is_hitted && hit.hit_node instanceof Node) {
+        if (hit.is_hitted && hit.hit_item instanceof Node) {
             if (hit.hit_component)
                 return;
             if (e.ctrlKey && !e.shiftKey) {
-                this.toggleNodeSelection(hit.hit_node);
+                this.toggleNodeSelection(hit.hit_item);
                 return;
             }
-            this.selectNode(hit.hit_node, e.shiftKey);
+            this.selectNode(hit.hit_item, e.shiftKey);
         }
     }
 
@@ -3294,17 +3294,17 @@
         this.pointer_down = e.button;
         this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (e.button == 0) {
-            if (!this.hit_result.is_hitted || !this.hit_result.hit_node)
+            if (!this.hit_result.is_hitted || !this.hit_result.hit_item)
                 this.leftMouseDownOnScene(e);
-            else if(this.hit_result.hit_node instanceof Node)
+            else if(this.hit_result.hit_item instanceof Node)
                 this.leftMouseDownOnNode(e, this.hit_result);
         }
         //e.preventDefault();
     }
 
     Scene.prototype.mouseHover = function(e, new_hit) {
-        if(new_hit.is_hitted && new_hit.hit_node && new_hit.hit_node.allow_resize){
-            let border = whichBorder(new_hit.hit_local_x, new_hit.hit_local_y, new_hit.hit_node);
+        if(new_hit.is_hitted && new_hit.hit_item && new_hit.hit_item.allow_resize){
+            let border = whichBorder(new_hit.hit_local_x, new_hit.hit_local_y, new_hit.hit_item);
             if (border) {
                 let cursor = mapNodeBorderToCursor[border] || "default";
                 this.setCursor(cursor);
@@ -3317,21 +3317,21 @@
         else{
             this.setCursor( "default");
         }
-        let new_node = new_hit.hit_node;
+        let new_item = new_hit.hit_item;
         let new_comp = new_hit.hit_component;
-        let old_node = this.hit_result != undefined? this.hit_result.hit_node : undefined;
+        let old_item = this.hit_result != undefined? this.hit_result.hit_item : undefined;
         let old_comp = this.hit_result != undefined? this.hit_result.hit_component : undefined;
-        if(this.hit_result && new_node == old_node && new_comp == old_comp)
+        if(this.hit_result && new_item == old_item && new_comp == old_comp)
             return;
         if(this.hit_result){
-            if(new_node != old_node && old_node)
-                old_node.mouseLeave(this.hit_result);
+            if(new_item != old_item && old_item)
+                old_item.mouseLeave(this.hit_result);
             if (new_comp != old_comp && old_comp)
                 old_comp.mouseLeave();
         }
         if (new_hit.is_hitted){
-            if(new_node && (this.hit_result? new_node != old_node : true))
-                new_node.mouseEnter(new_hit);
+            if(new_item && (this.hit_result? new_item != old_item : true))
+                new_item.mouseEnter(new_hit);
             if(new_comp && (this.hit_result? new_comp != old_comp : true))
                 new_comp.mouseEnter();
         }
@@ -3347,8 +3347,8 @@
             this.updateCommand([e, new_hit]);
         else if (this.pointer_down == null)
             this.mouseHover(e, new_hit);
-        else if (this.pointer_down == 0 && this.hit_result.hit_node instanceof Node) {
-            this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_node]);
+        else if (this.pointer_down == 0 && this.hit_result.hit_item instanceof Node) {
+            this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_item]);
         }
         else if (this.pointer_down == 2)
             this.pan(e.sceneMovementX, e.sceneMovementY);
@@ -3377,8 +3377,8 @@
 
     Scene.prototype.onDblclick = function(e){
         debug_log('mouse double click ' +　e.button);
-        if (e.button == 0 &&　this.hit_result.hit_node instanceof Connector) {
-            this.execCommand(new AddRerouteToConnectorCommand(this), [this.hit_result.hit_node]);
+        if (e.button == 0 &&　this.hit_result.hit_item instanceof Connector) {
+            this.execCommand(new AddRerouteToConnectorCommand(this), [this.hit_result.hit_item]);
         }
     }
 
@@ -3421,13 +3421,13 @@
     Scene.prototype.getContextCommands = function() {
         let context_command_names = [];
         if(this.hit_result.is_hitted){
-            if(this.hit_result.hit_node instanceof Node && !(this.hit_result.hit_node instanceof NodeSlot))
+            if(this.hit_result.hit_item instanceof Node && !(this.hit_result.hit_component instanceof NodeSlot))
             {
                 for (const c of this.commands_for_node) {
                     context_command_names.push({command: c.name, args: []});
                 };
             }
-            if(this.hit_result.hit_node instanceof NodeSlot)
+            if(this.hit_result.hit_component instanceof NodeSlot)
             {
                  for (const c of this.commands_for_slot) {
                     context_command_names.push({command: c.name, args: []});
@@ -3793,7 +3793,7 @@
 
     ConnectCommand.prototype.update = function(e, new_hit) {
         this.dummy_target_node.pos = new Point(e.sceneX, e.sceneY);
-        if(this.from_node == new_hit.hit_node && this.last_hit_slot == new_hit.hit_component)
+        if(this.from_node == new_hit.hit_item && this.last_hit_slot == new_hit.hit_component)
             return;
         if(this.last_hit_slot)
             this.last_hit_slot.mouseLeave();
@@ -3804,8 +3804,8 @@
         let target_slot = new_hit.hit_component;
         if (target_slot instanceof NodeSlot) {
             if(this.connector_dir_unknown)
-                this.setDragFrom((this.last_hit.hit_node instanceof RerouteNode) || this.last_hit.hit_component.isInput());
-            this.connection = this.from_node.allowConnectTo(this.from_slot.name, new_hit.hit_node, target_slot);
+                this.setDragFrom((this.last_hit.hit_item instanceof RerouteNode) || this.last_hit.hit_component.isInput());
+            this.connection = this.from_node.allowConnectTo(this.from_slot.name, new_hit.hit_item, target_slot);
         } else if(this.connector_dir_unknown)
              this.setDragFrom((e.sceneX - this.from_node.translate.x) >= this.from_slot.translate.x);
         this.scene.setToRender('nodes');
@@ -3820,7 +3820,7 @@
                 return;
             }
             this.end_state = {};
-            let target_node = this.last_hit.hit_node;
+            let target_node = this.last_hit.hit_item;
             let target_slot = this.last_hit.hit_component;
             let existed_connector = null;
             if (this.connection.method == SlotConnectionMethod.replace) {
@@ -4072,7 +4072,7 @@
     }
 
     RemoveAllConnectorsOfNodeCommand.prototype.exec = function() {
-        let node = this.scene.hit_result.hit_node;
+        let node = this.scene.hit_result.hit_item;
         if(!node)
             return;
         let connectors = this.scene.getConnectorsLinkedToNodes([node]);
@@ -4097,7 +4097,7 @@
     }
 
     RemoveAllConnectorsOfSlotCommand.prototype.exec = function() {
-        let node = this.scene.hit_result.hit_node;
+        let node = this.scene.hit_result.hit_item;
         let slot = this.scene.hit_result.hit_component;
         let connectors = this.scene.getConnectorsLinkedToSlot(node, slot);
         this._removeConnectors.exec(connectors);
@@ -4330,9 +4330,9 @@
             array.splice(index, 1);
     }
 
-    function HitResult(is_hitted, hit_node, hit_local_x, hit_local_y, hit_component) {
+    function HitResult(is_hitted, hit_item, hit_local_x, hit_local_y, hit_component) {
         this.is_hitted = is_hitted;
-        this.hit_node = hit_node;
+        this.hit_item = hit_item;
         this.hit_local_x = hit_local_x;
         this.hit_local_y = hit_local_y;
         this.hit_component = hit_component;
