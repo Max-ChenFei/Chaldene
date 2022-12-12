@@ -559,7 +559,9 @@
 
     Connector.prototype.draw = function(ctx, lod) {
         if (!this.style) return;
-        this.style[this.current_state].draw(this, ctx,lod);
+        let that = this;
+        let current_style = this.style[this.current_state]
+        current_style.draw.call(that, ctx, current_style.ctx_style, lod);
     }
 
     Connector.prototype.fromPos = function() {
@@ -1959,12 +1961,12 @@
                         line_join: "round",
                         alpha: 1
                     },
-                    draw: function(connector, ctx, lod) {
-                        if(connector.out_node.getSlotCtxStyle)
-                            this.ctx_style.stroke_style = connector.out_node.getSlotCtxStyle(connector.out_slot_name).strokeStyle;
-                        else if (connector.in_node.getSlotCtxStyle)
-                            this.ctx_style.stroke_style = connector.in_node.getSlotCtxStyle(connector.in_slot_name).strokeStyle;
-                        connector._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod) {
+                        if(this.out_node.getSlotCtxStyle)
+                            ctx_style.stroke_style = this.out_node.getSlotCtxStyle(this.out_slot_name).strokeStyle;
+                        else if (this.in_node.getSlotCtxStyle)
+                            this.ctx_style.stroke_style = this.in_node.getSlotCtxStyle(this.in_slot_name).strokeStyle;
+                        this._draw.call(this, ctx, ctx_style);
                     }
                 },
                 hovered: {
@@ -1974,12 +1976,12 @@
                         line_join: "round",
                         alpha: 1
                     },
-                    draw: function(connector, ctx, lod) {
-                       connector._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod) {
+                       this._draw.call(this, ctx, ctx_style);
                     }
                 }
             },
-            _draw: function(ctx, ctx_style, lod) {
+            _draw: function(ctx, ctx_style) {
                 ctx.save();
                 ctx.beginPath();
                 ctx.lineJoin = ctx_style.line_join;
@@ -1996,8 +1998,7 @@
                 ctx.bezierCurveTo(
                     this.cp1.x, this.cp1.y,
                     this.cp2.x, this.cp2.y,
-                    to.x, to.y
-                );
+                    to.x, to.y);
                 ctx.stroke();
                 ctx.restore();
             },
