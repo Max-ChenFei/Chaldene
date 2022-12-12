@@ -1,0 +1,48 @@
+.SearchMenu{
+  font: 12px Helvetica, Arial, sans-serif;
+  overflow-y: hidden;
+}
+.SearchMenu input {
+    margin: 0.3rem;
+    /*padding-bottom: 1rem;
+    border-bottom: 3px solid black;*/
+}
+
+.SearchMenu .SearchList{
+    overflow: auto;
+}
+
+.SearchMenu .memberEl,
+.SearchMenu .categoryName {
+    margin: 0;
+    display: block;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+
+}
+
+.SearchMenu .memberEl *,
+.SearchMenu .categoryName *{
+    margin: 0;
+    display: inline;
+
+}
+.SearchMenu .memberEl:hover:not(.selected),
+.SearchMenu .categoryName:hover:not(.selected){
+    background-color: lightblue;
+}
+
+.SearchMenu .indentation {
+
+}
+
+
+.SearchMenu .categoryName p{
+    padding-left: 0.2rem;
+    display: inline;
+}
+
+
+.SearchMenu .selected{
+    background-color: darkcyan;
+}

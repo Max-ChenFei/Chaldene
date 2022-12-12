@@ -12,7 +12,6 @@
 define([
     'jquery',
     'components/litegraph/litegraph.js',
-    'components/draggable-resizable-dialog/draggable-resizable-dialog.js',
     'base/js/namespace',
     'base/js/utils',
     'base/js/i18n',
@@ -28,7 +27,6 @@ define([
 ], function(
     $,
     lg,
-    dialog,
     IPython,
     utils,
     i18n,
@@ -120,8 +118,7 @@ define([
         this.last_msg_id = null;
         this.completer = null;
 
-        this.graph = null;
-        this.graph_canvas = null;
+        this.scene = null;
         this.canvas = null;
 
         Cell.apply(this,[{
@@ -194,26 +191,22 @@ define([
         inner_cell.append(this.celltoolbar.element);
         var input_area = $('<div/>').addClass('input_area').attr("aria-label", i18n.msg._("Edit code here"));
 
-        //$('.input_area').append("<canvas id='mycanvas' width='"+input_area_width+"' height='300' style='border: 1px solid'></canvas>");
-        // this.code_mirror = new CodeMirror(input_area.get(0), this._options.cm_config);
-        // // In case of bugs that put the keyboard manager into an inconsistent state,
-        // // ensure KM is enabled when CodeMirror is focused:
-        // this.code_mirror.on('focus', function () {
-        //     if (that.keyboard_manager) {
-        //         that.keyboard_manager.enable();
-        //     }
-        //
-        //     that.code_mirror.setOption('readOnly', !that.is_editable());
-        // });
-        // this.code_mirror.on('keydown', $.proxy(this.handle_keyevent,this));
-        // $(this.code_mirror.getInputField()).attr("spellcheck", "false");
-
-
-        //input_area.append("<canvas width='"+input_area_width+"' height='300' style='border: 1px solid'></canvas>");
         this.canvas = $("<canvas height='300'></canvas>");
+        this.scene = new VPE.Scene(this.canvas.get(0));
 
-        this.graph = new LiteGraph.LGraph();
-        this.graph_canvas = new LiteGraph.LGraphCanvas(this.canvas.get(0), this.graph, {skip_events:false});
+        let fit_to_width_callback = this.scene.fitToParentWidth.bind(this.scene);
+        // The width of scene parent is zero at current frame
+        window.requestAnimationFrame(function(){
+           fit_to_width_callback();
+        });
+        window.addEventListener("resize", fit_to_width_callback);
+        this._DoNothing = function doNothing(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            return false;
+        };
+        this.canvas.get(0).addEventListener("contextmenu", this._DoNothing);
+        this.canvas.get(0).addEventListener("keydown", this._DoNothing);
 
         input_area.append(this.canvas);
         inner_cell.append(input_area);
@@ -223,12 +216,6 @@ define([
 
         var output = $('<div></div>');
         cell.append(input).append(output);
-
-        // var button = $('<button id="show-dialog" class="show-button">Editor Popup</button>');
-        // button.on("click", function() {
-        //    that.createDialogExample1(this);
-        // });
-        // inner_cell.append(button);
 
         this.element = cell;
         this.output_area = new outputarea.OutputArea({
@@ -266,13 +253,6 @@ function htmlToElement(html) {
         that.element.click(function (event) {
             that._on_click(event);
         });
-        // when change the cell type
-        // if (this.graph_canvas) {
-        //     this.graph_canvas.on("change", function(cm, change) {
-        //         that.events.trigger("change.Cell", {cell: that, change: change});
-        //         that.events.trigger("set_dirty.Notebook", {value: true});
-        //     });
-        // }
 
         this.canvas.on("focus", function() {
                 if (!that.selected) {
@@ -597,7 +577,7 @@ function htmlToElement(html) {
     ImageProcessingCell.prototype.edit_mode = function () {
         if (this.mode !== 'edit') {
             this.mode = 'edit';
-            //this.graph_canvas.bindEvents();
+            this.scene.start();
             return true;
         } else {
             return false;
@@ -607,7 +587,7 @@ function htmlToElement(html) {
     ImageProcessingCell.prototype.command_mode = function () {
         if (this.mode !== 'command') {
             this.mode = 'command';
-            // this.graph_canvas.unbindEvents();
+            this.scene.stop();
             return true;
         } else {
             return false;
@@ -655,17 +635,14 @@ function htmlToElement(html) {
 
 
     ImageProcessingCell.prototype.get_text = function () {
-        var data = this.graph.serialize();
-
+        var data = this.scene.serialize();
         return JSON.stringify(data);
-        //return ;this.code_mirror.getValue();
     };
 
     ImageProcessingCell.prototype.get_source_code = function () {
-        var data = this.graph.sourceCode();
+        var data = this.scene.graph.sourceCode();
         console.log(data);
         return data;
-        //return ;this.code_mirror.getValue();
     };
 
 
@@ -673,8 +650,7 @@ function htmlToElement(html) {
         if(!code)
             return;
         var code_string =  JSON.parse(code);
-        return this.graph.configure( code_string );
-        //return ;//this.code_mirror.setValue(code);
+        return this.scene.configure(code_string);
     };
 
 
@@ -757,22 +733,6 @@ function htmlToElement(html) {
 
     ImageProcessingCell.prototype.refresh = function ()
     {
-        this.graph_canvas.resize();
-
-
-        // var ref_window = canvas.getCanvasWindow();
-        // var menu = new LiteGraph.ContextMenu(
-        //     ['d'],
-        //     {
-        //        // event: e,
-        //         // callback: inner_clicked,
-        //         // parentMenu: prev_menu,
-        //         // node: node
-        //     },
-        // );
-        // // menu.addItem('D', 'D');
-        // this.graph.start();
-
     };
 
     // Backwards compatibility.
