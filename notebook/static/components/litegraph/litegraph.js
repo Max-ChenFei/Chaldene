@@ -1345,10 +1345,10 @@
             icon_height: 10,
             to_render_text: true,
             font: '12px Arial',
-            padding_between_icon_text: 3,
+            margin_between_icon_text: 3,
             width: function() {
                 let text_width = (this.to_render_text && this.data_type != 'exec') ? textWidth(this.name, this.font) : 0;
-                return this.icon_width + (text_width > 0 ? this.padding_between_icon_text + text_width : 0);
+                return this.icon_width + (text_width > 0 ? this.margin_between_icon_text + text_width : 0);
             },
             height: function() {
                 return this.icon_height;
@@ -1468,10 +1468,10 @@
                         let x = 0;
                         if (this.isInput()) {
                             ctx.textAlign = "left";
-                            x = this.icon_width + this.padding_between_icon_text;
+                            x = this.icon_width + this.margin_between_icon_text;
                         } else {
                             ctx.textAlign = "right";
-                            x = -(this.icon_width + this.padding_between_icon_text);
+                            x = -(this.icon_width + this.margin_between_icon_text);
                         }
                         ctx.fillText(this.name, x, this.icon_height / 2.0);
                         ctx.restore();
