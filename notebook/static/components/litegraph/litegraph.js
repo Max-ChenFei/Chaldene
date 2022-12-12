@@ -1326,39 +1326,16 @@
         name: "RenderingTemplate",
         scene: {
             style: {
-                owner: null,
-                current_bg: null,
                 "0": {
                     image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
                     image_repetition: "repeat",
                     global_alpha: 1,
+                    fill_color: null
                 },
                 "1": {
-                    image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
-                    image_repetition: "repeat",
                     global_alpha: 1,
+                    fill_color: '#ffffff'
                 },
-                draw: function(ctx, rect, lod) {
-                    let style = this[lod];
-                    if (!style) style = this[0];
-                    if (style.image) {
-                        let img_need_loaded = !this.current_bg || this.current_bg.src != style.image;
-                        if(img_need_loaded) {
-                            this.current_bg = new Image();
-                            this.current_bg.src = style.image;
-                            this.current_bg.onload = () => {
-                                this.owner.renderer.forceRenderLayers(["background"]);
-                            }
-                        } else{
-                            ctx.fillStyle = ctx.createPattern(this.current_bg, style.image_repetition);
-                            ctx.imageSmoothingEnabled = true;
-                            ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
-                        }
-                    } else {
-                        ctx.fillStyle = style.color;
-                        ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
-                    }
-                }
             }
         },
         // different slot data types(number, string..), different states style sheet(selected, unselected, hovered) applied on
@@ -2993,9 +2970,31 @@
     };
 
     Scene.prototype.draw = function(ctx, rect, lod) {
-        if (this.style)
-            this.style.draw(ctx, rect, lod);
+        let style = this.style[lod || 0];
+        if (style.image) {
+           this.draw_image_on_background(ctx, rect, style);
+        } else {
+            ctx.fillStyle = style.fill_color;
+            ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+        }
     };
+
+    Scene.prototype.draw_image_on_background = function(ctx, rect, style){
+        let img_need_loaded = !this.current_bg || this.current_bg.src != style.image;
+        if(img_need_loaded) {
+            this.current_bg = new Image();
+            this.current_bg.src = style.image;
+            this.current_bg.onload = () => {
+                this.renderer.forceRenderLayers(["background"]);
+            }
+        } else{
+            ctx.globalAlpha = style.global_alpha;
+            ctx.fillStyle = ctx.createPattern(this.current_bg, style.image_repetition);
+            ctx.imageSmoothingEnabled = true;
+            ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+            ctx.globalAlpha = 1;
+        }
+    }
 
     Scene.prototype.addSceneCoordinateToEvent = function(e) {
         // we will move outside the canvas
