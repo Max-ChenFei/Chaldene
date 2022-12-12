@@ -785,20 +785,20 @@
             this.type_style = default_style;
         }
     };
-    NodeSlot.prototype.draw = function(ctx, lod) {
-        if (!this.style)
-            return;
+
+    NodeSlot.prototype.getCurrentStyle = function() {
         const connected_state = this.isConnected() ? "connected" : "unconnected";
-        let ctx_style = this.type_style[connected_state][this.current_state].ctx_style;
-        this.type_style.owner = this;
-        this.type_style[connected_state][this.current_state].draw(this.type_style, ctx, ctx_style, lod);
+        return this.type_style[connected_state][this.current_state];
+    }
+
+    NodeSlot.prototype.draw = function(ctx, lod) {
+        let current_style = this.getCurrentStyle();
+        let that = this;
+        current_style.draw.call(that, ctx, current_style.ctx_style, lod);
     }
 
     NodeSlot.prototype.getCtxStyle = function(){
-        if (!this.style)
-            return null;
-        const connected_state = this.isConnected() ? "connected" : "unconnected";
-        return this.type_style[connected_state][this.current_state].ctx_style;
+        return this.getCurrentStyle().ctx_style;
     };
 
      /**
@@ -1366,15 +1366,9 @@
             size: function() {
                 let is_input = this.isInput() == undefined? true : this.isInput();
                 let x = is_input ? 0 : -this.width();
-                return {
-                    left: x,
-                    top: 0,
-                    width: this.width(),
-                    height: this.height()
-                };
+                return {left: x, top: 0, width: this.width(), height: this.height()};
             },
             style: {
-                owner: null,
                 "default": {
                     unconnected: {
                         normal: {
@@ -1384,8 +1378,8 @@
                                 lineWidth: 2,
                                 fontStyle: "000000FF",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
@@ -1395,8 +1389,8 @@
                                 lineWidth: 5,
                                 fontStyle: "000000FF",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
                             }
                         }
                     },
@@ -1408,8 +1402,8 @@
                                 lineWidth: 2,
                                 fontStyle: "000000FF",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
@@ -1419,23 +1413,23 @@
                                 lineWidth: 5,
                                 fontStyle: "000000FF",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
                             }
                         },
                     },
-                    _draw_when_normal: function(this_style, ctx, ctx_style, lod) {
-                        this_style.drawShape(ctx, ctx_style, lod);
-                        if (lod == 0 && this_style.owner.to_render_text && this_style.owner.data_type != 'exec') {
-                            this_style.drawName(ctx, ctx_style);
+                    _draw_when_normal: function(ctx, ctx_style, lod) {
+                        this.type_style._drawShape.call(this, ctx, ctx_style, lod);
+                        if (lod == 0 && this.to_render_text && this.data_type != 'exec') {
+                            this.type_style._drawName.call(this, ctx, ctx_style);
                         }
                     },
-                    _draw_when_hovered: function(this_style, ctx, ctx_style, lod) {
-                        this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                    _draw_when_hovered: function(ctx, ctx_style, lod) {
+                        this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
                         // if (lod == 0)
-                        //     this_style.hovered(ctx, ctx_style);
+                        //     this.type_style.hovered(ctx, ctx_style);
                     },
-                    drawShape: function(ctx, style, lod) {
+                    _drawShape: function(ctx, style, lod) {
                         ctx.save();
                         if (style.fillStyle) {
                             ctx.fillStyle = style.fillStyle;
@@ -1444,18 +1438,18 @@
                             ctx.lineWidth = style.lineWidth;
                             ctx.strokeStyle = style.strokeStyle;
                         }
-                        let is_input = this.owner.isInput() == undefined? true : this.owner.isInput();
+                        let is_input = this.isInput() == undefined? true : this.isInput();
                         if(lod > 0){
                             if (style.fillStyle)
-                                ctx.fillRect((is_input-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
-                            ctx.strokeRect((is_input-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                                ctx.fillRect((is_input-1) * this.icon_width, 0, this.icon_width, this.icon_height);
+                            ctx.strokeRect((is_input-1) * this.icon_width, 0, this.icon_width, this.icon_height);
                         }
                         else{
                             ctx.beginPath();
                             ctx.arc(
-                                this.owner.icon_width / 2.0 + (is_input-1) * this.owner.icon_width,
-                                this.owner.icon_width / 2.0,
-                                this.owner.icon_width / 2.0, 0, Math.PI * 2, true);
+                                this.icon_width / 2.0 + (is_input-1) * this.icon_width,
+                                this.icon_width / 2.0,
+                                this.icon_width / 2.0, 0, Math.PI * 2, true);
                             ctx.closePath();
                             if (style.fillStyle) {
                                 ctx.fill();
@@ -1466,30 +1460,30 @@
                         }
                         ctx.restore();
                     },
-                    drawName: function(ctx, style) {
+                    _drawName: function(ctx, style) {
                         ctx.save();
                         ctx.font = this.font;
                         if (style.fontStyle) ctx.fillStyle = style.fontStyle;
                         ctx.textBaseline = "middle";
                         let x = 0;
-                        if (this.owner.isInput()) {
+                        if (this.isInput()) {
                             ctx.textAlign = "left";
-                            x = this.owner.icon_width + this.owner.padding_between_icon_text;
+                            x = this.icon_width + this.padding_between_icon_text;
                         } else {
                             ctx.textAlign = "right";
-                            x = -(this.owner.icon_width + this.owner.padding_between_icon_text);
+                            x = -(this.icon_width + this.padding_between_icon_text);
                         }
-                        ctx.fillText(this.owner.name, x, this.owner.icon_height / 2.0);
+                        ctx.fillText(this.name, x, this.icon_height / 2.0);
                         ctx.restore();
                     },
-                    hovered: function(ctx, style) {
+                    _hovered: function(ctx, style) {
                         ctx.globalAlpha = 0.6;
                         if (style.fillStyle)
                             ctx.fillStyle = style.fillStyle;
-                        if(this.owner.isInput())
-                            ctx.fillRect(0, 0, this.owner.width(), this.owner.height());
+                        if(this.isInput())
+                            ctx.fillRect(0, 0, this.width(), this.height());
                         else
-                            ctx.fillRect(-this.owner.width(), 0, this.owner.width(), this.owner.height());
+                            ctx.fillRect(-this.width(), 0, this.width(), this.height());
                         ctx.globalAlpha = 1;
                     },
                 },
@@ -1501,8 +1495,8 @@
                                 strokeStyle: "#f33232",
                                 line_width:2
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
@@ -1511,8 +1505,8 @@
                                 strokeStyle: "#f33232",
                                 line_width:2
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
                             }
                         },
                     },
@@ -1523,8 +1517,8 @@
                                 strokeStyle: "#f33232",
                                 line_width:2
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
@@ -1533,17 +1527,17 @@
                                 strokeStyle: "#363015",
                                 line_width:5
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
                             }
                         },
                     },
-                    drawShape: function(ctx, style, lod) {
+                    _drawShape: function(ctx, style, lod) {
                         ctx.save();
                         let start_x = 0;
-                        let is_input = this.owner.isInput() == undefined? true : this.owner.isInput();
+                        let is_input = this.isInput() == undefined? true : this.isInput();
                         if (!is_input)
-                            start_x = - this.owner.icon_width;
+                            start_x = - this.icon_width;
                         if (style.fillStyle) {
                             ctx.fillStyle = style.fillStyle;
                         }
@@ -1553,16 +1547,16 @@
                         }
                         if(lod > 0){
                             if (style.fillStyle)
-                                ctx.fillRect(start_x, 0, this.owner.icon_width, this.owner.icon_height);
-                            ctx.strokeRect((is_input-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                                ctx.fillRect(start_x, 0, this.icon_width, this.icon_height);
+                            ctx.strokeRect((is_input-1) * this.icon_width, 0, this.icon_width, this.icon_height);
                         }
                         else {
                             ctx.beginPath();
                             ctx.moveTo(start_x, 0);
-                            ctx.lineTo(this.owner.icon_width / 2.0 + start_x, 0);
-                            ctx.lineTo(this.owner.icon_width + start_x, this.owner.icon_height / 2.0);
-                            ctx.lineTo(this.owner.icon_width / 2.0 + start_x, this.owner.icon_height);
-                            ctx.lineTo(start_x, this.owner.icon_height);
+                            ctx.lineTo(this.icon_width / 2.0 + start_x, 0);
+                            ctx.lineTo(this.icon_width + start_x, this.icon_height / 2.0);
+                            ctx.lineTo(this.icon_width / 2.0 + start_x, this.icon_height);
+                            ctx.lineTo(start_x, this.icon_height);
                             ctx.closePath();
                             if (style.fillStyle)
                                 ctx.fill();
@@ -1580,8 +1574,8 @@
                                 fillStyle: null,
                                 strokeStyle: "#cc00ff"
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
@@ -1589,8 +1583,8 @@
                                 fillStyle: null,
                                 strokeStyle: "#cc00ff"
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
                             }
                         },
                     },
@@ -1600,8 +1594,8 @@
                                 fillStyle: "#cc00ff",
                                 strokeStyle: "#cc00ff",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
@@ -1609,8 +1603,8 @@
                                 fillStyle: "#cc00ff",
                                 strokeStyle: "#cc00ff"
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
                             }
                         },
                     },
@@ -1623,8 +1617,8 @@
                                 strokeStyle: "#00b2ff",
                                 lineWidth: 2,
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
@@ -1633,8 +1627,8 @@
                                 strokeStyle: "#00b2ff",
                                 lineWidth: 5,
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
                             }
                         },
                     },
@@ -1645,8 +1639,8 @@
                                 strokeStyle: "#00b2ff",
                                 lineWidth: 2,
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
                             }
                         },
                         hovered: {
@@ -1655,8 +1649,8 @@
                                 strokeStyle: "#00b2ff",
                                 lineWidth: 5,
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
                             }
                         },
                     },
