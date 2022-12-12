@@ -539,6 +539,7 @@
         this.in_node = in_node;
         this.in_slot_name = in_slot_name;
         this.current_state = VisualState.normal;
+        this.force_alpha = null;
     }
 
     Connector.prototype.serialize = function() {
@@ -561,7 +562,7 @@
         if (!this.style) return;
         let that = this;
         let current_style = this.style[this.current_state]
-        current_style.draw.call(that, ctx, current_style.ctx_style, lod);
+        current_style.draw.call(that, ctx, current_style.ctx_style, lod, this.force_alpha);
     }
 
     Connector.prototype.fromPos = function() {
@@ -700,6 +701,7 @@
         this.connections = 0;
         this.current_state = VisualState.normal;
         this.translate = new Point(0, 0);
+        this.force_alpha = null;
     };
 
     NodeSlot.prototype.mouseEnter = function() {
@@ -796,7 +798,7 @@
     NodeSlot.prototype.draw = function(ctx, lod) {
         let current_style = this.getCurrentStyle();
         let that = this;
-        current_style.draw.call(that, ctx, current_style.ctx_style, lod);
+        current_style.draw.call(that, ctx, current_style.ctx_style, lod, this.force_alpha);
     }
 
     NodeSlot.prototype.getCtxStyle = function(){
@@ -1375,74 +1377,76 @@
                     unconnected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#84ff00",
-                                lineWidth: 2,
-                                fontStyle: "000000FF",
+                                fill_style: null,
+                                stroke_style: "#84ff00",
+                                line_width: 2,
+                                font_color: "000000FF",
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#84ff00",
-                                lineWidth: 5,
-                                fontStyle: "000000FF",
+                                fill_style: null,
+                                stroke_style: "#84ff00",
+                                line_width: 5,
+                                font_color: "000000FF",
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         }
                     },
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#84ff00",
-                                strokeStyle: "#84ff00",
-                                lineWidth: 2,
-                                fontStyle: "000000FF",
+                                fill_style: "#84ff00",
+                                stroke_style: "#84ff00",
+                                line_width: 2,
+                                font_color: "000000FF",
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#84ff00",
-                                strokeStyle: "#84ff00",
-                                lineWidth: 5,
-                                fontStyle: "000000FF",
+                                fill_style: "#84ff00",
+                                stroke_style: "#84ff00",
+                                line_width: 5,
+                                font_color: "000000FF",
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
-                    _draw_when_normal: function(ctx, ctx_style, lod) {
-                        this.type_style._drawShape.call(this, ctx, ctx_style, lod);
+                    _draw_when_normal: function(ctx, ctx_style, lod, force_alpha) {
+                        this.type_style._drawShape.call(this, ctx, ctx_style, lod, force_alpha);
                         if (lod == 0 && this.to_render_text && this.data_type != 'exec') {
                             this.type_style._drawName.call(this, ctx, ctx_style);
                         }
                     },
-                    _draw_when_hovered: function(ctx, ctx_style, lod) {
-                        this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
+                    _draw_when_hovered: function(ctx, ctx_style, lod, force_alpha) {
+                        this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                         // if (lod == 0)
                         //     this.type_style.hovered(ctx, ctx_style);
                     },
-                    _drawShape: function(ctx, style, lod) {
+                    _drawShape: function(ctx, style, lod, force_alpha) {
                         ctx.save();
-                        if (style.fillStyle) {
-                            ctx.fillStyle = style.fillStyle;
+                        if (style.fill_style) {
+                            ctx.fillStyle = style.fill_style;
                         }
-                        if (style.strokeStyle) {
-                            ctx.lineWidth = style.lineWidth;
-                            ctx.strokeStyle = style.strokeStyle;
+                        if (style.stroke_style) {
+                            ctx.lineWidth = style.line_width;
+                            ctx.strokeStyle = style.stroke_style;
                         }
+                        if(force_alpha || style.global_alpha)
+                            ctx.globalAlpha = force_alpha || style.global_alpha;
                         let is_input = this.isInput() == undefined? true : this.isInput();
                         if(lod > 0){
-                            if (style.fillStyle)
+                            if (style.fill_style)
                                 ctx.fillRect((is_input-1) * this.icon_width, 0, this.icon_width, this.icon_height);
                             ctx.strokeRect((is_input-1) * this.icon_width, 0, this.icon_width, this.icon_height);
                         }
@@ -1453,10 +1457,10 @@
                                 this.icon_width / 2.0,
                                 this.icon_width / 2.0, 0, Math.PI * 2, true);
                             ctx.closePath();
-                            if (style.fillStyle) {
+                            if (style.fill_style) {
                                 ctx.fill();
                             }
-                            if (style.strokeStyle) {
+                            if (style.stroke_style) {
                                 ctx.stroke();
                             }
                         }
@@ -1465,7 +1469,7 @@
                     _drawName: function(ctx, style) {
                         ctx.save();
                         ctx.font = this.font;
-                        if (style.fontStyle) ctx.fillStyle = style.fontStyle;
+                        if (style.font_color) ctx.fillStyle = style.font_color;
                         ctx.textBaseline = "middle";
                         let x = 0;
                         if (this.isInput()) {
@@ -1478,10 +1482,10 @@
                         ctx.fillText(this.name, x, this.icon_height / 2.0);
                         ctx.restore();
                     },
-                    _hovered: function(ctx, style) {
+                    _hovered: function(ctx, style, force_alpha) {
                         ctx.globalAlpha = 0.6;
-                        if (style.fillStyle)
-                            ctx.fillStyle = style.fillStyle;
+                        if (style.fill_style)
+                            ctx.fillStyle = style.fill_style;
                         if(this.isInput())
                             ctx.fillRect(0, 0, this.width(), this.height());
                         else
@@ -1493,62 +1497,64 @@
                     unconnected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#f33232",
+                                fill_style: null,
+                                stroke_style: "#f33232",
                                 line_width:2
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#f33232",
+                                fill_style: null,
+                                stroke_style: "#f33232",
                                 line_width:2
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#f33232",
-                                strokeStyle: "#f33232",
+                                fill_style: "#f33232",
+                                stroke_style: "#f33232",
                                 line_width:2
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#bf00ff",
-                                strokeStyle: "#363015",
+                                fill_style: "#bf00ff",
+                                stroke_style: "#363015",
                                 line_width:5
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
-                    _drawShape: function(ctx, style, lod) {
+                    _drawShape: function(ctx, style, lod, force_alpha) {
                         ctx.save();
                         let start_x = 0;
                         let is_input = this.isInput() == undefined? true : this.isInput();
                         if (!is_input)
                             start_x = - this.icon_width;
-                        if (style.fillStyle) {
-                            ctx.fillStyle = style.fillStyle;
+                        if (style.fill_style) {
+                            ctx.fillStyle = style.fill_style;
                         }
-                        if (style.strokeStyle) {
-                            ctx.lineWidth = style.lineWidth;
-                            ctx.strokeStyle = style.strokeStyle;
+                        if (style.stroke_style) {
+                            ctx.lineWidth = style.line_width;
+                            ctx.strokeStyle = style.stroke_style;
                         }
+                        if(force_alpha || style.global_alpha)
+                            ctx.globalAlpha = force_alpha ||　style.global_alpha;
                         if(lod > 0){
-                            if (style.fillStyle)
+                            if (style.fill_style)
                                 ctx.fillRect(start_x, 0, this.icon_width, this.icon_height);
                             ctx.strokeRect((is_input-1) * this.icon_width, 0, this.icon_width, this.icon_height);
                         }
@@ -1560,9 +1566,9 @@
                             ctx.lineTo(this.icon_width / 2.0 + start_x, this.icon_height);
                             ctx.lineTo(start_x, this.icon_height);
                             ctx.closePath();
-                            if (style.fillStyle)
+                            if (style.fill_style)
                                 ctx.fill();
-                            if (style.strokeStyle)
+                            if (style.stroke_style)
                                 ctx.stroke();
                             ctx.moveTo(0, 0);
                         }
@@ -1573,40 +1579,40 @@
                     unconnected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#cc00ff"
+                                fill_style: null,
+                                stroke_style: "#cc00ff"
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#cc00ff"
+                                fill_style: null,
+                                stroke_style: "#cc00ff"
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#cc00ff",
-                                strokeStyle: "#cc00ff",
+                                fill_style: "#cc00ff",
+                                stroke_style: "#cc00ff",
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#cc00ff",
-                                strokeStyle: "#cc00ff"
+                                fill_style: "#cc00ff",
+                                stroke_style: "#cc00ff"
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
@@ -1615,44 +1621,44 @@
                     unconnected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#00b2ff",
-                                lineWidth: 2,
+                                fill_style: null,
+                                stroke_style: "#00b2ff",
+                                line_width: 2,
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#00b2ff",
-                                lineWidth: 5,
+                                fill_style: null,
+                                stroke_style: "#00b2ff",
+                                line_width: 5,
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#00b2ff",
-                                strokeStyle: "#00b2ff",
-                                lineWidth: 2,
+                                fill_style: "#00b2ff",
+                                stroke_style: "#00b2ff",
+                                line_width: 2,
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#00b2ff",
-                                strokeStyle: "#00b2ff",
-                                lineWidth: 5,
+                                fill_style: "#00b2ff",
+                                stroke_style: "#00b2ff",
+                                line_width: 5,
                             },
-                            draw: function(ctx, ctx_style, lod) {
-                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
@@ -1959,14 +1965,14 @@
                         stroke_style: "#126acf",
                         line_width: 2,
                         line_join: "round",
-                        alpha: 1
+                        global_alpha: 1
                     },
-                    draw: function(ctx, ctx_style, lod) {
+                    draw: function(ctx, ctx_style, lod, force_alpha) {
                         if(this.out_node.getSlotCtxStyle)
-                            ctx_style.stroke_style = this.out_node.getSlotCtxStyle(this.out_slot_name).strokeStyle;
+                            ctx_style.stroke_style = this.out_node.getSlotCtxStyle(this.out_slot_name).stroke_style;
                         else if (this.in_node.getSlotCtxStyle)
-                            this.ctx_style.stroke_style = this.in_node.getSlotCtxStyle(this.in_slot_name).strokeStyle;
-                        this._draw.call(this, ctx, ctx_style);
+                            ctx_style.stroke_style = this.in_node.getSlotCtxStyle(this.in_slot_name).stroke_style;
+                        this._draw.call(this, ctx, ctx_style, force_alpha);
                     }
                 },
                 hovered: {
@@ -1974,20 +1980,20 @@
                         stroke_style: "#f7bebe",
                         line_width: 2,
                         line_join: "round",
-                        alpha: 1
+                        global_alpha: 1
                     },
-                    draw: function(ctx, ctx_style, lod) {
-                       this._draw.call(this, ctx, ctx_style);
+                    draw: function(ctx, ctx_style, lod, force_alpha) {
+                       this._draw.call(this, ctx, ctx_style, force_alpha);
                     }
                 }
             },
-            _draw: function(ctx, ctx_style) {
+            _draw: function(ctx, ctx_style, force_alpha) {
                 ctx.save();
                 ctx.beginPath();
                 ctx.lineJoin = ctx_style.line_join;
                 ctx.lineWidth = ctx_style.line_width;
                 ctx.strokeStyle = ctx_style.stroke_style;
-                ctx.globalAlpha = ctx_style.alpha;
+                ctx.globalAlpha = force_alpha || ctx_style.global_alpha;
                 this.detect_distance = ctx.lineWidth;
                 const from = this.fromPos();
                 const to = this.toPos();
@@ -2481,6 +2487,7 @@
         Object.defineProperty(this, "viewport", {
             get() { return this.view.viewport;}
         })
+        this.alpha_of_no_matced = 0.1;
     };
 
     Scene.prototype.resize = function(w, h) {
@@ -2984,6 +2991,29 @@
             ctx.globalAlpha = 1;
         }
     }
+
+    Scene.prototype.forceAlphaOfNotMatchedSlotsAndConnectors = function(from_node, from_slot){
+        for (const connector of Object.values(this.graph.connectors))
+            connector.force_alpha = this.alpha_of_no_matced;
+        for(const node of Object.values(this.graph.nodes)){
+            for (const slot of node.allSlots()) {
+                if(slot == from_slot)
+                    continue;
+                let connection = from_node.allowConnectTo(from_slot.name, node, slot);
+                if(connection.method == SlotConnectionMethod.null)
+                    slot.force_alpha = this.alpha_of_no_matced;
+            }
+        }
+    }
+
+    Scene.prototype.cancelForceAlphaOfSlotsAndConnectors = function(){
+        for (const connector of Object.values(this.graph.connectors))
+            connector.force_alpha = null;
+        for(const node of Object.values(this.graph.nodes))
+            for (const slot of node.allSlots())
+                slot.force_alpha = null;
+    }
+
 
     Scene.prototype.addSceneCoordinateToEvent = function(e) {
         // we will move outside the canvas
@@ -3769,6 +3799,9 @@
         else
             this.connector = new Connector(null, this.from_node, from_slot_name, this.dummy_target_node, null);
         this.connector.pluginRenderingTemplate(this.scene.rendering_template['Connector']);
+        this.scene.forceAlphaOfNotMatchedSlotsAndConnectors(this.from_node, this.from_slot);
+        this.scene.setToRender('nodes');
+        this.scene.setToRender('connectors');
     }
 
     ConnectCommand.prototype.setDragFrom = function(is_from_output) {
@@ -3796,6 +3829,7 @@
             this.connection = this.from_node.allowConnectTo(this.from_slot.name, new_hit.hit_item, target_slot);
         } else if(this.connector_dir_unknown)
              this.setDragFrom((e.sceneX - this.from_node.translate.x) >= this.from_slot.translate.x);
+        this.scene.forceAlphaOfNotMatchedSlotsAndConnectors(this.from_node, this.from_slot);
         this.scene.setToRender('nodes');
         this.scene.setToRender('connectors');
     }
@@ -3842,11 +3876,12 @@
                 this.connector.in_node, this.connector.in_slot_name
             ];
             this.support_undo = true;
-            this.scene.setToRender('nodes');
-            this.scene.setToRender('connectors');
         } else{
             this.support_undo = false;
         }
+        this.scene.cancelForceAlphaOfSlotsAndConnectors();
+        this.scene.setToRender('nodes');
+        this.scene.setToRender('connectors');
     }
 
     ConnectCommand.prototype.draw = function(ctx, lod) {
