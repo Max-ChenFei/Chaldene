@@ -3915,7 +3915,7 @@
         this.desc = "Create Connector";
         this.scene = scene;
         this.remove_connectors_command = new RemoveConnectorsCommand(this.scene);
-        this.add_connector_commands = [];
+        this.connect_commands = [];
     }
 
     ReconnectCommand.prototype.exec = function(e, connectors, change_in_slot) {
@@ -3925,38 +3925,38 @@
             command.exec(e,
                 change_in_slot ? connector.out_node : connector.in_node,
                 change_in_slot ? connector.out_slot_name : connector.in_slot_name);
-            this.add_connector_commands.push(command);
+            this.connect_commands.push(command);
         }
     }
 
     ReconnectCommand.prototype.update = function(e, new_hit) {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.update(e, new_hit);
         }
     }
 
     ReconnectCommand.prototype.end = function(e) {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.end(e)
         }
     }
 
     ReconnectCommand.prototype.undo = function() {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.undo()
         }
         this.remove_connectors_command.undo();
     }
 
     ReconnectCommand.prototype.redo = function() {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.redo()
         }
         this.remove_connectors_command.redo();
     }
 
     ReconnectCommand.prototype.draw = function(ctx, lod) {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.draw(ctx, lod);
         }
     }
