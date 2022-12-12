@@ -1135,9 +1135,9 @@
 
     Node.prototype.draw = function(ctx, lod) {
         if (!this.style) return;
-        let state_draw_method = this.style[this.current_state];
-        if (state_draw_method)
-            state_draw_method.draw(this, ctx, lod);
+        let state_style = this.style[this.current_state];
+        let that = this;
+        state_style.draw.call(that, ctx, state_style.ctx_style, lod);
     };
 
     Node.prototype.overrideRenderingTemplate = function() {
@@ -1658,7 +1658,6 @@
             }
         },
         Node: {
-            global_alpha: 1,
             title_bar: {
                 to_render: true,
                 color: "#a3a3fa",
@@ -1674,21 +1673,21 @@
             },
             slot_to_top_border: 6,
             slot_to_side_border: 6,
-            horizontal_padding_between_slots: 20,
-            vertical_padding_between_slots: 10,
+            slot_margin_right: 20,
+            slot_margin_bottom: 10,
             width: function() {
                 const input_slots = Object.values(this.inputs);
                 const output_slots = Object.values(this.outputs);
                 let max_line_width = 0;
                 for (let i = 0; i < Math.max(input_slots.length, output_slots.length); i++) {
-                    let width = (input_slots[i]? input_slots[i].width(): 0 ) + (output_slots[i]? output_slots[i].width(): 0 );
+                    let width = (input_slots[i]? input_slots[i].width() : 0 ) + (output_slots[i]? output_slots[i].width() : 0 );
                     max_line_width = Math.max(max_line_width, width);
                 }
                 max_line_width += this.slot_to_side_border * 2;
                 if (this.central_text.to_render)
                     max_line_width += this.central_text.width;
                 else
-                    max_line_width += this.horizontal_padding_between_slots;
+                    max_line_width += this.slot_margin_right;
                 max_line_width = Math.max(max_line_width,
                     textWidth(this.title, this.title_bar.font) + this.title_bar.text_to_border * 2);
                 return max_line_width;
@@ -1698,23 +1697,18 @@
                 for (const input of Object.values(this.inputs)) {
                     left_side += input.height();
                 }
-                left_side += this.vertical_padding_between_slots * Math.max((Object.values(this.inputs).length - 1), 0);
+                left_side += this.slot_margin_bottom * Math.max((Object.values(this.inputs).length - 1), 0);
                 let right_side = this.slot_to_side_border * 2;
                 for (const output of Object.values(this.outputs)) {
                     right_side += output.height();
                 }
-                right_side += this.vertical_padding_between_slots * Math.max((Object.values(this.outputs).length - 1), 0);
+                right_side += this.slot_margin_bottom * Math.max((Object.values(this.outputs).length - 1), 0);
                 let central_text_height = (this.central_text.to_render || 0) * (this.central_text.height || 0);
                 return Math.max(left_side, right_side, central_text_height) + this.title_bar.to_render * this.title_bar.height;
             },
             size: function() {
                 let y = this.title_bar.to_render ? -this.title_bar.height : 0;
-                return {
-                    left: 0,
-                    top: y,
-                    width: this.width(),
-                    height: this.height()
-                }
+                return {left: 0, top: y, width: this.width(), height: this.height()}
             },
             style: {
                 normal: {
@@ -1724,8 +1718,8 @@
                         line_width: 1,
                         round_radius: 8
                     },
-                    draw: function(node, ctx, lod) {
-                        node._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
                 hovered: {
@@ -1735,8 +1729,8 @@
                         line_width: 1,
                         round_radius: 8
                     },
-                    draw: function(node, ctx, lod) {
-                        node._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
                 selected: {
@@ -1746,8 +1740,8 @@
                         line_width: 3,
                         round_radius: 8
                     },
-                    draw: function(node, ctx, lod) {
-                       node._draw(ctx, this.ctx_style, lod);
+                   draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
             },
@@ -1757,7 +1751,7 @@
                 for (let slot of Object.values(this.inputs)) {
                     slot.translate.x = this.slot_to_side_border;
                     slot.translate.y = next_slot_y;
-                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
+                    next_slot_y = next_slot_y + slot.height() +　this.slot_margin_bottom;
                     index++;
                 }
                 index = 1;
@@ -1765,7 +1759,7 @@
                 for (let slot of Object.values(this.outputs)) {
                     slot.translate.x = this.width() - this.slot_to_side_border;
                     slot.translate.y = next_slot_y;
-                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
+                    next_slot_y = next_slot_y + slot.height() +　this.slot_margin_bottom;
                     index++;
                 }
             },
@@ -1859,8 +1853,8 @@
                         stroke_style: "#2b2b2b",
                         line_width: 1,
                     },
-                    draw: function(node, ctx, lod) {
-                       node._draw(ctx, this.ctx_style, lod);
+                   draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
                 selected: {
@@ -1869,8 +1863,8 @@
                         stroke_style: "#ffcc00",
                         line_width: 3,
                     },
-                    draw: function(node, ctx, lod) {
-                       node._draw(ctx, this.ctx_style, lod);
+                   draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
             },
@@ -1920,15 +1914,15 @@
                 normal: {
                     ctx_style: {
                     },
-                    draw: function(node, ctx, lod) {
-                        node._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
                 hovered: {
                     ctx_style: {
                     },
-                    draw: function(node, ctx, lod) {
-                        node._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
                 selected: {
@@ -1938,8 +1932,8 @@
                         line_width: 3,
                         round_radius: 8
                     },
-                    draw: function(node, ctx, lod) {
-                       node._draw(ctx, this.ctx_style, lod);
+                   draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
             },
