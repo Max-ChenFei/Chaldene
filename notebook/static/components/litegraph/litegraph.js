@@ -3215,7 +3215,7 @@
                 this.execCommand(new RemoveConnectorCommand(this), [connectors]);
             return;
         }
-        else if (e.ctrlKey && connectors.length>0 && hit.hit_item instanceof RerouteNode) {
+        else if (e.ctrlKey && connectors.length>0 && !(hit.hit_item instanceof RerouteNode)) {
             this.execCommand(new ReconnectCommand(this), [e, connectors, hit.hit_component.isInput()]);
             return;
         }
