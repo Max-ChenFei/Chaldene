@@ -781,6 +781,8 @@
     };
 
     NodeSlot.prototype.updateStyleForNewType = function(){
+        if(!this.style)
+            return;
         let default_style = this.style['default']
         this.type_style = this.style[this.data_type];
         if (this.type_style) {
@@ -819,7 +821,7 @@
     };
 
     WildNodeSlot.prototype.setDataType = function (new_type){
-        this.data_type = new_type;
+        this.data_type = new_type || "*";
         this.updateStyleForNewType();
     }
 
@@ -1212,6 +1214,19 @@
         this.slot_name = 'wildslot';
         this.collidable_components = {};
         this.collidable_components[this.slot_name] = this.slot;
+    }
+
+    RerouteNode.prototype.serialize = function() {
+        let o = Node.prototype.serialize.call(this);
+        o.wildcard_node_data_type = this.slot.data_type;
+        return o;
+    }
+
+    RerouteNode.prototype.configure = function(config) {
+        Node.prototype.configure.call(this, config);
+        if (!config)
+            return;
+        this.slot.setDataType(config.wildcard_node_data_type);
     }
 
     RerouteNode.prototype.allSlots = function(){
