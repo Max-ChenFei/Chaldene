@@ -221,6 +221,25 @@
         }
     };
 
+    Graph.prototype.sourceCode = function() {
+        let import_libraries = new Set();
+        let source_code = [];
+        let ordered_ids = topologicalSort(Object.values(this.nodes), Object.values(this.connectors));
+        for (const id of ordered_ids) {
+            let node = this.getNodeById(id);
+            if (node.library_import)
+                import_libraries.add(node.library_import);
+            let code_str = node.sourceCode(this);
+            if (code_str=='' || !code_str) {
+                console.warn(`${node.type} does not bind to any API.`);
+                continue;
+            }
+            source_code.push(code_str);
+        }
+        let libraries = Array.from(import_libraries, l => l);
+        return libraries.concat(source_code).join("\n");
+    };
+
     Graph.prototype.getItems = function() {
         return Object.values(this.nodes).concat(Object.values(this.connectors))
     };
@@ -381,7 +400,6 @@
     };
 
     Graph.prototype.getNodeById = function(id) {
-        if (!id) return null;
         return this.nodes[id];
     };
 
@@ -909,6 +927,7 @@
         this.collidable_components = {};
         this.current_state = VisualState.normal;
         this.lod = 0;
+        this.library_import = null;
     }
 
     Node.prototype.allSlots = function() {
@@ -938,6 +957,24 @@
             slot.connections = config.connections[i];
             i++;
         }
+    }
+
+    Node.prototype.getVariable = function(slot_name, is_input, graph) {
+        let slot = this.getSlot(slot_name);
+        if(is_input)
+            if(slot.isConnected()) {
+                let connectors = graph.getConnectorsLinkedToSlot(this, slot, false);
+                if(connectors.length != 1)
+                    throw `${slot_name} of ${node.type} should only have one connection, but there are more.`;
+                return `${connectors[0].out_node.getVariable(connectors[0].out_slot_name)}`;
+            }
+            else
+                return `${slot.default_value}`;
+        return `${slot_name.replace(/ /g, '')}_${this.id}`;
+    }
+
+    Node.prototype.sourceCode = function() {
+        return null;
     }
 
     Node.prototype.getSlotCtxStyle = function(slot_name){
@@ -3183,6 +3220,10 @@
                 let node8 = type_registry.createNode("RerouteNode");
                 node8.translate= new Point(100, 200);
                 this.execCommand(new AddNodeCommand(this), [ node8]);
+
+                let node9 = type_registry.createNode("Image.Show");
+                node9.translate= new Point(110, 200);
+                this.execCommand(new AddNodeCommand(this), [ node9]);
                 //this.selectAllNodes();
                 e.preventDefault();
             }
@@ -4578,6 +4619,42 @@
         );
     }
 
+    function topologicalSort(nodes, connectors) {
+        let adjacencyList = {};
+        let indegree = {};
+        for (const node of nodes) {
+            adjacencyList[node.id] = [];
+            indegree[node.id] = 0;
+        }
+        for (const connector of connectors) {
+            let from = connector.out_node.id;
+            let to = connector.in_node.id;
+            adjacencyList[from].push(to);
+            indegree[to]++;
+        }
+        var zeroIndegreeNodes = [];
+        for(const node of nodes){
+            if (indegree[node.id] === 0)
+                zeroIndegreeNodes.push(node.id);
+        }
+        let ordered_id = [];
+        let count = 0;
+        while(zeroIndegreeNodes.length !== 0){
+            let node_id = zeroIndegreeNodes.shift();
+            ordered_id.push(node_id);
+            count++;
+            for(const adjacent_id of adjacencyList[node_id]){
+                indegree[adjacent_id]--;
+                if(indegree[adjacent_id] === 0)
+                    zeroIndegreeNodes.push(adjacent_id)
+            }
+        }
+        if(ordered_id.length < nodes.length){
+            throw 'The graph is cyclic';
+        }
+        return ordered_id;
+    }
+
     function isPointOnCubicCurve(x, y, p0, p1, p2, p3, distance){
         // rearrange cubic bezier function to cubic function of t
         // p = p_0(1 - t)^3 + 3p_1t(1 - t)^2 + 3p_2t^2(1 - t) + p_3t^3
@@ -4658,47 +4735,71 @@
     function ImageIOImRead() {
         this._ctor();
         this.addInput("in_exec", "exec");
-        this.addInput("path", "string");
+        this.addInput("path", "string", "Lenna.png");
         this.addOutput("out_exec", "exec");
         this.addOutput("image", "numpy.ndarray");
         this.title = "Image Read";
         this.type = "Image.Read";
         this.desc = "Read an image from the path.";
+        this.library_import ='import imageio.v2 as imageio';
     }
+
+    ImageIOImRead.prototype.sourceCode = function(graph) {
+        return `${this.getVariable('image')} = imageio.imread(r'${this.getVariable('path', true, graph)}')`;
+    };
+
     type_registry.registerNodeType("Image.Read", ImageIOImRead);
 
     function ImageIOImWrite() {
         this._ctor();
         this.addInput("in_exec", "exec");
         this.addInput("image", "numpy.ndarray");
+        this.addInput("path", "string");
         this.addOutput("out_exec", "exec");
         this.title = "Image Write";
         this.type = "Image.Write";
         this.desc = "Write an image to the specified file.";
+        this.library_import ='import imageio.v2 as imageio';
     }
+
+    ImageIOImWrite.prototype.sourceCode = function(graph) {
+        return `imageio.imwrite(r'${this.getVariable('path')}', ${this.getVariable('image', true, graph)})`;
+    };
+
     type_registry.registerNodeType("Image.Write", ImageIOImWrite);
 
     function ImageShow() {
         this._ctor();
         this.addInput("in_exec", "exec");
         this.addInput("image", "numpy.ndarray");
+        this.addInput("cmap", "string", 'gray');
         this.title = "Image Show";
         this.type = "Image.Show";
         this.desc = "Show an image.";
+        this.library_import = 'import matplotlib.pyplot as plt';
     }
+
+    ImageShow.prototype.sourceCode = function(graph) {
+        return `plt.imshow(${this.getVariable('image', true, graph)}, cmap="${this.getVariable("cmap", true, graph)}")`;
+    };
+
     type_registry.registerNodeType("Image.Show", ImageShow);
 
     function ImageGaussianFilter() {
         this._ctor();
         this.addInput("in_exec", "exec");
         this.addInput("input", "numpy.ndarray");
-        this.addInput("sigma", "number");
+        this.addInput("sigma", "number", 1);
         this.addOutput("out_exec", "exec");
         this.addOutput("image", "numpy.ndarray");
         this.title = "Gaussian Filter";
         this.type = "Image.GaussianFilter";
         this.desc = "Gaussian filter";
+        this.library_import ='from scipy.ndimage import gaussian_filter';
     }
+    ImageGaussianFilter.prototype.sourceCode = function(graph) {
+        return `${this.getVariable('image')} = gaussian_filter(${this.getVariable('input', true, graph)}, ${this.getVariable('sigma', true, graph)})`;
+    };
 
     type_registry.registerNodeType("Image.GaussianFilter", ImageGaussianFilter);
 
@@ -4709,6 +4810,7 @@
         this.addOutput("image", "numpy.ndarray");
         this.type = "Image.ImagePlusImage";
         this.desc = "Image plus image";
+        this.library_import = "import numpy"
     }
     ImagePlusImage.prototype.overrideRenderingTemplate = function (){
         this.title_bar = {
@@ -4738,6 +4840,7 @@
         this.addOutput("image", "numpy.ndarray", null);
         this.type = "Image.Image";
         this.desc = "Image";
+        this.library_import = "import numpy"
     }
     Image.prototype.overrideRenderingTemplate = function (){
         this.title_bar = {
