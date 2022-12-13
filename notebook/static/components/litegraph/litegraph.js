@@ -231,7 +231,6 @@
                 import_libraries.add(node.library_import);
             let code_str = node.sourceCode(this);
             if (code_str=='' || !code_str) {
-                console.warn(`${node.type} does not bind to any API.`);
                 continue;
             }
             source_code.push(code_str);
@@ -961,15 +960,17 @@
 
     Node.prototype.getVariable = function(slot_name, is_input, graph) {
         let slot = this.getSlot(slot_name);
-        if(is_input)
+        if(is_input){
             if(slot.isConnected()) {
                 let connectors = graph.getConnectorsLinkedToSlot(this, slot, false);
                 if(connectors.length != 1)
                     throw `${slot_name} of ${node.type} should only have one connection, but there are more.`;
-                return `${connectors[0].out_node.getVariable(connectors[0].out_slot_name)}`;
+                let v = connectors[0].out_node.getVariable(connectors[0].out_slot_name, false, graph);
+                if(v != null || v != undefined)
+                    return v
             }
-            else
-                return `${slot.default_value}`;
+            return `${slot.default_value}`;
+        }
         return `${slot_name.replace(/ /g, '')}_${this.id}`;
     }
 
@@ -1281,6 +1282,18 @@
     RerouteNode.prototype.clearAllConnections = function() {
        this.slot.clearConnections()
     };
+
+    RerouteNode.prototype.getVariable = function(slot_name, is_input, graph) {
+        if(this.slot.isConnected()) {
+            let connectors = graph.getConnectorsLinkedToSlot(this, this.slot, false);
+            if(connectors.length != 1)
+                throw `$In dataflow program, reroute node should only have one input connection, but there are more.`;
+            let v = connectors[0].out_node.getVariable(connectors[0].out_slot_name, false, graph);
+            if(v != null || v != undefined)
+                return v;
+        }
+        return null;
+    }
 
     type_registry.registerNodeType("RerouteNode", RerouteNode);
 
