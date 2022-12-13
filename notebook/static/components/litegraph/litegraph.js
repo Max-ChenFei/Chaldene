@@ -1205,6 +1205,10 @@
         this.current_state = VisualState.selected;
     };
 
+    Node.prototype.allowToSelect = function(){
+        return true;
+    }
+
     function RerouteNode(data_type) {
         this._ctor();
         this.title = "RerouteNode";
@@ -1274,10 +1278,13 @@
         this._height = 200;
         this._min_width = 10;
         this._min_height=10;
+        this.detection_area_height=15;
+        this.detection_area = new Rect(0, 0, 0, 0);
     }
 
     CommentNode.prototype.setWidth = function(w) {
         this._width = Math.max(this._min_width, w);
+        this.updateDetectonArea();
     };
 
     CommentNode.prototype.width = function() {
@@ -1286,6 +1293,7 @@
 
     CommentNode.prototype.setHeight = function(h) {
          this._height = Math.max(this._min_height, h);
+         this.updateDetectonArea();
     };
 
     CommentNode.prototype.height = function() {
@@ -1294,7 +1302,14 @@
 
     CommentNode.prototype.size = function() {
         return {left: 0, top: 0, width: this.width(), height: this.height()}
-    },
+    }
+
+    CommentNode.prototype.updateDetectonArea = function() {
+        this.detection_area.left = this.resize_detection_distance;
+        this.detection_area.top = this.resize_detection_distance;
+        this.detection_area.width = this.width() - 2*this.resize_detection_distance;
+        this.detection_area.height = this.detection_area_height;
+    }
 
     CommentNode.prototype.pluginRenderingTemplate = function(template) {
         let this_node = template['CommentNode'];
@@ -1327,6 +1342,12 @@
         this.translate = new Point(config.translate[0], config.translate[1]);
         this.setWidth(config.width || 0);
         this.setHeight(config.height || 0);
+    }
+
+    CommentNode.prototype.allowToSelect = function(x, y, width, height){
+        if(!width || !height)
+            return this.detection_area.isInside(x, y);
+        return this.detection_area.isIntersectWith(new Rect(x, y, width, height));
     }
 
     type_registry.registerNodeType("Comment", CommentNode);
@@ -1903,6 +1924,7 @@
                 ctx.fill();
                 ctx.stroke();
                 ctx.globalAlpha = 1;
+                ctx.fillRect(this.detection_area.left, this.detection_area.top, this.detection_area.width, this.detection_area.height);
                 ctx.font = "20px Arial";
                 ctx.textBaseline = "bottom";
                 ctx.textAlign = "left";
@@ -3299,7 +3321,10 @@
                 this.toggleNodeSelection(hit.hit_item);
                 return;
             }
-            this.selectNode(hit.hit_item, e.shiftKey);
+            if(hit.hit_item.allowToSelect(hit.hit_local_x, hit.hit_local_y))
+                this.selectNode(hit.hit_item, e.shiftKey);
+            else
+                this.deselectSelectedNodes();
         }
     }
 
@@ -3333,7 +3358,8 @@
         this.pointer_down = e.button;
         this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (e.button == 0) {
-            if (!this.hit_result.is_hitted || !this.hit_result.hit_item)
+            if (!this.hit_result.is_hitted || !this.hit_result.hit_item
+                || !this.hit_result.hit_item.allowToSelect(this.hit_result.hit_local_x, this.hit_result.hit_local_y))
                 this.leftMouseDownOnScene(e);
             else if(this.hit_result.hit_item instanceof Node)
                 this.leftMouseDownOnNode(e, this.hit_result);
@@ -3386,7 +3412,8 @@
             this.updateCommand([e, new_hit]);
         else if (this.pointer_down == null)
             this.mouseHover(e, new_hit);
-        else if (this.pointer_down == 0 && this.hit_result.hit_item instanceof Node) {
+        else if (this.pointer_down == 0 && this.hit_result.hit_item instanceof Node
+            && this.hit_result.hit_item.allowToSelect(this.hit_result.hit_local_x, this.hit_result.hit_local_y)) {
             this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_item]);
         } else if (this.pointer_down == 2) {
             this.block_right_mouse_bubble = true;
@@ -3738,7 +3765,12 @@
         let top = Math.min(this.start_pos.y, this.end_pos.y);
         let width = Math.abs(this.start_pos.x - this.end_pos.x);
         let height = Math.abs(this.start_pos.y - this.end_pos.y);
-        let nodes = this.scene.collision_detector.getItemsOverlapWith(new Rect(left, top, width, height), Node);
+        let intersected_nodes = this.scene.collision_detector.getItemsOverlapWith(new Rect(left, top, width, height), Node);
+        let nodes = [];
+        for(const node of intersected_nodes){
+            if(node.allowToSelect(left - node.translate.x, top - node.translate.y, width, height))
+                nodes.push(node);
+        }
         this.toggleAll();
         this.deselectAll();
         if(this.key_down == 'ctrlKey') {
