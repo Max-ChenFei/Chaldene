@@ -3091,6 +3091,8 @@
         this.canvas.addEventListener("mouseup", this._mouseUp_callback, this.event_capture);
         this._dblclick_callback = this.onDblclick.bind(this);
         this.canvas.addEventListener("dblclick", this._dblclick_callback, this.event_capture);
+        this._contextmenu_callback = this.onContextMenu.bind(this);
+        this.canvas.addEventListener("contextmenu", this._contextmenu_callback, false);
         this._events_binded = true;
     }
 
@@ -3110,6 +3112,8 @@
         this._mouseUp_callback = null;
         this.canvas.removeEventListener("dblclick", this._dblclick_callback);
         this._dblclick_callback = null;
+        this.canvas.removeEventListener("contextmenu", this._contextmenu_callback);
+        this._contextmenu_callback = null;
         this._events_binded = false;
         this.last_scene_pos = undefined;
     }
@@ -3228,6 +3232,12 @@
         }
     }
 
+    Scene.prototype.onContextMenu = function(e) {
+        if(this.block_right_mouse_bubble)
+            e.stopPropagation();
+        e.preventDefault();
+    }
+
     Scene.prototype.addSceneCoordinateIfHandleMouseEvent = function(e) {
         if (!this.inView(e.offsetX, e.offsetY)) {
             return false;
@@ -3278,10 +3288,6 @@
         }
     }
 
-    Scene.prototype.rightMouseUp = function(e, hit) {
-        //todo context menu
-    }
-
     Scene.prototype.onMouseWheel = function(e) {
         debug_log('mouse wheel');
         this.addSceneCoordinateToEvent(e);
@@ -3317,7 +3323,7 @@
             else if(this.hit_result.hit_item instanceof Node)
                 this.leftMouseDownOnNode(e, this.hit_result);
         }
-        //e.preventDefault();
+        this.block_right_mouse_bubble = false;
     }
 
     Scene.prototype.mouseHover = function(e, new_hit) {
@@ -3367,9 +3373,10 @@
             this.mouseHover(e, new_hit);
         else if (this.pointer_down == 0 && this.hit_result.hit_item instanceof Node) {
             this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_item]);
-        }
-        else if (this.pointer_down == 2)
+        } else if (this.pointer_down == 2) {
+            this.block_right_mouse_bubble = true;
             this.pan(e.sceneMovementX, e.sceneMovementY);
+        }
         this.hit_result = new_hit;
         e.preventDefault();
     }
@@ -3387,8 +3394,6 @@
             this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (e.button == 0)
             this.leftMouseUp(e, this.hit_result);
-        else if (e.button == 2)
-            this.rightMouseUp(e, this.hit_result);
         this.setCursor('default');
         e.preventDefault();
     }
