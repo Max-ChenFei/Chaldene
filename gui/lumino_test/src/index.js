@@ -15,7 +15,16 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   //const LiteGraph = litegraph.LiteGraph;
   const commands = new CommandRegistry();
 
-
+  var editor_globals = {
+    active_graph: null,
+    focus_tracker: new lumino_widgets.FocusTracker()
+  }
+  editor_globals.focus_tracker.activeChanged.connect(function(sender, args){
+    if(args.newValue){
+      console.log("active:",args.newValue.id);
+      editor_globals.active_graph = args.newValue.graph;
+    }
+  });
 
 
 
@@ -30,6 +39,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
     let edit = new Menu({commands:commands});
     edit.addItem({command: "file:load"})
+    edit.addItem({command: "editor:undo"})
+    edit.addItem({command: "editor:redo"})
     edit.title.label = "Edit";
     edit.title.mnemonic = 0;
 
@@ -47,8 +58,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     //dock.addWidget(r1);
     //dock.addWidget(r2);
 
+
     dock.addWidget(createEditor({name:"main"}))
     dock.addWidget(createEditor({name:"func1"}))
+
+
+
+
     main.addWidget(dock);
     main.id = 'main';
     window.onresize = function () {
@@ -59,7 +75,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
   function createEditor(graph){
     let dock = new DockPanel({tabsConstrained: true});
-    dock.id = graph+'dock__';
+    dock.id = graph.name+'dock__';
 
     let r1 = createMembersPanel(graph);
     let r2 = createGraphEditor(graph);
@@ -75,6 +91,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     dock.title.label = graph.name;
     dock.title.closable = true;
     dock.title.caption = "'" + graph.name +"'" + " edit window";
+
+    dock.graph = graph;
+    //todo: everytime we add/remove an editor, we should keep track of it in the focus tracker
+    editor_globals.focus_tracker.add(dock);
     return dock;
 
   }
@@ -102,6 +122,25 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       mnemonic: 0,
       execute: function(){
         console.log('New file');
+      }
+    });
+    commands.addCommand('editor:undo',{
+      label: "Undo",
+      mnemonic: 0,
+      execute: function(){
+        if(editor_globals.active_graph){
+          editor_globals.active_graph.scene.undo_history.undo();
+        }
+      }
+    });
+
+    commands.addCommand('editor:redo',{
+      label: "Redo",
+      mnemonic: 0,
+      execute: function(){
+        if(editor_globals.active_graph){
+          editor_globals.active_graph.scene.undo_history.redo();
+        }
       }
     });
 
