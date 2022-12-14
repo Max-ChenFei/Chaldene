@@ -3314,7 +3314,7 @@
         this.bindEventToScene();
     }
 
-    Scene.prototype.leftMouseUp = function(e, hit) {
+    Scene.prototype.onLeftMouseUp = function (e, hit) {
         if (hit.is_hitted && hit.hit_item instanceof Node) {
             if (hit.hit_component)
                 return;
@@ -3436,9 +3436,21 @@
         if (!this.hit_result)
             this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (e.button == 0)
-            this.leftMouseUp(e, this.hit_result);
+            this.onLeftMouseUp(e, this.hit_result);
+        else if (e.button == 2)
+            this.onRightMouseUp(e, this.hit_result);
         this.setCursor('default');
+        this.setToRender("nodes");
+        this.setToRender("connectors");
         e.preventDefault();
+    }
+
+    Scene.prototype.onRightMouseUp = function (e, hit_result) {
+        let node = hit_result.hit_item;
+        if (hit_result.is_hitted && node instanceof Node) {
+            if (!Object.keys(this.selected_nodes).includes(node.id.toString()))
+                this.selectNode(node, e.shiftKey || e.ctrlKey, true);
+        }
     }
 
     Scene.prototype.onDblclick = function(e){
