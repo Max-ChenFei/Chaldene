@@ -6,13 +6,11 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
   const CommandRegistry = lumino_commands.CommandRegistry;
   const BoxPanel = lumino_widgets.BoxPanel;
-  const CommandPalette = lumino_widgets.CommandPalette;
   const ContextMenu = lumino_widgets.ContextMenu;
   const DockPanel = lumino_widgets.DockPanel;
   const Menu = lumino_widgets.Menu;
   const MenuBar = lumino_widgets.MenuBar;
   const Widget = lumino_widgets.Widget;
-  //const LiteGraph = litegraph.LiteGraph;
   const commands = new CommandRegistry();
 
   var editor_globals = {
@@ -50,20 +48,16 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   }
 
   function createDock(){
-
+    //wraps the dockpanel in a box panel for resize issues?
     let main = new BoxPanel({ direction: 'left-to-right', spacing: 0 });
     let dock = new DockPanel({tabsConstrained: true});
-    //let r1 = createGraphEditor({name:"name"});
-    //let r2 = createGraphEditor({name:"name"});
-    //dock.addWidget(r1);
-    //dock.addWidget(r2);
+
+    let graph1 = {name: "main"};
+    let graph2 = {name: "func1"};
 
 
-    dock.addWidget(createEditor({name:"main"}))
-    dock.addWidget(createEditor({name:"func1"}))
-
-
-
+    dock.addWidget(createEditor(graph1));
+    dock.addWidget(createEditor(graph2));
 
     main.addWidget(dock);
     main.id = 'main';
@@ -122,6 +116,14 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       mnemonic: 0,
       execute: function(){
         console.log('New file');
+      }
+    });
+
+    commands.addCommand('members:delete',{
+      label: "Delete",
+      mnemonic: 0,
+      execute: function(){
+        console.log('Delete member placeholder');
       }
     });
     commands.addCommand('editor:undo',{
@@ -742,6 +744,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       canvas.style.width = "100%";
       node.appendChild(canvas);
       let ctx = canvas.getContext('2d');
+
+      //debug color
       ctx.fillStyle = 'pink';
       canvas.tabIndex=-1;
       ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -772,16 +776,24 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         return putInCat(cats);
       }
 
+      //todo: call this on a global
       let gs = getRegisteredNodes(VPE.TypeRegistry);
-      console.log(gs);
 
+      //todo: separate scene from scene.graph in lumino
+      //canvas is only created when the editor is created
+      //but a graph can exist even if we are not looking
+      // at it right now ???
       this.scene = new VPE.Scene(canvas);
       graph.scene = this.scene;
+      //note:
+      //graph := {name, scene, commands}
+
       let searchMenu =createSearchMenu(graph,gs);
       this.scene.start();
 
       graph.commands = new CommandRegistry();
 
+      //decorates the litegraph commands with lumino information
       function fillCommandRegistry(commands, allCommands){
         let helper = that.scene.getAllContextCommands();
         for(let i = 0; i< helper.length; i++){
@@ -800,30 +812,26 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
       }
 
+      //todo: maybe we should have a global list of commands, and not "per scene?".
+      //They should take "scene" as argument
       fillCommandRegistry(graph.commands, this.scene.getAllContextCommands());
 
 
       node.addEventListener('contextmenu', function (event) {
         let cs = that.scene.getContextCommands();
+        //todo: maybe instead of detecting empty list, pass explicity
+        //an object with member "displaySearchMenu" or "displayContextMenu" set to true
+        // ???
         if(cs.length >0){
           let m = createMenu(cs,"", graph.commands);
           m.open(event.clientX,event.clientY);
-        }
-
-         else {
-          console.log("Search");
+        } else {
           searchMenu.open(event.clientX,event.clientY);
         }
         event.preventDefault();
         event.stopPropagation();
       });
 
-      // let fit_to_parent_callback = this.scene.fitToParentSize().bind(this.scene);
-      // // The width of scene parent is zero at current frame
-      // window.requestAnimationFrame(function(){
-      //    fit_to_width_callback();
-      // });
-      // window.addEventListener("resize", fit_to_parent_callback);
 
       this.setFlag(Widget.Flag.DisallowLayout);
       this.addClass('content');
@@ -909,11 +917,12 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
   function main(){
     createCommands();
+
+    //todo: abstract away in a CreateContextMenu function
     let c = new ContextMenu({commands:commands});
     c.addItem({command:"file:new",selector:".content"});
     c.addItem({command:"file:load",selector:"*"});
-
-    let canvasCM = null;
+    c.addItem({command:"members:delete",selector:".memberEl"});
 
     document.addEventListener('contextmenu', function (event) {
       if (c.open(event)) {
