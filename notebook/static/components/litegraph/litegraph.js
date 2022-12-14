@@ -702,6 +702,7 @@
         this.current_state = VisualState.normal;
         this.translate = new Point(0, 0);
         this.force_alpha = null;
+        this.show_exec_label = false;
     };
 
     NodeSlot.prototype.mouseEnter = function() {
@@ -1387,7 +1388,7 @@
             font: '12px Arial',
             margin_between_icon_text: 3,
             width: function() {
-                let text_width = (this.to_render_text && this.data_type != 'exec') ? textWidth(this.name, this.font) : 0;
+                let text_width = (this.to_render_text && this.show_exec_label) ? textWidth(this.name, this.font) : 0;
                 return this.icon_width + (text_width > 0 ? this.margin_between_icon_text + text_width : 0);
             },
             height: function() {
@@ -1460,8 +1461,8 @@
                     },
                     _draw_when_normal: function(ctx, ctx_style, lod, force_alpha) {
                         this.type_style._drawShape.call(this, ctx, ctx_style, lod, force_alpha);
-                        if (lod == 0 && this.to_render_text && this.data_type != 'exec') {
-                            this.type_style._drawName.call(this, ctx, ctx_style);
+                        if (lod == 0 && this.to_render_text && this.show_exec_label) {
+                            this.type_style._drawLabel.call(this, ctx, ctx_style);
                         }
                     },
                     _draw_when_hovered: function(ctx, ctx_style, lod, force_alpha) {
@@ -1502,7 +1503,7 @@
                         }
                         ctx.restore();
                     },
-                    _drawName: function(ctx, style) {
+                    _drawLabel: function(ctx, style) {
                         ctx.save();
                         ctx.font = this.font;
                         if (style.font_color) ctx.fillStyle = style.font_color;
