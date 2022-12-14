@@ -546,6 +546,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       }
 
       this._evtMouseDown = function(event){
+        if(!hit(event)){
+          this.close();
+        }
       }
 
 
@@ -766,6 +769,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
       node.addEventListener('contextmenu', function (event) {
         let cs = that.scene.getContextCommands();
+        searchMenu.close();
         if(cs!=null){
           let m = createMenu(cs,"", graph.scene, graph.commands);
           m.open(event.clientX,event.clientY);
