@@ -3524,13 +3524,14 @@
     let general_commands = [CreateNodeCommand];
 
     getAllContextCommands = function() {
-        let that = this;
         function toContextCommand(command_class){
-            let command = new command_class(that);
-            return {name: command.constructor.name,
-            label: command.label || command.constructor.name,
-            exec: function(args){
-                that.execCommand(command, args);
+            let command = new command_class();
+            return {
+                name: command.constructor.name,
+                label: command.label || command.constructor.name,
+                exec: function(scene, args){
+                    command.updateScene(scene);
+                    scene.execCommand(command, args);
             }}
         }
         let context_commands = [];
@@ -3555,6 +3556,9 @@
     Command.prototype.draw = function(ctx) {}
     Command.prototype.undo = function() {}
     Command.prototype.redo = function() {}
+    Command.prototype.updateScene = function(new_scene) {
+        this.scene = new_scene;
+    }
 
     function copySelectedNodeToClipboardCommand(scene) {
         this.label = "Copy";
@@ -3977,12 +3981,17 @@
     function ReconnectCommand(scene) {
         this.desc = "Create Connector";
         this.scene = scene;
-        this.remove_connectors_command = new RemoveConnectorsCommand(this.scene);
+        this._remove_connectors_command = new RemoveConnectorsCommand(this.scene);
         this.connect_commands = [];
     }
 
+    ReconnectCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._remove_connectors_command.updateScene(new_scene);
+    }
+
     ReconnectCommand.prototype.exec = function(e, connectors, change_in_slot) {
-        this.remove_connectors_command.exec(connectors);
+        this._remove_connectors_command.exec(connectors);
         for (const connector of connectors) {
             let command = new ConnectCommand(this.scene);
             command.exec(e,
@@ -4008,14 +4017,14 @@
         for (const command of this.connect_commands) {
             command.undo()
         }
-        this.remove_connectors_command.undo();
+        this._remove_connectors_command.undo();
     }
 
     ReconnectCommand.prototype.redo = function() {
         for (const command of this.connect_commands) {
             command.redo()
         }
-        this.remove_connectors_command.redo();
+        this._remove_connectors_command.redo();
     }
 
     ReconnectCommand.prototype.draw = function(ctx, lod) {
@@ -4054,6 +4063,11 @@
         this.desc = "Create Node";
         this.scene = scene;
         this._add_node = new AddNodeCommand(this.scene);
+    }
+
+    CreateNodeCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._add_node.updateScene(new_scene);
     }
 
     CreateNodeCommand.prototype.exec = function(node_type) {
@@ -4152,9 +4166,14 @@
     Object.setPrototypeOf(RemoveConnectorsCommand.prototype, Command.prototype);
 
     function RemoveAllConnectorsOfNodeCommand(scene) {
-        this.desc = "Break Node Link(s)";
+        this.label = "Break Node Link(s)";
         this.scene = scene;
         this._removeConnectors = new RemoveConnectorCommand(this.scene);
+    }
+
+    RemoveAllConnectorsOfNodeCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._removeConnectors.updateScene(new_scene);
     }
 
     RemoveAllConnectorsOfNodeCommand.prototype.exec = function() {
@@ -4177,9 +4196,14 @@
     Object.setPrototypeOf(RemoveAllConnectorsOfNodeCommand.prototype, Command.prototype);
 
     function RemoveAllConnectorsOfSlotCommand(scene) {
-        this.desc = "Break All Pin Link(s)";
+        this.label = "Break All Pin Link(s)";
         this.scene = scene;
         this._removeConnectors = new RemoveConnectorCommand(this.scene);
+    }
+
+    RemoveAllConnectorsOfSlotCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._removeConnectors.updateScene(new_scene);
     }
 
     RemoveAllConnectorsOfSlotCommand.prototype.exec = function() {
@@ -4231,8 +4255,13 @@
     function CutSelectedNodesCommand(scene) {
         this.label = "Cut";
         this.scene = scene;
-        this.delete_command = new RemoveSelectedNodesCommand(this.scene);
-        this.desc = this.delete_command.desc;
+        this._delete_command = new RemoveSelectedNodesCommand(this.scene);
+        this.desc = this._delete_command.desc;
+    }
+
+    CutSelectedNodesCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._delete_command.updateScene(new_scene);
     }
 
     CutSelectedNodesCommand.prototype.exec = function() {
@@ -4241,16 +4270,16 @@
             this.support_undo = false;
             return;
         }
-        this.delete_command.exec();
-        this.support_undo = this.delete_command.support_undo;
+        this._delete_command.exec();
+        this.support_undo = this._delete_command.support_undo;
     }
 
     CutSelectedNodesCommand.prototype.undo = function() {
-        this.delete_command.undo();
+        this._delete_command.undo();
     }
 
     CutSelectedNodesCommand.prototype.redo = function() {
-        this.delete_command.redo();
+        this._delete_command.redo();
     }
 
     Object.setPrototypeOf(CutSelectedNodesCommand.prototype, Command.prototype);
@@ -4258,8 +4287,13 @@
     function DuplicateNodeCommand(scene) {
         this.label = "Duplicate";
         this.scene = scene;
-        this.paste_command = new PasteFromClipboardCommand(this.scene);
-        this.desc = this.paste_command.desc;
+        this._paste_command = new PasteFromClipboardCommand(this.scene);
+        this.desc = this._paste_command.desc;
+    }
+
+    DuplicateNodeCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._paste_command.updateScene(new_scene);
     }
 
     DuplicateNodeCommand.prototype.exec = function() {
@@ -4268,28 +4302,33 @@
             this.support_undo = false;
             return;
         }
-        this.paste_command.exec();
+        this._paste_command.exec();
     }
 
     DuplicateNodeCommand.prototype.undo = function() {
-        this.paste_command.undo();
+        this._paste_command.undo();
     }
 
     DuplicateNodeCommand.prototype.redo = function() {
-        this.paste_command.redo();
+        this._paste_command.redo();
     }
 
     Object.setPrototypeOf(DuplicateNodeCommand.prototype, Command.prototype);
 
     function AddRerouteToConnectorCommand(scene) {
         this.scene = scene;
-        this.add_command = new CreateNodeCommand(this.scene);
+        this._add_command = new CreateNodeCommand(this.scene);
         this.reroute = undefined;
         this.reroute_pos = undefined;
         this.output_connector = undefined;
         this.input_connector = undefined;
         this.origin_connector = undefined;
         this.desc = "Create Reroute Node";
+    }
+
+    AddRerouteToConnectorCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._add_command.updateScene(new_scene);
     }
 
     AddRerouteToConnectorCommand.prototype.replaceConnectors = function(connector){
@@ -4304,18 +4343,18 @@
     }
 
     AddRerouteToConnectorCommand.prototype.exec = function(connector) {
-        this.reroute = this.add_command.exec('RerouteNode');
+        this.reroute = this._add_command.exec('RerouteNode');
         this.replaceConnectors(connector);
     }
 
     AddRerouteToConnectorCommand.prototype.undo = function() {
-        this.add_command.undo();
+        this._add_command.undo();
         this.scene.addConnector(this.origin_connector);
     }
 
     AddRerouteToConnectorCommand.prototype.redo = function() {
         let old_pos = this.reroute_pos;
-        this.add_command.redo();
+        this._add_command.redo();
         [this.reroute.translate.x, this.reroute.translate.y] = old_pos;
         this.replaceConnectors(this.origin_connector);
     }

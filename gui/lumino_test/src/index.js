@@ -429,7 +429,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
         prevObj = obj;
         obj.classList.add("selected");
-        graph.commands.execute("litegraph:CreateNodeCommand", {_content: [obj.node_type]});
+        graph.commands.execute("litegraph:CreateNodeCommand", {_scene: graph.scene, _content: [obj.node_type]});
+        graph.search_menu.close();
       }
 
       function groupClick(group){
@@ -545,9 +546,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       }
 
       this._evtMouseDown = function(event){
-        if(!hit(event)){
-          this.close();
-        }
       }
 
 
@@ -666,12 +664,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       let node = document.createElement('div');
 
 
-      function createMenu(items,label='',commands,inactive){
+      function createMenu(items,label='', scene, commands,inactive){
 
         let m = new Menu({commands:commands});
         for(let i =0; i<items.length; i++){
           //let args = items[i].args || {};
           let args = {}
+          args._scene = scene;
           args._content = items[i].args;
           args._active = true;
           if(!items[i].submenu){
@@ -739,6 +738,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       this.scene = new VPE.Scene(canvas);
       graph.scene = this.scene;
       let searchMenu =createSearchMenu(graph,gs);
+      graph.search_menu = searchMenu;
       this.scene.start();
 
       graph.commands = new CommandRegistry();
@@ -751,7 +751,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
               label: helper[i].label,
               mnemonic:0,
               execute: function(args){
-                return helper[i].exec(args._content);
+                return helper[i].exec(args._scene, args._content);
               },
               isEnabled: function(args){
                 return args._active;
@@ -767,7 +767,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       node.addEventListener('contextmenu', function (event) {
         let cs = that.scene.getContextCommands();
         if(cs!=null){
-          let m = createMenu(cs,"", graph.commands);
+          let m = createMenu(cs,"", graph.scene, graph.commands);
           m.open(event.clientX,event.clientY);
         }
          else {
