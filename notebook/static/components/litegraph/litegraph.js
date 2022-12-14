@@ -3482,20 +3482,23 @@
     }
 
     Scene.prototype.getContextCommands = function() {
-        let context_command_names = [];
+        let context_command_names = null;
         if(this.hit_result.is_hitted){
+            context_command_names = [];
             if(this.hit_result.hit_item instanceof Node && !(this.hit_result.hit_component instanceof NodeSlot))
             {
                 for (const c of commands_for_node) {
                     context_command_names.push({command: c.name, args: []});
                 };
             }
-            if(this.hit_result.hit_component instanceof NodeSlot)
+            else if(this.hit_result.hit_component instanceof NodeSlot)
             {
                  for (const c of commands_for_slot) {
                     context_command_names.push({command: c.name, args: []});
                 };
             }
+            else
+                context_command_names = null;
         }
         return context_command_names;
     };

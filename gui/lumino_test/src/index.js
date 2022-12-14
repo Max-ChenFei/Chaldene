@@ -766,13 +766,12 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
       node.addEventListener('contextmenu', function (event) {
         let cs = that.scene.getContextCommands();
-        if(cs.length >0){
+        if(cs!=null){
           let m = createMenu(cs,"", graph.commands);
           m.open(event.clientX,event.clientY);
         }
-
          else {
-          console.log("Search");
+          console.log("show default search menu");
           searchMenu.open(event.clientX,event.clientY);
         }
         event.preventDefault();
