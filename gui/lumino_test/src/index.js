@@ -744,7 +744,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       graph.commands = new CommandRegistry();
 
       function fillCommandRegistry(commands, allCommands){
-        let helper = that.scene.getAllContextCommands();
+        let helper = getAllContextCommands();
         for(let i = 0; i< helper.length; i++){
           commands.addCommand(
             "litegraph:"+helper[i].name,{
@@ -761,7 +761,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
       }
 
-      fillCommandRegistry(graph.commands, this.scene.getAllContextCommands());
+      fillCommandRegistry(graph.commands, getAllContextCommands());
 
 
       node.addEventListener('contextmenu', function (event) {

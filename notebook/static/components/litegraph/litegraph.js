@@ -3452,57 +3452,6 @@
         return this.canvas.ownerDocument;
     };
 
-    Scene.prototype.commands_for_node = [
-        RemoveSelectedNodesCommand, CutSelectedNodesCommand,
-        copySelectedNodeToClipboardCommand, DuplicateNodeCommand,
-        RemoveAllConnectorsOfNodeCommand];
-    Scene.prototype.commands_for_slot = [
-        RemoveAllConnectorsOfSlotCommand];
-
-    Scene.prototype.general_commands = [
-        CreateNodeCommand
-    ];
-
-    Scene.prototype.getAllContextCommands = function() {
-
-        let that = this;
-        function toContextCommand(command_class){
-            let command = new command_class(that);
-            return {name: command.constructor.name,
-            label: command.label || command.constructor.name,
-            exec: function(args){
-                that.execCommand(command, args);
-            }}
-        }
-
-        let context_commands = [];
-        for (const c of this.commands_for_node.concat(this.commands_for_slot).concat(this.general_commands)) {
-            let context_command = toContextCommand(c);
-            context_command.exec.bind(this);
-            context_commands.push(context_command);
-        };
-        return context_commands;
-    };
-
-    Scene.prototype.getContextCommands = function() {
-        let context_command_names = [];
-        if(this.hit_result.is_hitted){
-            if(this.hit_result.hit_item instanceof Node && !(this.hit_result.hit_component instanceof NodeSlot))
-            {
-                for (const c of this.commands_for_node) {
-                    context_command_names.push({command: c.name, args: []});
-                };
-            }
-            if(this.hit_result.hit_component instanceof NodeSlot)
-            {
-                 for (const c of this.commands_for_slot) {
-                    context_command_names.push({command: c.name, args: []});
-                };
-            }
-        }
-        return context_command_names;
-    };
-
     Scene.prototype.serialize = function () {
         let config = this.graph.serialize();
         config['view'] = {
@@ -3531,6 +3480,52 @@
         scene.endCommand([e]);
         e.preventDefault();
     }
+
+    Scene.prototype.getContextCommands = function() {
+        let context_command_names = [];
+        if(this.hit_result.is_hitted){
+            if(this.hit_result.hit_item instanceof Node && !(this.hit_result.hit_component instanceof NodeSlot))
+            {
+                for (const c of commands_for_node) {
+                    context_command_names.push({command: c.name, args: []});
+                };
+            }
+            if(this.hit_result.hit_component instanceof NodeSlot)
+            {
+                 for (const c of commands_for_slot) {
+                    context_command_names.push({command: c.name, args: []});
+                };
+            }
+        }
+        return context_command_names;
+    };
+
+    let commands_for_node = [
+        RemoveSelectedNodesCommand, CutSelectedNodesCommand,
+        copySelectedNodeToClipboardCommand, DuplicateNodeCommand,
+        RemoveAllConnectorsOfNodeCommand];
+    let commands_for_slot = [RemoveAllConnectorsOfSlotCommand];
+
+    let general_commands = [CreateNodeCommand];
+
+    getAllContextCommands = function() {
+        let that = this;
+        function toContextCommand(command_class){
+            let command = new command_class(that);
+            return {name: command.constructor.name,
+            label: command.label || command.constructor.name,
+            exec: function(args){
+                that.execCommand(command, args);
+            }}
+        }
+        let context_commands = [];
+        for (const c of commands_for_node.concat(commands_for_slot).concat(general_commands)) {
+            let context_command = toContextCommand(c);
+            context_command.exec.bind(this);
+            context_commands.push(context_command);
+        };
+        return context_commands;
+    };
 
     function Command() {}
 
