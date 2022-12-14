@@ -1388,7 +1388,8 @@
             font: '12px Arial',
             margin_between_icon_text: 3,
             width: function() {
-                let text_width = (this.to_render_text && this.show_exec_label) ? textWidth(this.name, this.font) : 0;
+                let to_show_label = this.to_render_text && (this.data_type == DataType.Exec? this.show_exec_label : true);
+                let text_width = to_show_label ? textWidth(this.name, this.font) : 0;
                 return this.icon_width + (text_width > 0 ? this.margin_between_icon_text + text_width : 0);
             },
             height: function() {
@@ -1461,7 +1462,8 @@
                     },
                     _draw_when_normal: function(ctx, ctx_style, lod, force_alpha) {
                         this.type_style._drawShape.call(this, ctx, ctx_style, lod, force_alpha);
-                        if (lod == 0 && this.to_render_text && this.show_exec_label) {
+                        let to_show_label = this.to_render_text && (this.data_type == DataType.Exec? this.show_exec_label : true);
+                        if (lod == 0 && to_show_label) {
                             this.type_style._drawLabel.call(this, ctx, ctx_style);
                         }
                     },
