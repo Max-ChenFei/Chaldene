@@ -3594,7 +3594,7 @@
         }
         for(const comment of comment_nodes){
             let overlap_nodes = this.scene.collision_detector.getItemsInside(comment.getBoundingRect(), Node);
-            for (const node of overlap_nodes) {
+            for (const node of overlap_nodes.reverse()) {
                 if(!this.moving_nodes.includes(node)){
                     this.moving_nodes.push(node);
                     this.start_state.push(new Point(node.translate.x, node.translate.y));
@@ -4604,7 +4604,7 @@
 
     CollisionDetector.prototype.getItemsInside = function(rect, include_type) {
         let insides = [];
-        for (const r of this.allBoundingRects()) {
+        for (const r of this.allZOrderedBoundingRects()) {
             let include = include_type ? r.owner instanceof include_type : true;
             if (include && r.isInsideRect(rect)) {
                 insides.push(r.owner);
