@@ -13,18 +13,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   const Widget = lumino_widgets.Widget;
   const commands = new CommandRegistry();
 
-  var editor_globals = {
-    active_graph: null,
-    focus_tracker: new lumino_widgets.FocusTracker()
-  }
-  editor_globals.focus_tracker.activeChanged.connect(function(sender, args){
-    if(args.newValue){
-      console.log("active:",args.newValue.id);
-      editor_globals.active_graph = args.newValue.graph;
-    }
-  });
-
-
 
   function createBar(){
     let bar = new MenuBar();
@@ -103,8 +91,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     dock.title.caption = "'" + graph.name +"'" + " edit window";
 
     dock.graph = graph;
-    //todo: everytime we add/remove an editor, we should keep track of it in the focus tracker
-    editor_globals.focus_tracker.add(dock);
     return dock;
 
   }
@@ -119,7 +105,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     return new PropertiesPanel(graph);
   }
 
-  function createCommands(){
+  function createCommands(focus_tracker){
     commands.addCommand('file:new',{
       label: "New",
       mnemonic: 0,
@@ -146,9 +132,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       label: "Undo",
       mnemonic: 0,
       execute: function(){
-        if(editor_globals.active_graph){
-          editor_globals.active_graph.scene.undo_history.undo();
-        }
+          focus_tracker.focusd_graph_editor.scene.undo_history.undo();
       }
     });
 
@@ -156,9 +140,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       label: "Redo",
       mnemonic: 0,
       execute: function(){
-        if(editor_globals.active_graph){
-          editor_globals.active_graph.scene.undo_history.redo();
-        }
+        focus_tracker.focusd_graph_editor.scene.undo_history.redo();
       }
     });
 
@@ -932,8 +914,73 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     };
   }
 
+  function isInBoundingRect(x, y, rect){
+    return  x>rect.left && x<rect.right &&　y > rect.top && y< rect.bottom;
+  }
+
+  function EditorFocusTracker(dock_panel){
+    this.dock_panel = dock_panel;
+    this.focusd_editor = null;
+    this.focusd_graph_editor = null;
+    let update_focus_widget_callback = this.updateFocusEditors.bind(this);
+    this.dock_panel.node.addEventListener('mousedown', update_focus_widget_callback);
+  }
+
+  EditorFocusTracker.prototype.updateFocusEditors = function (e){
+    let editor = this.getFocusedEditor(e, this.dock_panel);
+    if(!editor){
+      this.focusd_editor = null;
+      this.focusd_graph_editor = null;
+    }
+    let editor_not_changed = this.focusd_editor == editor;
+    if(editor_not_changed){
+      let graph_editor = this.getFocusedGraphEditor(e, this.focusd_editor);
+      this.focusd_graph_editor = graph_editor || this.focusd_graph_editor;
+    } else{
+      this.focusd_editor = editor;
+      let graph_editor = this.getFocusedGraphEditor(e, this.focusd_editor, true);
+      this.focusd_graph_editor = graph_editor;
+    }
+    console.log(this.focusd_editor.node);
+    console.log(this.focusd_graph_editor.node)
+  }
+
+  EditorFocusTracker.prototype.getFocusedEditor = function (e, dock_panel){
+    for (const selected_widget of dock_panel.selectedWidgets()) {
+        if(isInBoundingRect(e.clientX, e.clientY, selected_widget.node.getBoundingClientRect()))
+          return selected_widget;
+    }
+    for (const tab_bar of dock_panel.layout.tabBars()) {
+         if(isInBoundingRect(e.clientX, e.clientY, tab_bar.node.getBoundingClientRect()))
+           return tab_bar.currentTitle.owner;
+    }
+    return null
+  }
+
+  EditorFocusTracker.prototype.getFocusedGraphEditor = function (e, dock_panel, default_if_not_found){
+    for (const selected_widget of dock_panel.selectedWidgets()) {
+        if(selected_widget instanceof GraphEditor && isInBoundingRect(e.clientX, e.clientY, selected_widget.node.getBoundingClientRect()))
+          return selected_widget;
+    }
+    for (const tab_bar of dock_panel.layout.tabBars()) {
+         if(tab_bar.currentTitle.owner instanceof GraphEditor && isInBoundingRect(e.clientX, e.clientY, tab_bar.node.getBoundingClientRect()))
+           return tab_bar.currentTitle.owner;
+    }
+    if(default_if_not_found)
+      for (const tab_bar of dock_panel.layout.tabBars()) {
+          if(tab_bar.currentTitle.owner instanceof GraphEditor)
+            return tab_bar.currentTitle.owner;
+      }
+    return null
+  }
+
   function main(){
-    createCommands();
+    let bar = createBar();
+    let dock = createDock();
+    Widget.attach(bar,document.body);
+    Widget.attach(dock,document.body);
+    let focus_tracker = new EditorFocusTracker(document.dock);
+    createCommands(focus_tracker);
 
     //todo: abstract away in a CreateContextMenu function
     let c = new ContextMenu({commands:commands});
@@ -947,10 +994,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       }
     });
 
-    let bar = createBar();
-    let dock = createDock();
-    Widget.attach(bar,document.body);
-    Widget.attach(dock,document.body);
   }
 
 
