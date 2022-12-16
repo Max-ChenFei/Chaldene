@@ -1281,11 +1281,12 @@
         this._min_height=10;
         this.detection_area_height=15;
         this.detection_area = new Rect(0, 0, 0, 0);
+        this.updateDetectionArea();
     }
 
     CommentNode.prototype.setWidth = function(w) {
         this._width = Math.max(this._min_width, w);
-        this.updateDetectonArea();
+        this.updateDetectionArea();
     };
 
     CommentNode.prototype.width = function() {
@@ -1294,7 +1295,7 @@
 
     CommentNode.prototype.setHeight = function(h) {
          this._height = Math.max(this._min_height, h);
-         this.updateDetectonArea();
+         this.updateDetectionArea();
     };
 
     CommentNode.prototype.height = function() {
@@ -1305,7 +1306,7 @@
         return {left: 0, top: 0, width: this.width(), height: this.height()}
     }
 
-    CommentNode.prototype.updateDetectonArea = function() {
+    CommentNode.prototype.updateDetectionArea = function() {
         this.detection_area.left = this.resize_detection_distance;
         this.detection_area.top = this.resize_detection_distance;
         this.detection_area.width = this.width() - 2*this.resize_detection_distance;
@@ -3308,7 +3309,8 @@
             this.execCommand(new ResizeCommand(this, hit.hit_item), [e, border]);
         else if (hit.hit_component instanceof NodeSlot) {
             this.leftMouseDownOnSlot(e, hit);
-        }
+        } else if(!this.hit_result.hit_item.allowToSelect(hit.hit_local_x, hit.hit_local_y))
+            this.leftMouseDownOnScene(e);
     }
 
     Scene.prototype.leftMouseDownOnScene = function(e) {
@@ -3361,8 +3363,7 @@
         this.pointer_down = e.button;
         this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (e.button == 0) {
-            if (!this.hit_result.is_hitted || !this.hit_result.hit_item
-                || !this.hit_result.hit_item.allowToSelect(this.hit_result.hit_local_x, this.hit_result.hit_local_y))
+            if (!this.hit_result.is_hitted)
                 this.leftMouseDownOnScene(e);
             else if(this.hit_result.hit_item instanceof Node)
                 this.leftMouseDownOnNode(e, this.hit_result);
