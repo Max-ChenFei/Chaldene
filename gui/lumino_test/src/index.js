@@ -72,24 +72,26 @@ define(['@lumino/commands', '@lumino/widgets'], function (
     let r1 = createMembersPanel(graph);
     let r2 = createGraphEditor(graph);
     let r4 = createGraphEditor(graph);
-    let r5 = createGraphEditor(graph);
     let r3 = createPropertiesPanel(graph);
     r1.source = dock;
     r2.source = dock;
     r3.source = dock;
     r4.source = dock;
-    r5.source = dock;
     dock.addWidget(r1);
     dock.addWidget(r2,{ mode: 'split-right', ref: r1 });
     dock.addWidget(r3,{ mode: 'split-right', ref: r2 });
-    dock.addWidget(r4,{ mode: 'split-right', ref: r2 });
-    dock.addWidget(r5,{ mode: 'split-right', ref: r2 });
+    dock.addWidget(r4,{ ref: r2 });
     dock.addClass('content');
 
     dock.title.label = graph.name;
     dock.title.closable = true;
     dock.title.caption = "'" + graph.name +"'" + " edit window";
-
+    let children_config = [
+        {currentIndex: 0, type: "tab-area", widgets: [r1]},
+        {currentIndex: 0, type: "tab-area", widgets: [r2, r4]},
+        {currentIndex: 0, type: "tab-area", widgets: [r3]}];
+    let layout_config = { main:  { type: 'split-area', orientation: 'horizontal', children: children_config, sizes: [0.1, 0.8, 0.1]}};
+    dock.restoreLayout(layout_config);
     dock.graph = graph;
     return dock;
 
