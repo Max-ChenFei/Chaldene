@@ -1,4 +1,25 @@
 # Chaldene: Towards Visual Programming Image Processing in Jupyter Notebooks
+## Usage
+```
+let canvas = document.getElementById("canvas");
+let scene = new Scene(canvas);
+canvas.addEventListener("focus", scene.start.bind(scene));
+canvas.addEventListener("blur", scene.stop.bind(scene));
+window.addEventListener("resize", scene.fitToParentSize.bind(scene));
+```
+## Cite
+https://ieeexplore.ieee.org/document/9832910
+```
+@INPROCEEDINGS{9832910,
+  author={Chen, Fei and Slusallek, Philipp and M&#x00FC;ller, Martin and Dahmen, Tim},
+  booktitle={2022 IEEE Symposium on Visual Languages and Human-Centric Computing (VL/HCC)}, 
+  title={Chaldene: Towards Visual Programming Image Processing in Jupyter Notebooks}, 
+  year={2022},
+  volume={},
+  number={},
+  pages={1-3},
+  doi={10.1109/VL/HCC53370.2022.9832910}}
+ ```
 ## Setting Up a Development Environment
 ### Installing Node.js and npm
 We suggest installing conda firstly, and then you can get them with:

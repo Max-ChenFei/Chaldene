@@ -470,7 +470,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
         prevObj = obj;
         obj.classList.add("selected");
-        graph.commands.execute("litegraph:CreateNodeCommand", {_content: [obj.node_type]});
+        graph.commands.execute("litegraph:CreateNodeCommand", {_scene: graph.scene, _content: [obj.node_type]});
+        graph.search_menu.close();
       }
 
       function groupClick(group){
@@ -707,12 +708,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       let node = document.createElement('div');
 
 
-      function createMenu(items,label='',commands,inactive){
+      function createMenu(items,label='', scene, commands,inactive){
 
         let m = new Menu({commands:commands});
         for(let i =0; i<items.length; i++){
           //let args = items[i].args || {};
           let args = {}
+          args._scene = scene;
           args._content = items[i].args;
           args._active = true;
           if(!items[i].submenu){
@@ -789,20 +791,21 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       //graph := {name, scene, commands}
 
       let searchMenu =createSearchMenu(graph,gs);
+      graph.search_menu = searchMenu;
       this.scene.start();
 
       graph.commands = new CommandRegistry();
 
       //decorates the litegraph commands with lumino information
       function fillCommandRegistry(commands, allCommands){
-        let helper = that.scene.getAllContextCommands();
+        let helper = getAllContextCommands();
         for(let i = 0; i< helper.length; i++){
           commands.addCommand(
             "litegraph:"+helper[i].name,{
               label: helper[i].label,
               mnemonic:0,
               execute: function(args){
-                return helper[i].exec(args._content);
+                return helper[i].exec(args._scene, args._content);
               },
               isEnabled: function(args){
                 return args._active;
@@ -812,20 +815,18 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         }
       }
 
-      //todo: maybe we should have a global list of commands, and not "per scene?".
-      //They should take "scene" as argument
-      fillCommandRegistry(graph.commands, this.scene.getAllContextCommands());
+      fillCommandRegistry(graph.commands, getAllContextCommands());
 
 
       node.addEventListener('contextmenu', function (event) {
         let cs = that.scene.getContextCommands();
-        //todo: maybe instead of detecting empty list, pass explicity
-        //an object with member "displaySearchMenu" or "displayContextMenu" set to true
-        // ???
-        if(cs.length >0){
-          let m = createMenu(cs,"", graph.commands);
+        searchMenu.close();
+        if(cs!=null){
+          let m = createMenu(cs,"", graph.scene, graph.commands);
           m.open(event.clientX,event.clientY);
-        } else {
+        }
+         else {
+          console.log("show default search menu");
           searchMenu.open(event.clientX,event.clientY);
         }
         event.preventDefault();

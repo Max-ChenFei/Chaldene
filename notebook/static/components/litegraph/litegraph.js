@@ -1,5 +1,7 @@
 //*********************************************************************************
-// Renderer: multiple layers rendering using offscreen canvans
+// Renderer: multiple layers rendering using offscreen canvas
+// Collision detection: the scene will generate one bounding rect for each item inside
+// for quick detection. Each item can also override collision detection method (`isCollided`)
 //*********************************************************************************\
 (function(global) {
     let type_registry = new TypeRegistry();
@@ -17,10 +19,6 @@
         return JSON.parse(JSON.stringify(obj));
     }
 
-    //*********************************************************************************
-    // TypeRegistry CLASS
-    //*********************************************************************************
-
     /**
      * TypeRegistry is the class that supports nodes types register, unregister, search.
      *
@@ -30,12 +28,6 @@
         this.registered_node_types = {}; // type_name: node_type
     }
 
-    /**
-     * Register a node class so it can be listed when the user wants to create a new one
-     * @method registerNodeType
-     * @param {String} type name of the node and path
-     * @param {Class} node_class
-     */
     TypeRegistry.prototype.registerNodeType = function(type, node_class) {
         if (!node_class.prototype) {
             throw "Cannot register a simple object, it must be a class with a prototype";
@@ -57,14 +49,11 @@
             console.log(path);
             this.addToCategories(path, categories, from_node, from_slot, node_constructor);
         }
-        console.log(categories);
         return categories;
     };
 
     TypeRegistry.prototype.addToCategories = function(path, categories, from_node, from_slot, to_node_type){
         if(path.length <= 1){
-            console.log(path);
-            console.log(categories);
             if(!from_node || from_node.allowConnectToAnySlot(from_slot.name, to_node_type))
                 categories[path[0]] = to_node_type;
                 return;
@@ -77,11 +66,7 @@
             this.addToCategories(path.slice(1), categories[path[0]], from_node, from_slot, to_node_type);
         }
     };
-    /**
-     * removes a node type
-     * @method unregisterNodeType
-     * @param {String|Object} type name of the node or the node constructor itself
-     */
+
     TypeRegistry.prototype.unregisterNodeType = function(type) {
         let node_class = type.constructor === String ? this.registered_node_types[type] : type;
         if (!node_class)
@@ -89,11 +74,6 @@
         delete this.registered_node_types[node_class.type];
     };
 
-    /**
-     * Create a node of a given type with a name. The node is not attached to any graph yet.
-     * @method createNode
-     * @param {String} type full name of the node class. p.e. "math.sin"
-     */
     TypeRegistry.prototype.createNode = function(type_name) {
         let node_class = this.registered_node_types[type_name];
         if (!node_class) {
@@ -120,12 +100,6 @@
         return cloned_node;
     };
 
-    /**
-     * Returns a registered node type with a given name
-     * @method getNodeType
-     * @param {String} name_filter full name contain the name_filter string
-     * @return {Class} the node class
-     */
     TypeRegistry.prototype.getNodeTypesByNameFilter = function(name_filter) {
         name_filter = name_filter ? name_filter : "";
         let node_classes = [];
@@ -136,15 +110,14 @@
         return node_classes;
     };
 
-    /**
-     * Removes all previously registered node's types
-     */
     TypeRegistry.prototype.clearRegisteredTypes = function() {
         this.registered_node_types = {};
         this.node_types_in_categories = {};
     };
 
     TypeRegistry.prototype.isDataTypeMatch = function(type_a, type_b) {
+        if(type_a == DataType.Wild || type_b == DataType.Wild)
+            return true;
         return type_a == type_b;
     };
 
@@ -185,22 +158,6 @@
         return [this.name, this.type, this.value];
     };
 
-
-    //*********************************************************************************
-    // LGraph CLASS
-    //*********************************************************************************
-
-    /**
-     * Graph is the class that contain a full graph. We instantiate one and add nodes to it.
-     * supported callbacks:
-     + onNodeAdded: when a new node is added to the graph
-     + onNodeRemoved: when a node inside this graph is removed
-     + onNodeConnectionChange: some connection has changed in the graph (connected or disconnected)
-     *
-     * @class Graph
-     * @constructor
-     */
-
     function Graph() {
         this.init();
     }
@@ -240,11 +197,13 @@
             if (!node) continue;
             node.configure(node_config);
             this.nodes[node.id] = node;
+            this.next_unique_id = Math.max(node.id+1, this.next_unique_id);
         }
         for (const connector_config of config.connectors) {
             let connector = new Connector(connector_config[0], this.nodes[connector_config[1]], connector_config[2],
                 this.nodes[connector_config[3]], connector_config[4]);
             this.connectors[connector.id] = connector;
+            this.next_unique_id = Math.max(connector.id+1, this.next_unique_id);
         }
         for (const v of config.local_vars) {
             this.addLocalVar(v[0], v[1], v[2]);
@@ -270,19 +229,20 @@
         let tmp = a;
         a = b;
         b = tmp;
+        return [a, b];
     }
 
     Graph.prototype.getConnector = function(from_node, from_slot_name, to_node, to_slot_name) {
-        if (!from_node || !from_slot_name || !to_node || !to_slot_name) {
+        if (!from_node || !from_slot_name || !to_node || !to_slot_name ||
+            !from_node.getSlot(from_slot_name) || !to_node.getSlot(to_slot_name)) {
             console.warn("Can not get the connector of null");
-        }
-        if (from_slot_name.isInput()) {
-            [from_node, to_node] = swap(from_node, to_node);
-            [from_slot_name, to_slot_name] = swap(from_slot_name, to_slot_name);
+            return null;
         }
         for (const connector of Object.values(this.connectors)) {
-            if (connector.out_node == from_node && connector.out_slot_name == from_slot_name &&
-                connector.in_node == to_node && connector.in_slot_name == to_slot_name) {
+            if ((connector.out_node == from_node && connector.out_slot_name == from_slot_name &&
+                connector.in_node == to_node && connector.in_slot_name == to_slot_name) ||
+                (connector.out_node == to_node && connector.out_slot_name == to_slot_name &&
+                connector.in_node == from_node && connector.in_slot_name == from_slot_name)) {
                 return connector;
             }
         }
@@ -294,19 +254,9 @@
         return this.next_unique_id++;
     };
 
-    /**
-     * Clear the graph
-     * @method clear
-     */
     Graph.prototype.clear = function() {
-        for (const node of Object.values(this.nodes)) {
-            if (node.onRemoved) {
-                node.onRemoved();
-            }
-        }
         this.init();
     };
-
 
     Graph.prototype.isNodeValid = function(node) {
         if (!node) {
@@ -320,24 +270,11 @@
         return true;
     };
 
-    /**
-     * Adds a new node instance to this graph
-     * @method add
-     * @param {Node} node the instance of the node
-     */
     Graph.prototype.addNode = function(node) {
         if (!this.isNodeValid(node))
             return false;
         node.id = this.getUniqueId();
         this.nodes[node.id] = node;
-
-        if (node.onAdded) {
-            node.onAdded();
-        }
-
-        if (this.onNodeAdded) {
-            this.onNodeAdded(node);
-        }
         return true;
     };
 
@@ -354,15 +291,9 @@
             let in_slot = in_node.getSlot(connector.in_slot_name);
             let connection = out_node.allowConnectTo(connector.out_slot_name, in_node, in_slot);
             if (connection.method == SlotConnectionMethod.replace) {
-                if(!in_slot.allowMultipleConnections()) {
-                    let connectors = this.getConnectorsLinkedToSlot(in_node, in_slot);
-                    this.removeConnector(connectors[0]);
-                }
-                let out_slot = out_node.getSlot(connector.out_slot_name);
-                if(!out_slot.allowMultipleConnections()) {
-                    let connectors = this.getConnectorsLinkedToSlot(out_node, out_slot);
-                    this.removeConnector(connectors[0]);
-                }
+                let as_output = connection.args.node == out_node;
+                let connectors = this.getConnectorsLinkedToSlot(connection.args.node, connection.args.slot, as_output);
+                this.removeConnector(connectors[0]);
             }
             if(connection.method == SlotConnectionMethod.replace || connection.method == SlotConnectionMethod.add){
                 out_node.addConnectionOfOutput(connector.out_slot_name);
@@ -417,20 +348,18 @@
         return connectors;
     }
 
-    Graph.prototype.getConnectorsLinkedToSlot = function(node, slot) {
+    Graph.prototype.getConnectorsLinkedToSlot = function(node, slot, as_output) {
         let connectors = [];
+        let both = as_output == undefined || as_output == null;
         for (const connector of Object.values(this.connectors)) {
-            let target_node_id = null;
-            let target_slot_name = "";
-            if (slot.isInput()) {
-                target_node_id = connector.in_node.id;
-                target_slot_name = connector.in_slot_name;
-            } else {
-                target_node_id = connector.out_node.id;
-                target_slot_name = connector.out_slot_name;
+            if(both || as_output){
+                if(node.id == connector.out_node.id && slot.name == connector.out_slot_name)
+                    connectors.push(connector);
             }
-            if (node.id == target_node_id && slot.name == target_slot_name)
-                connectors.push(connector);
+            if(both || (!as_output)){
+                if(node.id == connector.in_node.id && slot.name == connector.in_slot_name)
+                    connectors.push(connector);
+            }
         }
         return connectors;
     }
@@ -444,24 +373,13 @@
     Graph.prototype.removeNode = function(node) {
         if (!this.isNodeValid(node))
             return false;
-        if (this.onNodeRemoved) {
-            this.onNodeRemoved(node.id);
-        }
         if(!this.nodes[node.id])
             return false;
         this.clearConnectorsOfNode(node);
-        if (node.onRemoved) {
-            node.onRemoved();
-        }
         delete this.nodes[node.id];
         return true;
     };
 
-    /**
-     * Returns a node by its id.
-     * @method getNodeById
-     * @param {Number} id
-     */
     Graph.prototype.getNodeById = function(id) {
         if (!id) return null;
         return this.nodes[id];
@@ -480,41 +398,26 @@
         return this.subgraphs[name];
     };
 
-    /**
-     * @method add variable to objects
-     * @param {String} name
-     * @param {String} type
-     * @param {*} value [optional]
-     */
-    Graph.prototype.addVarTo = function(name, type, value, obj, callback) {
+    Graph.prototype.addVarTo = function(name, type, value, obj) {
         assertNameUniqueIn(name, Object.keys(this.inputs));
         assertNameUniqueIn(name, Object.keys(this.outputs));
         assertNameUniqueIn(name, Object.keys(this.local_vars));
         let v = new Variable(name, type, value);
         obj[name] = v;
-
-        if (callback) {
-            callback(v);
-        }
     };
 
     Graph.prototype.addInput = function(name, type, value) {
-        this.addVarTo(name, type, value, this.inputs, this.onInputAdded);
+        this.addVarTo(name, type, value, this.inputs);
     };
 
     Graph.prototype.addOutput = function(name, type, value) {
-        this.addVarTo(name, type, value, this.outputs, this.onOutputAdded);
+        this.addVarTo(name, type, value, this.outputs);
     };
 
     Graph.prototype.addLocalVar = function(name, type, value) {
         this.addVarTo(name, type, value, this.local_vars);
     };
 
-    /**
-     * @method getVarValue
-     * @param {String} name
-     * @return {*} the value
-     */
     Graph.prototype.getVarValueFrom = function(name, obj) {
         let v = obj[name];
         if (!v) return null;
@@ -533,12 +436,6 @@
         this.getVarValueFrom(name, this.local_vars)
     };
 
-    /**
-     * Assign a data to the global graph variable
-     * @method setGlobalInputData
-     * @param {String} name
-     * @param {*} data
-     */
     Graph.prototype.setVarValueOf = function(name, new_value, obj) {
         let v = obj[name];
         if (!v) return;
@@ -557,11 +454,6 @@
         this.setVarValueOf(name, new_value, this.local_vars)
     };
 
-    /**
-     * @method renameInput
-     * @param {String} name
-     * @param {String} new_name
-     */
     Graph.prototype.renameVarOf = function(name, new_name, obj, callback) {
         if (name == new_name) return;
 
@@ -591,12 +483,6 @@
         this.renameVarOf(name, new_name, this.local_vars);
     };
 
-    /**
-     * Changes the type of a variable
-     * @method changeInputType
-     * @param {String} name
-     * @param {String} type
-     */
     Graph.prototype.changeVarTypeOf = function(name, new_type, obj) {
         let v = obj[name];
         if (!v) return;
@@ -615,12 +501,6 @@
         this.changeVarTypeOf(name, new_type, this.local_vars)
     };
 
-    /**
-     * Removes a variable
-     * @method removeInput
-     * @param {String} name
-     * @param {String} type
-     */
     Graph.prototype.removeVarOf = function(name, obj) {
         let v = obj[name];
         if (!v) return;
@@ -659,6 +539,7 @@
         this.in_node = in_node;
         this.in_slot_name = in_slot_name;
         this.current_state = VisualState.normal;
+        this.force_alpha = null;
     }
 
     Connector.prototype.serialize = function() {
@@ -679,17 +560,19 @@
 
     Connector.prototype.draw = function(ctx, lod) {
         if (!this.style) return;
-        this.style[this.current_state].draw(this, ctx,lod);
+        let that = this;
+        let current_style = this.style[this.current_state]
+        current_style.draw.call(that, ctx, current_style.ctx_style, lod, this.force_alpha);
     }
 
     Connector.prototype.fromPos = function() {
         if (!this.out_node) return new Point(0, 0);
-        return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name);
+        return this.out_node.getConnectedAnchorPosInScene(this.out_slot_name, true);
     };
 
     Connector.prototype.toPos = function() {
         if (!this.in_node) return new Point(0, 0);
-        return this.in_node.getConnectedAnchorPosInScene(this.in_slot_name);
+        return this.in_node.getConnectedAnchorPosInScene(this.in_slot_name, false);
     };
 
     Connector.prototype.width = function() {
@@ -705,7 +588,15 @@
         const to = this.toPos();
         let x = Math.min(from.x, to.x);
         let y = Math.min(from.y, to.y);
-        return new Rect(x, y, Math.abs(from.x - to.x) , Math.abs(from.y - to.y));
+        let x_padding = 0;
+        let y_padding = 0;
+        if(from.x == to.x)
+            x_padding = this.detect_distance || 2;
+        if(from.y == to.y)
+            y_padding = this.detect_distance  || 2;
+        return new Rect(
+            x - x_padding, y - y_padding,
+            Math.abs(from.x - to.x) + 2 * x_padding, Math.abs(from.y - to.y) + 2 * y_padding);
     }
 
     Connector.prototype.mouseEnter = function() {
@@ -716,7 +607,8 @@
         this.current_state = VisualState.normal;
     };
 
-    const SlotType = {
+    const DataType = {
+        Wild: "*",
         Exec: "exec",
         number: "number",
         string: "string",
@@ -733,26 +625,15 @@
         data_out: 3
     });
 
-    /**
-     * areMultipleValuesInArray
-     * @method areMultipleValuesInArray
-     * @param {Array} values
-     * @param {Array} array
-     */
     function areMultipleValuesInArray(values, array) {
         return values.every(s => {
             return array.includes(s)
         });
     }
 
-    /**
-     * Node slot
-     * @method node slot class
-     * @param {SlotPos} t_a
-     * @param {SlotPos} t_b
-     * @return {Boolean} do these two slot type match
-     */
     function isSlotPosMatch(t_a, t_b) {
+        if(t_a == '*' || t_b == '*')
+            return true;
         if (t_a === t_b)
             return false;
 
@@ -775,15 +656,10 @@
     });
 
 
-    /**
-     * SlotConnection
-     * @method SlotConnection
-     * @param {SlotConnectionMethod} method
-     * @param {String} desc
-     */
-    function SlotConnection(method, desc) {
+    function SlotConnection(method, desc, args) {
         this.method = method;
         this.desc = desc;
+        this.args = args;
     };
 
     function Point(x, y) {
@@ -814,8 +690,8 @@
      * @method node slot class
      * @param {String} name unique name of this slot on the node
      * @param {SlotPos} slot_pos
-     * @param {String} data_type: if the slot type is data_in or data_out
-     * @param {String} default_value: if the slot type is data_in or data_out
+     * @param {String} data_type
+     * @param {String} default_value: value when the slot type is data_in or data_out
      */
     function NodeSlot(name, slot_pos, data_type, default_value) {
         this.name = name;
@@ -823,9 +699,10 @@
         this.data_type = data_type;
         this.default_value = default_value;
         this.connections = 0;
-        this.extra_info = {};
         this.current_state = VisualState.normal;
         this.translate = new Point(0, 0);
+        this.force_alpha = null;
+        this.show_exec_label = false;
     };
 
     NodeSlot.prototype.mouseEnter = function() {
@@ -848,10 +725,6 @@
         return this.slot_pos == SlotPos.exec_in || this.slot_pos == SlotPos.data_in;
     }
 
-    NodeSlot.prototype.addExtraInfo = function(extra_info) {
-        Object.assign(this.extra_info, extra_info);
-    };
-
     NodeSlot.prototype.isConnected = function() {
         return this.connections > 0;
     };
@@ -859,24 +732,20 @@
     NodeSlot.prototype.allowConnectTo = function(other_slot) {
         if (!isSlotPosMatch(this.slot_pos, other_slot.slot_pos))
             return new SlotConnection(SlotConnectionMethod.null,
-                '{this.data_type} is not compatible with {other_slot.data_type}');
-
+                `${this.slot_pos} is not compatible with ${other_slot.slot_pos}`);
         if (!type_registry.isDataTypeMatch(this.data_type, other_slot.data_type))
             return new SlotConnection(SlotConnectionMethod.null,
-                '{this.data_type} is not compatible with {other_slot.data_type}');
-
+                `${this.data_type} is not compatible with ${other_slot.data_type}`);
         if (this.isConnected() && !this.allowMultipleConnections()) {
             return new SlotConnection(SlotConnectionMethod.replace,
-                'Replace the existing connections');
+                'Replace the existing connections', {slot:this});
         }
-
-        if (other_slot.isConnected() && !other_slot.allowMultipleConnections()) {
+        let as_input = this.isInput();
+        if (other_slot.isConnected(as_input) && !other_slot.allowMultipleConnections(as_input)) {
             return new SlotConnection(SlotConnectionMethod.replace,
-                'Replace the existing connections');
+                'Replace the existing connections', {slot:other_slot});
         }
-
-        return new SlotConnection(SlotConnectionMethod.add,
-            'Add a connection');
+        return new SlotConnection(SlotConnectionMethod.add, 'Add a connection');
     };
 
     NodeSlot.prototype.addConnection = function() {
@@ -904,6 +773,7 @@
         for (const [name, value] of Object.entries(template)) {
             this[name] = value;
         }
+        this.updateStyleForNewType();
     };
 
     NodeSlot.prototype.getBoundingRect = function() {
@@ -911,80 +781,119 @@
         return new Rect(this.translate.x + size.left, this.translate.y + size.top, size.width, size.height);
     };
 
-    NodeSlot.prototype.draw = function(ctx, lod) {
-        if (!this.style)
+    NodeSlot.prototype.updateStyleForNewType = function(){
+        if(!this.style)
             return;
-        if(!this.type_style) {
-            let default_style = this.style['default']
-            this.type_style = this.style[this.data_type];
-            if (this.type_style) {
-                Object.setPrototypeOf(this.type_style, default_style);
-            } else {
-                this.type_style = default_style;
-            }
+        let default_style = this.style['default']
+        this.type_style = this.style[this.data_type];
+        if (this.type_style) {
+            Object.setPrototypeOf(this.type_style, default_style);
+        } else {
+            this.type_style = default_style;
         }
+    };
+
+    NodeSlot.prototype.getCurrentStyle = function() {
         const connected_state = this.isConnected() ? "connected" : "unconnected";
-        let ctx_style = this.type_style[connected_state][this.current_state].ctx_style;
-        this.type_style.owner = this;
-        this.type_style[connected_state][this.current_state].draw(this.type_style, ctx, ctx_style, lod);
+        return this.type_style[connected_state][this.current_state];
+    }
+
+    NodeSlot.prototype.draw = function(ctx, lod) {
+        let current_style = this.getCurrentStyle();
+        let that = this;
+        current_style.draw.call(that, ctx, current_style.ctx_style, lod, this.force_alpha);
     }
 
     NodeSlot.prototype.getCtxStyle = function(){
-        if (!this.style)
-            return null;
-        const connected_state = this.isConnected() ? "connected" : "unconnected";
-        return this.type_style[connected_state][this.current_state].ctx_style;
-
+        return this.getCurrentStyle().ctx_style;
     };
+
+     /**
+     * Wild Node slot, input or output
+     */
+    function WildNodeSlot(data_type) {
+        this.data_type = data_type || "*";
+        this.slot_pos = data_type || "*";
+        this.name = 'wildslot';
+        //[in connections, out connections]
+        this.connections = [0, 0];
+        this.current_state = VisualState.normal;
+        this.translate = new Point(0, 0);
+    };
+
+    WildNodeSlot.prototype.setDataType = function (new_type){
+        this.data_type = new_type || "*";
+        this.updateStyleForNewType();
+    }
+
+    WildNodeSlot.prototype.isInput = function(to_slot) {
+        if(to_slot == undefined)
+            return undefined;
+        else if(to_slot instanceof WildNodeSlot)
+            return false
+        else
+            return !to_slot.isInput();
+    }
+
+    WildNodeSlot.prototype.isConnected = function(as_output) {
+        if(as_output == undefined)
+            return this.connections[0] > 0 && this.connections[1] > 0;
+        return this.connections[+as_output] > 0;
+    };
+
+    WildNodeSlot.prototype.allowConnectTo = function(other_slot) {
+        if (!type_registry.isDataTypeMatch(this.data_type, other_slot.data_type))
+            return new SlotConnection(SlotConnectionMethod.null,
+                `${this.data_type} is not compatible with ${other_slot.data_type}`);
+        let as_output = !this.isInput(other_slot);
+        if (this.isConnected(as_output) && !this.allowMultipleConnections(as_output)) {
+            return new SlotConnection(SlotConnectionMethod.replace,
+                'Replace the existing connections', {slot:this});
+        }
+        if (other_slot.isConnected(!as_output) && !other_slot.allowMultipleConnections(!as_output)) {
+            return new SlotConnection(SlotConnectionMethod.replace,
+                'Replace the existing connections', {slot:other_slot});
+        }
+        return new SlotConnection(SlotConnectionMethod.add, 'Add a connection');
+    };
+
+    WildNodeSlot.prototype.addConnection = function(as_output) {
+        if (this.allowMultipleConnections(as_output)) {
+            this.connections[+as_output] += 1;
+        } else {
+            this.connections[+as_output] = 1;
+        }
+    };
+
+    WildNodeSlot.prototype.breakConnection = function(as_output) {
+        if (this.connections[+as_output] > 0)
+            this.connections[+as_output] -= 1;
+        if(this.connections[0] == 0 && this.connections[1] == 0 && this.data_type != "*"){
+            this.data_type = "*";
+            this.updateStyleForNewType();
+        };
+    };
+
+    WildNodeSlot.prototype.clearConnections = function() {
+        this.connections = [0, 0];
+    };
+
+    WildNodeSlot.prototype.allowMultipleConnections = function(as_output) {
+        if(as_output){
+            return this.data_type != DataType.Exec
+        }
+        else{
+            return this.data_type == DataType.Exec
+        }
+    };
+
+    Object.setPrototypeOf(WildNodeSlot.prototype, NodeSlot.prototype);
+
     const VisualState = {
         normal: "normal",
         hovered: "hovered",
-        pressed: "pressed"
+        selected: "selected"
     }
-    // *************************************************************
-    //   Node CLASS                                          *******
-    // *************************************************************
-
-    /*
-	title: string
-
-	node operations callbacks:
-		+ onAdded: when added to graph (warning: this is called BEFORE the node is configured when loading)
-		+ onRemoved: when removed from graph
-		+ onInputAdded
-		+ onInputRemoved
-		+ onOutputAdded
-		+ onOutputRemoved
-     	+ onAddConnection
-     	+ onBreakConnection
-     	+ onClearConnection
-		+ onDropItem : DOM item dropped over the node
-		+ onDropFile : file dropped over the node
-	interaction callbacks:
-		+ onSelected
-		+ onDeselected
-		+ onMouseDown
-		+ onMouseUp
-		+ onMouseEnter
-		+ onMouseLeave
-		+ onMove
-		+ onDblClick: double clicked in the node
-		+ onInputDblClick: input slot double clicked
-		+ onOutputDblClick: output slot double clicked
-	Serialization callback
-		+ onConfigure: called after the node has been configured
-		+ onSerialize: to add extra info when serializing (the callback receives the object that should be filled with the data)
-    Context menu
-		+ getExtraMenuOptions: to add option to context menu
-		+ onGetInputs: returns an array of possible inputs
-		+ onGetOutputs: returns an array of possible outputs
-*/
-
-    /**
-     * Base Class for all the node type classes
-     * @class Node
-     * @param {String} name a name for the node
-     */
 
     function Node() {
         this._ctor();
@@ -1005,6 +914,10 @@
         this.lod = 0;
     }
 
+    Node.prototype.allSlots = function() {
+        return Object.values(this.inputs).concat(Object.values(this.outputs));
+    }
+
     Node.prototype.serialize = function() {
         let o = {
             id: this.id,
@@ -1012,7 +925,7 @@
             translate: [this.translate.x, this.translate.y],
             connections: []
         };
-        for (const slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+        for (const slot of this.allSlots()) {
             o["connections"].push(slot.connections)
         }
         return o;
@@ -1024,14 +937,14 @@
         this.id = config.id;
         this.translate = new Point(config.translate[0], config.translate[1]);
         let i = 0;
-        for (const slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+        for (const slot of this.allSlots()) {
             slot.connections = config.connections[i];
             i++;
         }
     }
 
     Node.prototype.getSlotCtxStyle = function(slot_name){
-      let slot = this.inputs[slot_name] || this.outputs[slot_name];
+      let slot = this.getSlot(slot_name);
       return slot.getCtxStyle();
     };
 
@@ -1039,10 +952,10 @@
         return this.title || this.constructor.title;
     };
 
-    Node.prototype.getConnectedAnchorPosInScene = function(slot_name) {
-        const slot = this.inputs[slot_name] || this.outputs[slot_name];
+    Node.prototype.getConnectedAnchorPosInScene = function(slot_name, as_output) {
+        const slot = this.getSlot(slot_name);
         if (!slot) return undefined;
-        let local_pos = slot.getConnectedAnchorPos();
+        let local_pos = slot.getConnectedAnchorPos(as_output);
         return new Point(this.translate.x + local_pos.x, this.translate.y + local_pos.y);
     };
 
@@ -1053,19 +966,14 @@
      * @param {SlotPos} slot_pos
      * @param {string} data_type string defining the input type ("vec3","number",...), it its a generic one use *
      * @param {string} default_value
-     * @param {Object} extra_info this can be used to have special properties
      * @param {Array} slots
      */
-    Node.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, extra_info, slots, call_back) {
+    Node.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, slots) {
         assertNameUniqueIn(slot_name, Object.keys(this.inputs));
         assertNameUniqueIn(slot_name, Object.keys(this.outputs));
         let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
-        slot.addExtraInfo(extra_info);
         slots[slot_name] = slot;
         this.collidable_components[slot_name] = slot;
-        if (call_back) {
-            call_back(slot);
-        }
     };
 
     /**
@@ -1074,11 +982,10 @@
      * @param {string} slot_name
      * @param {string} type string defining the input type ("vec3","number",...), it its a generic one use *
      * @param {string} default_value
-     * @param {Object} extra_info this can be used to have special properties of an input (label, color, position, etc)
      */
-    Node.prototype.addInput = function(slot_name, type, default_value, extra_info) {
-        const slot_type = type === SlotType.Exec ? SlotPos.exec_in : SlotPos.data_in;
-        this.addSlotTo(slot_name, slot_type, type, default_value, extra_info, this.inputs, this.onInputAdded);
+    Node.prototype.addInput = function(slot_name, type, default_value) {
+        const slot_pos = type === DataType.Exec ? SlotPos.exec_in : SlotPos.data_in;
+        this.addSlotTo(slot_name, slot_pos, type, default_value, this.inputs);
     };
 
     /**
@@ -1086,75 +993,43 @@
      * @method addOutput
      * @param {string} slot_name
      * @param {string} type string defining the output type ("vec3","number",...)
-     * @param {Object} extra_info this can be used to have special properties of an output (label, special color, position, etc)
      */
-    Node.prototype.addOutput = function(slot_name, type, extra_info) {
-        const slot_type = type === SlotType.Exec ? SlotPos.exec_out : SlotPos.data_out;
-        this.addSlotTo(slot_name, slot_type, type, undefined, extra_info, this.outputs, this.onOutputAdded);
+    Node.prototype.addOutput = function(slot_name, type) {
+        const slot_pos = type === DataType.Exec ? SlotPos.exec_out : SlotPos.data_out;
+        this.addSlotTo(slot_name, slot_pos, type, undefined, this.outputs);
     };
 
-    /**
-     * add several new input slots in this node
-     * @method addInputs
-     * @param {Array} inputs array of triplets like [[name, type, default_value, extra_info],[...]]
-     */
     Node.prototype.addInputs = function(inputs) {
         for (const input of inputs) {
-            this.addInput(input.name, input.type, default_value, input.extra_info)
+            this.addInput(input.name, input.type, default_value)
         }
     };
 
-    /**
-     * add many output slots to use in this node
-     * @method addOutputs
-     * @param {Array} outputs array of triplets like [[name, type, extra_info],[...]]
-     */
     Node.prototype.addOutputs = function(outputs) {
         for (const output of outputs) {
-            this.addOutput(output.name, output.type, output.extra_info)
+            this.addOutput(output.name, output.type)
         }
     };
 
-    /**
-     * remove one slot from the inputs or outputs, here we don't deal with connections, the graph will handle it.
-     * @method addOutputs
-     * @param {String} slot_name the name of the slot to be removed
-     * @param {Arrary}  slots intput or outputs slots
-     */
-    Node.prototype.removeSlotFrom = function(slot_name, slots, call_back) {
+    Node.prototype.removeSlotFrom = function(slot_name, slots) {
         delete this.collidable_components[slot_name];
         delete slots[slot_name];
-
-        if (call_back) {
-            call_back(slot_name);
-        }
     };
 
-    /**
-     * remove an existing input slot
-     * @method removeInput
-     * @param {String} slot_name
-     */
     Node.prototype.removeInput = function(slot_name) {
-        this.removeSlotFrom(slot_name, this.inputs, this.onInputRemoved);
+        this.removeSlotFrom(slot_name, this.inputs);
     };
 
-    /**
-     * remove an existing output slot
-     * @method removeOutput
-     * @param {String} slot_name
-     */
     Node.prototype.removeOutput = function(slot_name) {
-        this.removeSlotFrom(slot_name, this.outputs, this.onOutputRemoved);
+        this.removeSlotFrom(slot_name, this.outputs);
     };
 
     Node.prototype.getSlot = function(slot_name) {
         return this.inputs[slot_name] || this.outputs[slot_name];
     };
 
-    // *********************** node manipulation **************************************
     Node.prototype.allowConnectTo = function(slot_name, to_node, to_slot) {
-        let slot = this.inputs[slot_name] || this.outputs[slot_name];
+        let slot = this.getSlot(slot_name);
         if (!slot || !to_node || !to_slot) {
             return new SlotConnection(SlotConnectionMethod.null, 'Some input parameters are undefined.');
         }
@@ -1162,11 +1037,16 @@
         if (this == to_node) {
             return new SlotConnection(SlotConnectionMethod.null, 'Both are on the same node.');
         }
-
-        return slot.allowConnectTo(to_slot)
+        let connection = slot.allowConnectTo(to_slot);
+        if(connection.method == SlotConnectionMethod.replace){
+            let node = connection.args.slot == slot? this : to_node;
+            connection.args['node'] = node;
+        }
+        return connection;
     };
+
     Node.prototype.allowConnectToAnySlot = function(slot_name, to_node) {
-        let slot = this.inputs[slot_name] || this.outputs[slot_name];
+        let slot = this.getSlot(slot_name);
         if (!slot || !to_node) {
             return false;
         }
@@ -1175,6 +1055,9 @@
             return false;
         }
         let to_slots = [];
+        if(slot.isInput() == undefined){
+            return true;
+        }
         if(slot.isInput()){
            to_slots = Object.values(to_node.outputs);
         }
@@ -1194,58 +1077,41 @@
      * @method connect
      * @param {String} slot_name
      */
-    Node.prototype.addConnectionOf = function(slot) {
+    Node.prototype.addConnectionOf = function(slot, as_output) {
         if (!slot) {
             return;
         }
-        slot.addConnection()
-
-        if (this.onAddConnection) {
-            this.onAddConnection(slot);
-        }
+        slot.addConnection(as_output)
     };
 
     Node.prototype.addConnectionOfInput = function(slot_name) {
-        this.addConnectionOf(this.inputs[slot_name])
+        this.addConnectionOf(this.getSlot(slot_name), false)
     };
 
     Node.prototype.addConnectionOfOutput = function(slot_name) {
-        this.addConnectionOf(this.outputs[slot_name])
+        this.addConnectionOf(this.getSlot(slot_name), true)
     };
 
-    Node.prototype.breakConnectionOf = function(slot) {
+    Node.prototype.breakConnectionOf = function(slot, as_output) {
         if (!slot) {
             return;
         }
-        slot.breakConnection()
-
-        if (this.onBreakConnection) {
-            this.onBreakConnection(slot);
-        }
+        slot.breakConnection(as_output);
     };
 
     Node.prototype.breakConnectionOfOutput = function(slot_name) {
-        this.breakConnectionOf(this.outputs[slot_name])
+        this.breakConnectionOf(this.getSlot(slot_name), true);
     };
 
     Node.prototype.breakConnectionOfInput = function(slot_name) {
-        this.breakConnectionOf(this.inputs[slot_name])
+        this.breakConnectionOf(this.getSlot(slot_name), false)
     };
 
-    /**
-     * disconnect one output to an specific node
-     * @method disconnectOutput
-     * @param {String} slot_name
-     */
     Node.prototype.clearConnectionsOf = function(slot) {
         if (!slot) {
             return;
         }
         slot.clearConnections()
-
-        if (this.onClearConnection) {
-            this.onClearConnection(slot_name);
-        }
     };
 
     Node.prototype.clearInConnections = function() {
@@ -1267,9 +1133,6 @@
 
     Node.prototype.addTranslate = function(delta_x, delta_y) {
         this.translate.add(delta_x, delta_y);
-        if (this.onMove) {
-            this.onMove(delta_x, delta_y);
-        }
     };
 
     Node.prototype.getBoundingRect = function() {
@@ -1279,9 +1142,9 @@
 
     Node.prototype.draw = function(ctx, lod) {
         if (!this.style) return;
-        let state_draw_method = this.style[this.current_state];
-        if (state_draw_method)
-            state_draw_method.draw(this, ctx, lod);
+        let state_style = this.style[this.current_state];
+        let that = this;
+        state_style.draw.call(that, ctx, state_style.ctx_style, lod);
     };
 
     Node.prototype.overrideRenderingTemplate = function() {
@@ -1292,20 +1155,19 @@
 
     Node.prototype.pluginRenderingTemplate = function(template) {
         let default_node = template['Node'];
-        let this_node = template[this.constructor.name];
-        if (this_node)
-            Object.setPrototypeOf(this_node, default_node);
-        else
-            this_node = default_node;
-        for (const [name, value] of Object.entries(this_node)) {
+        for (const [name, value] of Object.entries(default_node))
             this[name] = value;
+        let this_node = template[this.constructor.name];
+        if (this_node){
+            for (const [name, value] of Object.entries(this_node))
+                this[name] = value;
         }
         this.overrideRenderingTemplate();
-        for (let slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+        for (const slot of this.allSlots()) {
             slot.pluginRenderingTemplate(template['NodeSlot']);
             this.overrideRenderingTemplateOfSlot(slot);
         }
-        if(Object.keys(this.inputs).length > 0 || Object.keys(this.outputs).length > 0)
+        if(this.allSlots().length > 0)
             this.setSlotsTranslation();
     }
 
@@ -1318,50 +1180,144 @@
     };
 
     Node.prototype.isSelected = function() {
-        return this.current_state == VisualState.pressed;
+        return this.current_state == VisualState.selected;
     }
 
     Node.prototype.selected = function() {
         if (this.isSelected())
             return;
-        this.current_state = VisualState.pressed;
-        if (this.onSelected) {
-            this.onSelected();
-        }
+        this.current_state = VisualState.selected;
     }
 
     Node.prototype.deselected = function() {
         if (!this.isSelected())
             return;
         this.current_state = VisualState.normal;
-        if (this.onDeselected) {
-            this.onDeselected();
-        }
     }
 
     Node.prototype.toggleSelection = function() {
         if (this.isSelected())
             this.current_state = VisualState.normal;
         else
-            this.current_state = VisualState.pressed;
+            this.current_state = VisualState.selected;
     }
 
     Node.prototype.pressed = function() {
-        this.current_state = VisualState.pressed;
+        this.current_state = VisualState.selected;
     };
 
+    Node.prototype.allowToSelect = function(){
+        return true;
+    }
+
+    function RerouteNode(data_type) {
+        this._ctor();
+        this.title = "RerouteNode";
+        this.type = "RerouteNode";
+        this.desc = "Reroute Node";
+        this.slot = new WildNodeSlot(data_type);
+        this.slot_name = 'wildslot';
+        this.collidable_components = {};
+        this.collidable_components[this.slot_name] = this.slot;
+    }
+
+    RerouteNode.prototype.serialize = function() {
+        let o = Node.prototype.serialize.call(this);
+        o.wildcard_node_data_type = this.slot.data_type;
+        return o;
+    }
+
+    RerouteNode.prototype.configure = function(config) {
+        Node.prototype.configure.call(this, config);
+        if (!config)
+            return;
+        this.slot.setDataType(config.wildcard_node_data_type);
+    }
+
+    RerouteNode.prototype.allSlots = function(){
+        return [this.slot];
+    }
+
+    RerouteNode.prototype.getSlot = function(){
+        return this.slot;
+    }
+
+    RerouteNode.prototype.allowConnectTo = function(slot_name, to_node, to_slot) {
+        if (!to_node || !to_slot) {
+            return new SlotConnection(SlotConnectionMethod.null, 'Some input parameters are undefined.');
+        }
+        if (this == to_node) {
+            return new SlotConnection(SlotConnectionMethod.null, 'Both are on the same node.');
+        }
+        let connection = this.slot.allowConnectTo(to_slot);
+        if(connection.method == SlotConnectionMethod.replace){
+            let node = connection.args.slot == this.slot? this : to_node;
+            connection.args['node'] = node;
+        }
+        return connection;
+    };
+
+    RerouteNode.prototype.overrideRenderingTemplateOfSlot = function(slot) {
+        slot.to_render_text = false;
+    };
+
+    RerouteNode.prototype.clearAllConnections = function() {
+       this.slot.clearConnections()
+    };
+
+    type_registry.registerNodeType("RerouteNode", RerouteNode);
 
     function CommentNode() {
         this._ctor();
+        this.title = "Comment";
+        this.type = "Comment";
+        this.desc = "Comment";
         this.allow_resize = true;
         //for resize detection
         this.resize_detection_distance = 4;
-        this.type = "comment";
+        this._width = 200;
+        this._height = 200;
+        this._min_width = 10;
+        this._min_height=10;
+        this.detection_area_height=15;
+        this.detection_area = new Rect(0, 0, 0, 0);
+        this.updateDetectionArea();
     }
 
-    CommentNode.title = "Comment";
-    CommentNode.type = "comment";
-    CommentNode.desc = "Comment";
+    CommentNode.prototype.setWidth = function(w) {
+        this._width = Math.max(this._min_width, w);
+        this.updateDetectionArea();
+    };
+
+    CommentNode.prototype.width = function() {
+        return this._width;
+    };
+
+    CommentNode.prototype.setHeight = function(h) {
+         this._height = Math.max(this._min_height, h);
+         this.updateDetectionArea();
+    };
+
+    CommentNode.prototype.height = function() {
+        return this._height;
+    };
+
+    CommentNode.prototype.size = function() {
+        return {left: 0, top: 0, width: this.width(), height: this.height()}
+    }
+
+    CommentNode.prototype.updateDetectionArea = function() {
+        this.detection_area.left = this.resize_detection_distance;
+        this.detection_area.top = this.resize_detection_distance;
+        this.detection_area.width = this.width() - 2*this.resize_detection_distance;
+        this.detection_area.height = this.detection_area_height;
+    }
+
+    CommentNode.prototype.pluginRenderingTemplate = function(template) {
+        let this_node = template['CommentNode'];
+        for (const [name, value] of Object.entries(this_node))
+            this[name] = value;
+    }
 
     CommentNode.prototype.getBoundingRect = function() {
         const size = this.size();
@@ -1370,6 +1326,31 @@
             size.width + 2 * this.resize_detection_distance,
             size.height + 2 * this.resize_detection_distance);
     };
+
+    CommentNode.prototype.serialize = function() {
+        return {
+            id: this.id,
+            type: this.type,
+            translate: [this.translate.x, this.translate.y],
+            width: this.width(),
+            height: this.height(),
+        };
+    }
+
+    CommentNode.prototype.configure = function(config) {
+        if (!config)
+            return;
+        this.id = config.id;
+        this.translate = new Point(config.translate[0], config.translate[1]);
+        this.setWidth(config.width || 0);
+        this.setHeight(config.height || 0);
+    }
+
+    CommentNode.prototype.allowToSelect = function(x, y, width, height){
+        if(!width || !height)
+            return this.detection_area.isInside(x, y);
+        return this.detection_area.isIntersectWith(new Rect(x, y, width, height));
+    }
 
     type_registry.registerNodeType("Comment", CommentNode);
 
@@ -1387,39 +1368,16 @@
         name: "RenderingTemplate",
         scene: {
             style: {
-                owner: null,
-                current_bg: null,
                 "0": {
                     image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
                     image_repetition: "repeat",
                     global_alpha: 1,
+                    fill_color: null
                 },
                 "1": {
-                    image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEXMysz8/vzemT50AAAAIklEQVQ4jWNgQAH197///Q8lPtCdN+qWUbeMumXULSPALQDs8NiOERuTbAAAAABJRU5ErkJggg==",
-                    image_repetition: "repeat",
                     global_alpha: 1,
+                    fill_color: '#ffffff'
                 },
-                draw: function(ctx, rect, lod) {
-                    let style = this[lod];
-                    if (!style) style = this[0];
-                    if (style.image) {
-                        let img_need_loaded = !this.current_bg || this.current_bg.src != style.image;
-                        if(img_need_loaded) {
-                            this.current_bg = new Image();
-                            this.current_bg.src = style.image;
-                            this.current_bg.onload = () => {
-                                this.owner.renderer.forceRenderLayers(["background"]);
-                            }
-                        } else{
-                            ctx.fillStyle = ctx.createPattern(this.current_bg, style.image_repetition);
-                            ctx.imageSmoothingEnabled = true;
-                            ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
-                        }
-                    } else {
-                        ctx.fillStyle = style.color;
-                        ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
-                    }
-                }
             }
         },
         // different slot data types(number, string..), different states style sheet(selected, unselected, hovered) applied on
@@ -1429,145 +1387,149 @@
             icon_height: 10,
             to_render_text: true,
             font: '12px Arial',
-            padding_between_icon_text: 3,
+            margin_between_icon_text: 3,
             width: function() {
-                let text_width = (this.to_render_text && this.data_type != 'exec') ? textWidth(this.name, this.font) : 0;
-                return this.icon_width + (text_width > 0 ? this.padding_between_icon_text + text_width : 0);
+                let to_show_label = this.to_render_text && (this.data_type == DataType.Exec? this.show_exec_label : true);
+                let text_width = to_show_label ? textWidth(this.name, this.font) : 0;
+                return this.icon_width + (text_width > 0 ? this.margin_between_icon_text + text_width : 0);
             },
             height: function() {
                 return this.icon_height;
             },
-            getConnectedAnchorPos: function() {
+            getConnectedAnchorPos: function(as_output) {
                 let pos = {};
-                pos.x = this.icon_width / 2.0 + (this.isInput()-1) * this.icon_width + this.translate.x;
+                let wild_slot = this.isInput() == undefined;
+                if(wild_slot)
+                    pos.x = as_output * this.icon_width +　this.translate.x;
+                else
+                    pos.x = this.translate.x;
                 pos.y = this.icon_height / 2.0 + this.translate.y
                 return pos;
             },
             size: function() {
-                let x = this.isInput() ? 0 : -this.width();
-                return {
-                    left: x,
-                    top: 0,
-                    width: this.width(),
-                    height: this.height()
-                };
+                let is_input = this.isInput() == undefined? true : this.isInput();
+                let x = is_input ? 0 : -this.width();
+                return {left: x, top: 0, width: this.width(), height: this.height()};
             },
             style: {
-                owner: null,
                 "default": {
                     unconnected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#84ff00",
-                                lineWidth: 2,
-                                fontStyle: "000000FF",
+                                fill_style: null,
+                                stroke_style: "#84ff00",
+                                line_width: 2,
+                                font_color: "000000FF",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#84ff00",
-                                lineWidth: 5,
-                                fontStyle: "000000FF",
+                                fill_style: null,
+                                stroke_style: "#84ff00",
+                                line_width: 5,
+                                font_color: "000000FF",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         }
                     },
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#84ff00",
-                                strokeStyle: "#84ff00",
-                                lineWidth: 2,
-                                fontStyle: "000000FF",
+                                fill_style: "#84ff00",
+                                stroke_style: "#84ff00",
+                                line_width: 2,
+                                font_color: "000000FF",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#84ff00",
-                                strokeStyle: "#84ff00",
-                                lineWidth: 5,
-                                fontStyle: "000000FF",
+                                fill_style: "#84ff00",
+                                stroke_style: "#84ff00",
+                                line_width: 5,
+                                font_color: "000000FF",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
-                    _draw_when_normal: function(this_style, ctx, ctx_style, lod) {
-                        this_style.drawShape(ctx, ctx_style, lod);
-                        if (lod == 0 && this_style.owner.to_render_text && this_style.owner.data_type != 'exec') {
-                            this_style.drawName(ctx, ctx_style);
+                    _draw_when_normal: function(ctx, ctx_style, lod, force_alpha) {
+                        this.type_style._drawShape.call(this, ctx, ctx_style, lod, force_alpha);
+                        let to_show_label = this.to_render_text && (this.data_type == DataType.Exec? this.show_exec_label : true);
+                        if (lod == 0 && to_show_label) {
+                            this.type_style._drawLabel.call(this, ctx, ctx_style);
                         }
                     },
-                    _draw_when_hovered: function(this_style, ctx, ctx_style, lod) {
-                        this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                    _draw_when_hovered: function(ctx, ctx_style, lod, force_alpha) {
+                        this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                         // if (lod == 0)
-                        //     this_style.hovered(ctx, ctx_style);
+                        //     this.type_style.hovered(ctx, ctx_style);
                     },
-                    drawShape: function(ctx, style, lod) {
+                    _drawShape: function(ctx, style, lod, force_alpha) {
                         ctx.save();
-                        if (style.fillStyle) {
-                            ctx.fillStyle = style.fillStyle;
+                        if (style.fill_style) {
+                            ctx.fillStyle = style.fill_style;
                         }
-                        if (style.strokeStyle) {
-                            ctx.lineWidth = style.lineWidth;
-                            ctx.strokeStyle = style.strokeStyle;
+                        if (style.stroke_style) {
+                            ctx.lineWidth = style.line_width;
+                            ctx.strokeStyle = style.stroke_style;
                         }
+                        if(force_alpha || style.global_alpha)
+                            ctx.globalAlpha = force_alpha || style.global_alpha;
+                        let is_input = this.isInput() == undefined? true : this.isInput();
                         if(lod > 0){
-                            if (style.fillStyle)
-                                ctx.fillRect((this.owner.isInput()-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
-                            ctx.strokeRect((this.owner.isInput()-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                            if (style.fill_style)
+                                ctx.fillRect((is_input-1) * this.icon_width, 0, this.icon_width, this.icon_height);
+                            ctx.strokeRect((is_input-1) * this.icon_width, 0, this.icon_width, this.icon_height);
                         }
                         else{
                             ctx.beginPath();
                             ctx.arc(
-                                this.owner.icon_width / 2.0 + (this.owner.isInput()-1) * this.owner.icon_width,
-                                this.owner.icon_width / 2.0,
-                                this.owner.icon_width / 2.0, 0, Math.PI * 2, true);
+                                this.icon_width / 2.0 + (is_input-1) * this.icon_width,
+                                this.icon_width / 2.0,
+                                this.icon_width / 2.0, 0, Math.PI * 2, true);
                             ctx.closePath();
-                            if (style.fillStyle) {
+                            if (style.fill_style) {
                                 ctx.fill();
                             }
-                            if (style.strokeStyle) {
+                            if (style.stroke_style) {
                                 ctx.stroke();
                             }
                         }
                         ctx.restore();
                     },
-                    drawName: function(ctx, style) {
+                    _drawLabel: function(ctx, style) {
                         ctx.save();
                         ctx.font = this.font;
-                        if (style.fontStyle) ctx.fillStyle = style.fontStyle;
+                        if (style.font_color) ctx.fillStyle = style.font_color;
                         ctx.textBaseline = "middle";
                         let x = 0;
-                        if (this.owner.isInput()) {
+                        if (this.isInput()) {
                             ctx.textAlign = "left";
-                            x = this.owner.icon_width + this.owner.padding_between_icon_text;
+                            x = this.icon_width + this.margin_between_icon_text;
                         } else {
                             ctx.textAlign = "right";
-                            x = -(this.owner.icon_width + this.owner.padding_between_icon_text);
+                            x = -(this.icon_width + this.margin_between_icon_text);
                         }
-                        ctx.fillText(this.owner.name, x, this.owner.icon_height / 2.0);
+                        ctx.fillText(this.name, x, this.icon_height / 2.0);
                         ctx.restore();
                     },
-                    hovered: function(ctx, style) {
+                    _hovered: function(ctx, style, force_alpha) {
                         ctx.globalAlpha = 0.6;
-                        if (style.fillStyle)
-                            ctx.fillStyle = style.fillStyle;
-                        if(this.owner.isInput())
-                            ctx.fillRect(0, 0, this.owner.width(), this.owner.height());
+                        if (style.fill_style)
+                            ctx.fillStyle = style.fill_style;
+                        if(this.isInput())
+                            ctx.fillRect(0, 0, this.width(), this.height());
                         else
-                            ctx.fillRect(-this.owner.width(), 0, this.owner.width(), this.owner.height());
+                            ctx.fillRect(-this.width(), 0, this.width(), this.height());
                         ctx.globalAlpha = 1;
                     },
                 },
@@ -1575,75 +1537,78 @@
                     unconnected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#f33232",
+                                fill_style: null,
+                                stroke_style: "#f33232",
                                 line_width:2
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#f33232",
+                                fill_style: null,
+                                stroke_style: "#f33232",
                                 line_width:2
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#f33232",
-                                strokeStyle: "#f33232",
+                                fill_style: "#f33232",
+                                stroke_style: "#f33232",
                                 line_width:2
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#bf00ff",
-                                strokeStyle: "#363015",
+                                fill_style: "#bf00ff",
+                                stroke_style: "#363015",
                                 line_width:5
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
-                    drawShape: function(ctx, style, lod) {
+                    _drawShape: function(ctx, style, lod, force_alpha) {
                         ctx.save();
                         let start_x = 0;
-                        if (!this.owner.isInput())
-                            start_x = - this.owner.icon_width;
-                        if (style.fillStyle) {
-                            ctx.fillStyle = style.fillStyle;
+                        let is_input = this.isInput() == undefined? true : this.isInput();
+                        if (!is_input)
+                            start_x = - this.icon_width;
+                        if (style.fill_style) {
+                            ctx.fillStyle = style.fill_style;
                         }
-                        if (style.strokeStyle) {
-                            ctx.lineWidth = style.lineWidth;
-                            ctx.strokeStyle = style.strokeStyle;
+                        if (style.stroke_style) {
+                            ctx.lineWidth = style.line_width;
+                            ctx.strokeStyle = style.stroke_style;
                         }
+                        if(force_alpha || style.global_alpha)
+                            ctx.globalAlpha = force_alpha ||　style.global_alpha;
                         if(lod > 0){
-                            if (style.fillStyle)
-                                ctx.fillRect(start_x, 0, this.owner.icon_width, this.owner.icon_height);
-                            ctx.strokeRect((this.owner.isInput()-1) * this.owner.icon_width, 0, this.owner.icon_width, this.owner.icon_height);
+                            if (style.fill_style)
+                                ctx.fillRect(start_x, 0, this.icon_width, this.icon_height);
+                            ctx.strokeRect((is_input-1) * this.icon_width, 0, this.icon_width, this.icon_height);
                         }
                         else {
                             ctx.beginPath();
                             ctx.moveTo(start_x, 0);
-                            ctx.lineTo(this.owner.icon_width / 2.0 + start_x, 0);
-                            ctx.lineTo(this.owner.icon_width + start_x, this.owner.icon_height / 2.0);
-                            ctx.lineTo(this.owner.icon_width / 2.0 + start_x, this.owner.icon_height);
-                            ctx.lineTo(start_x, this.owner.icon_height);
+                            ctx.lineTo(this.icon_width / 2.0 + start_x, 0);
+                            ctx.lineTo(this.icon_width + start_x, this.icon_height / 2.0);
+                            ctx.lineTo(this.icon_width / 2.0 + start_x, this.icon_height);
+                            ctx.lineTo(start_x, this.icon_height);
                             ctx.closePath();
-                            if (style.fillStyle)
+                            if (style.fill_style)
                                 ctx.fill();
-                            if (style.strokeStyle)
+                            if (style.stroke_style)
                                 ctx.stroke();
                             ctx.moveTo(0, 0);
                         }
@@ -1654,40 +1619,86 @@
                     unconnected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#cc00ff"
+                                fill_style: null,
+                                stroke_style: "#cc00ff"
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: null,
-                                strokeStyle: "#cc00ff"
+                                fill_style: null,
+                                stroke_style: "#cc00ff"
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
                     connected: {
                         normal: {
                             ctx_style: {
-                                fillStyle: "#cc00ff",
-                                strokeStyle: "#cc00ff",
+                                fill_style: "#cc00ff",
+                                stroke_style: "#cc00ff",
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_normal(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                         hovered: {
                             ctx_style: {
-                                fillStyle: "#cc00ff",
-                                strokeStyle: "#cc00ff"
+                                fill_style: "#cc00ff",
+                                stroke_style: "#cc00ff"
                             },
-                            draw: function(this_style, ctx, ctx_style, lod) {
-                                this_style._draw_when_hovered(this_style, ctx, ctx_style, lod);
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
+                            }
+                        },
+                    },
+                },
+                "numpy.ndarray": {
+                    unconnected: {
+                        normal: {
+                            ctx_style: {
+                                fill_style: null,
+                                stroke_style: "#00b2ff",
+                                line_width: 2,
+                            },
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
+                            }
+                        },
+                        hovered: {
+                            ctx_style: {
+                                fill_style: null,
+                                stroke_style: "#00b2ff",
+                                line_width: 5,
+                            },
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
+                            }
+                        },
+                    },
+                    connected: {
+                        normal: {
+                            ctx_style: {
+                                fill_style: "#00b2ff",
+                                stroke_style: "#00b2ff",
+                                line_width: 2,
+                            },
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_normal.call(this, ctx, ctx_style, lod, force_alpha);
+                            }
+                        },
+                        hovered: {
+                            ctx_style: {
+                                fill_style: "#00b2ff",
+                                stroke_style: "#00b2ff",
+                                line_width: 5,
+                            },
+                            draw: function(ctx, ctx_style, lod, force_alpha) {
+                                this.type_style._draw_when_hovered.call(this, ctx, ctx_style, lod, force_alpha);
                             }
                         },
                     },
@@ -1695,7 +1706,6 @@
             }
         },
         Node: {
-            global_alpha: 1,
             title_bar: {
                 to_render: true,
                 color: "#a3a3fa",
@@ -1711,21 +1721,21 @@
             },
             slot_to_top_border: 6,
             slot_to_side_border: 6,
-            horizontal_padding_between_slots: 20,
-            vertical_padding_between_slots: 10,
+            slot_margin_right: 20,
+            slot_margin_bottom: 10,
             width: function() {
                 const input_slots = Object.values(this.inputs);
                 const output_slots = Object.values(this.outputs);
                 let max_line_width = 0;
                 for (let i = 0; i < Math.max(input_slots.length, output_slots.length); i++) {
-                    let width = (input_slots[i]? input_slots[i].width(): 0 ) + (output_slots[i]? output_slots[i].width(): 0 );
+                    let width = (input_slots[i]? input_slots[i].width() : 0 ) + (output_slots[i]? output_slots[i].width() : 0 );
                     max_line_width = Math.max(max_line_width, width);
                 }
                 max_line_width += this.slot_to_side_border * 2;
                 if (this.central_text.to_render)
                     max_line_width += this.central_text.width;
                 else
-                    max_line_width += this.horizontal_padding_between_slots;
+                    max_line_width += this.slot_margin_right;
                 max_line_width = Math.max(max_line_width,
                     textWidth(this.title, this.title_bar.font) + this.title_bar.text_to_border * 2);
                 return max_line_width;
@@ -1735,25 +1745,19 @@
                 for (const input of Object.values(this.inputs)) {
                     left_side += input.height();
                 }
-                left_side += this.vertical_padding_between_slots * Math.max((Object.values(this.inputs).length - 1), 0);
+                left_side += this.slot_margin_bottom * Math.max((Object.values(this.inputs).length - 1), 0);
                 let right_side = this.slot_to_side_border * 2;
                 for (const output of Object.values(this.outputs)) {
                     right_side += output.height();
                 }
-                right_side += this.vertical_padding_between_slots * Math.max((Object.values(this.outputs).length - 1), 0);
+                right_side += this.slot_margin_bottom * Math.max((Object.values(this.outputs).length - 1), 0);
                 let central_text_height = (this.central_text.to_render || 0) * (this.central_text.height || 0);
                 return Math.max(left_side, right_side, central_text_height) + this.title_bar.to_render * this.title_bar.height;
             },
             size: function() {
                 let y = this.title_bar.to_render ? -this.title_bar.height : 0;
-                return {
-                    left: 0,
-                    top: y,
-                    width: this.width(),
-                    height: this.height()
-                }
+                return {left: 0, top: y, width: this.width(), height: this.height()}
             },
-
             style: {
                 normal: {
                     ctx_style: {
@@ -1762,8 +1766,8 @@
                         line_width: 1,
                         round_radius: 8
                     },
-                    draw: function(node, ctx, lod) {
-                        node._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
                 hovered: {
@@ -1773,19 +1777,19 @@
                         line_width: 1,
                         round_radius: 8
                     },
-                    draw: function(node, ctx, lod) {
-                        node._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
-                pressed: {
+                selected: {
                     ctx_style: {
                         fill_style: "#b6b6b6",
                         stroke_style: "#ffcc00",
                         line_width: 3,
                         round_radius: 8
                     },
-                    draw: function(node, ctx, lod) {
-                       node._draw(ctx, this.ctx_style, lod);
+                   draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
             },
@@ -1795,7 +1799,7 @@
                 for (let slot of Object.values(this.inputs)) {
                     slot.translate.x = this.slot_to_side_border;
                     slot.translate.y = next_slot_y;
-                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
+                    next_slot_y = next_slot_y + slot.height() +　this.slot_margin_bottom;
                     index++;
                 }
                 index = 1;
@@ -1803,7 +1807,7 @@
                 for (let slot of Object.values(this.outputs)) {
                     slot.translate.x = this.width() - this.slot_to_side_border;
                     slot.translate.y = next_slot_y;
-                    next_slot_y = next_slot_y + slot.height() +　this.vertical_padding_between_slots;
+                    next_slot_y = next_slot_y + slot.height() +　this.slot_margin_bottom;
                     index++;
                 }
             },
@@ -1868,7 +1872,7 @@
             },
 
             _drawSlots: function(ctx, lod) {
-                for (let slot of Object.values(this.inputs).concat(Object.values(this.outputs))) {
+                for (const slot of this.allSlots()) {
                     ctx.save();
                     ctx.translate(slot.translate.x, slot.translate.y);
                     slot.draw(ctx, lod);
@@ -1890,33 +1894,6 @@
         },
         CommentNode: {
             alpha: 0.5,
-            _width: 200,
-            _height: 200,
-            _min_width: 10,
-            _min_height: 10,
-            width: function() {
-                return this._width;
-            },
-            setWidth: function(w) {
-                this._width = w;
-                this._width = Math.max(this._min_width, this._width);
-            },
-            height: function() {
-                return this._height;
-            },
-            setHeight: function(h) {
-                this._height = h;
-                this._height = Math.max(this._min_height, this._height);
-            },
-            size: function() {
-                return {
-                    left: 0,
-                    top: 0,
-                    width: this.width(),
-                    height: this.height()
-                }
-            },
-
             style: {
                 normal: {
                     ctx_style: {
@@ -1924,18 +1901,18 @@
                         stroke_style: "#2b2b2b",
                         line_width: 1,
                     },
-                    draw: function(node, ctx, lod) {
-                       node._draw(ctx, this.ctx_style, lod);
+                   draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
-                pressed: {
+                selected: {
                     ctx_style: {
                         fill_style: "#CBCBCBFF",
                         stroke_style: "#ffcc00",
                         line_width: 3,
                     },
-                    draw: function(node, ctx, lod) {
-                       node._draw(ctx, this.ctx_style, lod);
+                   draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
                     }
                 },
             },
@@ -1951,6 +1928,7 @@
                 ctx.fill();
                 ctx.stroke();
                 ctx.globalAlpha = 1;
+                ctx.fillRect(this.detection_area.left, this.detection_area.top, this.detection_area.width, this.detection_area.height);
                 ctx.font = "20px Arial";
                 ctx.textBaseline = "bottom";
                 ctx.textAlign = "left";
@@ -1960,22 +1938,82 @@
             },
         },
 
+        RerouteNode: {
+            margin: [5, 8, 6, 8], //top right bottom left
+            width: function() {
+                if(this.current_state != VisualState.selected)
+                    return this.slot.width();
+                return this.slot.width() + this.margin[1] +　this.margin[3];
+            },
+            height: function() {
+               if(this.current_state != VisualState.selected)
+                    return this.slot.height();
+               return this.slot.height() + this.margin[0] +　this.margin[2];
+            },
+            size: function() {
+                let left = - this.slot.width() / 2.0;
+                let top = - this.slot.height() / 2.0;
+                if(this.current_state == VisualState.selected){
+                    left = - this.width() / 2.0;
+                    top = - this.height() / 2.0;
+                }
+                return {left: left, top:  top, width: this.width(), height: this.height()}
+            },
+            style: {
+                normal: {
+                    ctx_style: {
+                    },
+                    draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
+                    }
+                },
+                hovered: {
+                    ctx_style: {
+                    },
+                    draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
+                    }
+                },
+                selected: {
+                    ctx_style: {
+                        fill_style: "#b6b6b6",
+                        stroke_style: "#ffcc00",
+                        line_width: 3,
+                        round_radius: 8
+                    },
+                   draw: function(ctx, ctx_style, lod) {
+                        this._draw.call(this, ctx, ctx_style, lod);
+                    }
+                },
+            },
+            setSlotsTranslation: function(){
+                this.slot.translate.x = - this.slot.width() / 2.0;
+                this.slot.translate.y = - this.slot.height() / 2.0;
+            },
+            _draw: function(ctx, ctx_style, lod) {
+                if(this.current_state == VisualState.selected)
+                    this._drawBackground(ctx, ctx_style, lod);
+                this._drawSlots(ctx, lod);
+            },
+        },
+
         Connector: {
             default_color: "#bdbbbb",
+            detect_distance: 1,
             style: {
                 normal: {
                     ctx_style: {
                         stroke_style: "#126acf",
                         line_width: 2,
                         line_join: "round",
-                        alpha: 1
+                        global_alpha: 1
                     },
-                    draw: function(connector, ctx, lod) {
-                        if(connector.out_node.getSlotCtxStyle)
-                            this.ctx_style.stroke_style = connector.out_node.getSlotCtxStyle(connector.out_slot_name).strokeStyle;
-                        else if (connector.in_node.getSlotCtxStyle)
-                            this.ctx_style.stroke_style = connector.in_node.getSlotCtxStyle(connector.in_slot_name).strokeStyle;
-                        connector._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod, force_alpha) {
+                        if(this.out_node.getSlotCtxStyle)
+                            ctx_style.stroke_style = this.out_node.getSlotCtxStyle(this.out_slot_name).stroke_style;
+                        else if (this.in_node.getSlotCtxStyle)
+                            ctx_style.stroke_style = this.in_node.getSlotCtxStyle(this.in_slot_name).stroke_style;
+                        this._draw.call(this, ctx, ctx_style, force_alpha);
                     }
                 },
                 hovered: {
@@ -1983,32 +2021,37 @@
                         stroke_style: "#f7bebe",
                         line_width: 2,
                         line_join: "round",
-                        alpha: 1
+                        global_alpha: 1
                     },
-                    draw: function(connector, ctx, lod) {
-                       connector._draw(ctx, this.ctx_style, lod);
+                    draw: function(ctx, ctx_style, lod, force_alpha) {
+                       this._draw.call(this, ctx, ctx_style, force_alpha);
                     }
                 }
             },
-            _draw: function(ctx, ctx_style, lod) {
+            _draw: function(ctx, ctx_style, force_alpha) {
                 ctx.save();
                 ctx.beginPath();
                 ctx.lineJoin = ctx_style.line_join;
                 ctx.lineWidth = ctx_style.line_width;
                 ctx.strokeStyle = ctx_style.stroke_style;
-                ctx.globalAlpha = ctx_style.alpha;
+                ctx.globalAlpha = force_alpha || ctx_style.global_alpha;
+                this.detect_distance = ctx.lineWidth;
                 const from = this.fromPos();
                 const to = this.toPos();
                 const distance = from.distanceTo(to);
                 ctx.moveTo(from.x, from.y);
+                this.cp1 = new Point(from.x + distance * 0.3, from.y);
+                this.cp2 = new Point(to.x - distance * 0.3, to.y);
                 ctx.bezierCurveTo(
-                    from.x + distance * 0.3, from.y,
-                    to.x - distance * 0.3, to.y,
-                    to.x, to.y
-                );
+                    this.cp1.x, this.cp1.y,
+                    this.cp2.x, this.cp2.y,
+                    to.x, to.y);
                 ctx.stroke();
                 ctx.restore();
             },
+            isCollided: function(scene_x, scene_y){
+                return isPointOnCubicCurve(scene_x, scene_y, this.fromPos(), this.cp1, this.cp2, this.toPos(), this.detect_distance);
+            }
         }
     }
 
@@ -2041,6 +2084,7 @@
         this.scene = scene;
         this.layers = {};
         this.is_rendering = false;
+        this.is_debug = false;
         this.render_method_for_layer = {
             "action": this._renderActions.bind(this),
             "nodes": this._renderNodes.bind(this),
@@ -2089,7 +2133,6 @@
         for (const layer of Object.values(this.layers)) {
             layer.updateLayerSize(width, heigth);
         }
-
         // when the canvas dimensions are set, the canvas is cleared
         // this means that we need to update the canvas immediately,
         // as it may be displayed before the next animation frame is
@@ -2097,10 +2140,6 @@
         this.renderOneFrame();
     };
 
-    /**
-     * @method getCanvasWindow
-     * @return {window} returns the window where the canvas is attached (the DOM root node)
-     */
     Renderer.prototype.getRenderWindow = function() {
         let doc = this.getCanvas().ownerDocument;
         return doc.defaultView || doc.parentWindow;
@@ -2145,6 +2184,10 @@
                 layer.render_method();
                 layer.re_render = false;
             }
+        }
+        if(this.is_debug) {
+            this.layers['debug'].render_method();
+            re_render_any_layer = true;
         }
         return re_render_any_layer;
     }
@@ -2238,6 +2281,97 @@
         this._ctxFromSceneToView(ctx);
     };
 
+    Renderer.prototype.debug = function() {
+        if(!this.is_debug) {
+            if(!this.layers['debug'])
+                this.layers['debug'] = new RenderedLayer(true, this.createNewCanvas(), this._renderDebugInfo.bind(this));
+            this.render_order_upwards.push('debug');
+            this.is_debug = true;
+        }
+        else {
+            this.render_order_upwards.pop();
+            this.is_debug = false;
+            this.forceRenderLayers();
+        }
+    };
+
+    Renderer.prototype._renderDebugInfo = function() {
+        let layer = this.layers['debug'];
+        let ctx = this.getDrawingContextFrom(layer.canvas);
+        this._ctxFromViewToScene(ctx);
+        const rect = this.scene.sceneRect();
+        ctx.clearRect(rect.left, rect.top, rect.width, rect.height);
+        this._renderBoundingRects(ctx);
+        this._renderMousePos(ctx);
+        this._ctxFromSceneToView(ctx);
+        this._renderUndoHistory(ctx);
+    };
+
+    Renderer.prototype._renderMousePos = function (ctx){
+        if(this.scene.last_scene_pos){
+            ctx.fillStyle = 'rgba(255,197,0,1)';
+            ctx.beginPath();
+            ctx.arc(this.scene.last_scene_pos.x, this.scene.last_scene_pos.y, 3, 0, Math.PI * 2, true);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    Renderer.prototype._renderBoundingRects = function(ctx){
+        let z_value = 0;
+        let line_height = 10;
+        for (const item of this.scene.collision_detector.allZOrderedBoundingRects()) {
+            ctx.fillStyle = 'rgba(249,59,81,0.3)';
+            ctx.fillRect(item.left, item.top, item.width, item.height);
+            ctx.fillStyle = 'rgba(255,193,0,0.71)';
+            let child_items = item.owner.collidable_components? Object.values(item.owner.collidable_components) : [];
+            for (const comp of child_items) {
+                this._ctxFromSceneToNode(ctx, item.owner);
+                let rect = comp.getBoundingRect();
+                ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+                this._ctxFromNodeToScene(ctx);
+            }
+            ctx.fillStyle = '#000000';
+            ctx.textAlign = "right";
+            ctx.textBaseline = "top";
+            if(!item.owner.title)
+                ctx.fillText("title: " + item.owner.constructor.name, item.left - 2, item.top);
+            ctx.fillText("z-order: " + z_value.toString(), item.left - 2, item.top + line_height);
+            ctx.fillText("state: " + item.owner.current_state, item.left, item.top + 2*line_height);
+            z_value++;
+        }
+    }
+
+    Renderer.prototype._renderUndoHistory = function(ctx){
+        ctx.save();
+        ctx.textBaseline = "top";
+        let undo_history = this.scene.undo_history
+        let length = undo_history.undo_history.length;
+        let reverse_index = undo_history.reverse_index;
+        let line_height = 15;
+        let text_x = 3;
+        let text_y = 3;
+        ctx.fontStyle = "20px Arial";
+        ctx.fillText("Undo History", text_x, text_y);
+        let max_rows = Math.max(Math.floor((this.scene.canvas.height - text_y) / line_height) - 1, 0) ;
+
+        let start_render_index = length - 1;
+        reverse_index = Math.min(reverse_index, start_render_index);
+        if(reverse_index + 1 >= max_rows){
+            start_render_index = start_render_index - (reverse_index + 1 - max_rows);
+        }
+        for (let i=0; i < Math.min(length, max_rows); i++){
+            let index = start_render_index - i;
+            if((length - index - 1) == this.scene.undo_history.reverse_index)
+                ctx.fillStyle = 'rgb(247,0,0)';
+            else
+                ctx.fillStyle = 'rgb(1,1,1)'
+            ctx.fillText(index.toString() + " " + undo_history.undo_history[index].desc,
+                text_x, text_y + (i + 1)*line_height);
+        }
+        ctx.restore();
+    }
+
     Renderer.prototype.startRender = function() {
         if (this.is_rendering) return;
         this.is_rendering = true;
@@ -2260,15 +2394,6 @@
         this.is_rendering = false;
     };
 
-    /**
-     * The Rect class defines a rectangle in the plane using number.
-     * @class Rect
-     * @param {Number} left
-     * @param {Number} top
-     * @param {Number} width
-     * @param {Number} height
-     * @constructor
-     */
     function Rect(left, top, width, height) {
         this.left = left;
         this.top = top;
@@ -2320,7 +2445,11 @@
         return v >= min && v <= max;
     }
 
-
+    /**
+     * the reverse index of the command to be undo = this.reverse_index, [0, undo_history.length]
+     * the reverse index of the command to be redo = this.reverse_index + 1
+     * @constructor
+     */
     function UndoHistory() {
         this.reverse_index = 0;
         this.undo_history = [];
@@ -2399,6 +2528,7 @@
         Object.defineProperty(this, "viewport", {
             get() { return this.view.viewport;}
         })
+        this.alpha_of_no_matced = 0.1;
     };
 
     Scene.prototype.resize = function(w, h) {
@@ -2506,6 +2636,7 @@
             return false;
         node.deselected();
         delete this.selected_nodes[node.id];
+        this.collision_detector.updateBoundingRect(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
         return true;
@@ -2528,6 +2659,7 @@
             return false;
         for (const node of Object.values(this.selected_nodes)) {
             node.deselected();
+            this.collision_detector.updateBoundingRect(node);
         }
         this.selected_nodes = {};
         if (!not_to_redraw)
@@ -2553,7 +2685,7 @@
             return false;
         }
         if (!(connector instanceof Connector)) {
-            console.warn(`The ${node} is not the instance of the Connector`);
+            console.warn(`The ${connector} is not the instance of the Connector`);
             return false;
         }
         return true;
@@ -2577,6 +2709,7 @@
         node.selected();
         this.selected_nodes[node.id] = node;
         this.collision_detector.setTopZOrder(node);
+        this.collision_detector.updateBoundingRect(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
         return true;
@@ -2608,6 +2741,7 @@
             delete this.selected_nodes[node.id];
         else
             this.selected_nodes[node.id] = node;
+        this.collision_detector.updateBoundingRect(node);
         if (!not_to_redraw)
             this.setToRender("nodes");
         return true;
@@ -2625,29 +2759,18 @@
         return true;
     };
 
-    Scene.prototype.removeSelectedNodes = function(not_to_redraw) {
-        if(Object.keys(this.selected_nodes).length === 0)
-            return false;
-        let remove_connector = false;
-        for (const node of Object.values(this.selected_nodes)) {
-            let connectors = this.graph.getConnectorsLinkedToNodes([node]);
-            for (const connector of connectors) {
-                this.collision_detector.removeBoundingRect(connector);
-                remove_connector = true;
-            }
-            this.graph.removeNode(node);
-            this.collision_detector.removeBoundingRect(node);
-        }
+    Scene.prototype.removeSelectedNodes = function() {
+        this.removeNodes(Object.values(this.selected_nodes));
         this.selected_nodes = {};
-        if (!not_to_redraw)
-            this.setToRender("nodes");
-        if(remove_connector)
-            this.setToRender("connectors")
         return true;
     };
 
     Scene.prototype.removeNode = function(node, not_to_redraw) {
         this.deselectNode(node);
+        let connectors = this.graph.getConnectorsLinkedToNodes([node]);
+        for (const connector of connectors) {
+            this.collision_detector.removeBoundingRect(connector);
+        }
         let did = this.graph.removeNode(node);
         if(!did)
             return false;
@@ -2658,15 +2781,15 @@
     };
 
     Scene.prototype.removeNodes = function(nodes, not_to_redraw) {
-        this.deselectNodes(nodes);
         let did = false;
         for (const node of nodes) {
-            did = this.removeNode(node) || did;
+            did = this.removeNode(node, true) || did;
         }
         if(!did)
             return false;
         if (!not_to_redraw)
             this.setToRender("nodes");
+            this.setToRender("connectors");
         return true;
     };
 
@@ -2700,11 +2823,19 @@
     Scene.prototype.translateNode= function(node, delta_x, delta_y){
          node.addTranslate(delta_x, delta_y);
          this.collision_detector.updateBoundingRect(node);
+         let connectors = this.getConnectorsLinkedToNodes([node]);
+         for (const connector of connectors) {
+            this.collision_detector.updateBoundingRect(connector);
+         }
     };
 
     Scene.prototype.setNodeTranslation = function(node, translation){
          node.translate = translation;
          this.collision_detector.updateBoundingRect(node);
+         let connectors = this.getConnectorsLinkedToNodes([node]);
+         for (const connector of connectors) {
+            this.collision_detector.updateBoundingRect(connector);
+         }
     };
 
     Scene.prototype.addConnector = function(connector, not_to_redraw) {
@@ -2717,35 +2848,38 @@
         if (connection.method == SlotConnectionMethod.null)
             return false;
         if (connection.method == SlotConnectionMethod.replace) {
-            if(!in_slot.allowMultipleConnections()) {
-                let connectors = this.graph.getConnectorsLinkedToSlot(in_node, in_slot);
-                this.collision_detector.removeBoundingRect(connectors[0]);
-            }
-            let out_slot = out_node.getSlot(connector.out_slot_name);
-            if(!out_slot.allowMultipleConnections()) {
-                let connectors = this.graph.getConnectorsLinkedToSlot(out_node, out_slot);
-                this.collision_detector.removeBoundingRect(connectors[0]);
-            }
+            let as_output = connection.args.node == out_node;
+            let connectors = this.graph.getConnectorsLinkedToSlot(connection.args.node, connection.args.slot, as_output);
+            this.collision_detector.removeBoundingRect(connectors[0]);
         }
         let did = this.graph.addConnector(connector);
+        let out_slot = out_node.getSlot(connector.out_slot_name);
+        if(in_slot.data_type == "*" && out_slot.data_type != "*")
+            in_slot.setDataType(out_slot.data_type);
+        if(out_slot.data_type == "*" && in_slot.data_type != "*")
+            out_slot.setDataType(in_slot.data_type);
         if(!did)
             return false;
         connector.pluginRenderingTemplate(this.rendering_template['Connector']);
         this.collision_detector.addBoundingRect(connector);
-        if (!not_to_redraw)
+        if (!not_to_redraw) {
+            this.setToRender("nodes");
             this.setToRender("connectors");
+        }
         return true;
     };
 
     Scene.prototype.addConnectors = function(connectors, not_to_redraw) {
         let did = false;
         for (const connector of connectors) {
-            did = this.addConnector(connectors, true) || did;
+            did = this.addConnector(connector, true) || did;
         }
         if(!did)
             return false;
-        if (!not_to_redraw)
+        if (!not_to_redraw) {
+            this.setToRender("nodes");
             this.setToRender("connectors");
+        }
         return true;
     };
 
@@ -2754,8 +2888,10 @@
         let did = this.graph.removeConnector(connector);
         if(!did)
             return false;
-        if (!not_to_redraw)
+        if (!not_to_redraw) {
+            this.setToRender("nodes");
             this.setToRender("connectors");
+        }
         return true;
     };
 
@@ -2766,8 +2902,10 @@
         }
         if(!did)
             return false;
-        if (!not_to_redraw)
+        if (!not_to_redraw) {
+            this.setToRender("nodes");
             this.setToRender("connectors");
+        }
         return true;
     };
 
@@ -2803,11 +2941,11 @@
             "connectors": []
         };
         config = config || localStorage.getItem("visual_programming_env_clipboard");
-        if (!config || config.is_empty) {
+        let clipboard_info = JSON.parse(config);
+        if (!clipboard_info || clipboard_info.is_empty) {
             return created;
         }
         created.is_empty = false;
-        let clipboard_info = JSON.parse(config);
         let new_nodes = {};
         for (const [old_id, node_config] of Object.entries(clipboard_info.nodes)) {
             let node = type_registry.createNode(node_config.type);
@@ -2834,12 +2972,16 @@
         return Object.values(this.graph.connectors);
     };
 
-    Scene.prototype.getConnectorsLinkedToNodes = function(nodes) {
-        this.graph.getConnectorsLinkedToNodes(nodes);
+    Scene.prototype.getConnector = function(from_node, from_slot_name, to_node, to_slot_name) {
+        return this.graph.getConnector(from_node, from_slot_name, to_node, to_slot_name);
     };
 
-    Scene.prototype.getConnectorsLinkedToSlot = function(node, slot) {
-        return this.graph.getConnectorsLinkedToSlot(node, slot);
+    Scene.prototype.getConnectorsLinkedToNodes = function(nodes) {
+        return this.graph.getConnectorsLinkedToNodes(nodes);
+    };
+
+    Scene.prototype.getConnectorsLinkedToSlot = function(node, slot, as_output) {
+        return this.graph.getConnectorsLinkedToSlot(node, slot, as_output);
     };
 
     Scene.prototype.visibleConnectors = function() {
@@ -2865,9 +3007,54 @@
     };
 
     Scene.prototype.draw = function(ctx, rect, lod) {
-        if (this.style)
-            this.style.draw(ctx, rect, lod);
+        let style = this.style[lod || 0];
+        if (style.image) {
+           this.draw_image_on_background(ctx, rect, style);
+        } else {
+            ctx.fillStyle = style.fill_color;
+            ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+        }
     };
+
+    Scene.prototype.draw_image_on_background = function(ctx, rect, style){
+        let img_need_loaded = !this.current_bg || this.current_bg.src != style.image;
+        if(img_need_loaded) {
+            this.current_bg = new Image();
+            this.current_bg.src = style.image;
+            this.current_bg.onload = () => {
+                this.renderer.forceRenderLayers(["background"]);
+            }
+        } else{
+            ctx.globalAlpha = style.global_alpha;
+            ctx.fillStyle = ctx.createPattern(this.current_bg, style.image_repetition);
+            ctx.imageSmoothingEnabled = true;
+            ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    Scene.prototype.forceAlphaOfNotMatchedSlotsAndConnectors = function(from_node, from_slot){
+        for (const connector of Object.values(this.graph.connectors))
+            connector.force_alpha = this.alpha_of_no_matced;
+        for(const node of Object.values(this.graph.nodes)){
+            for (const slot of node.allSlots()) {
+                if(slot == from_slot)
+                    continue;
+                let connection = from_node.allowConnectTo(from_slot.name, node, slot);
+                if(connection.method == SlotConnectionMethod.null)
+                    slot.force_alpha = this.alpha_of_no_matced;
+            }
+        }
+    }
+
+    Scene.prototype.cancelForceAlphaOfSlotsAndConnectors = function(){
+        for (const connector of Object.values(this.graph.connectors))
+            connector.force_alpha = null;
+        for(const node of Object.values(this.graph.nodes))
+            for (const slot of node.allSlots())
+                slot.force_alpha = null;
+    }
+
 
     Scene.prototype.addSceneCoordinateToEvent = function(e) {
         // we will move outside the canvas
@@ -2943,13 +3130,16 @@
         this.canvas.addEventListener("mousemove", this._mouseMove_callback, this.event_capture);
         this._mouseUp_callback = this.onMouseUp.bind(this);
         this.canvas.addEventListener("mouseup", this._mouseUp_callback, this.event_capture);
+        this._dblclick_callback = this.onDblclick.bind(this);
+        this.canvas.addEventListener("dblclick", this._dblclick_callback, this.event_capture);
+        this._contextmenu_callback = this.onContextMenu.bind(this);
+        this.canvas.addEventListener("contextmenu", this._contextmenu_callback, false);
         this._events_binded = true;
     }
 
     Scene.prototype.unbindEventToScene = function() {
         if (!this._events_binded)
             return;
-
         console.log("unbinding");
         this.canvas.removeEventListener("keydown", this._keyDown_callback);
         this._keyDown_callback = null;
@@ -2961,7 +3151,12 @@
         this._mouseMove_callback = null;
         this.canvas.removeEventListener("mouseup", this._mouseUp_callback);
         this._mouseUp_callback = null;
+        this.canvas.removeEventListener("dblclick", this._dblclick_callback);
+        this._dblclick_callback = null;
+        this.canvas.removeEventListener("contextmenu", this._contextmenu_callback);
+        this._contextmenu_callback = null;
         this._events_binded = false;
+        this.last_scene_pos = undefined;
     }
 
     Scene.prototype.onKeyDown = function(e) {
@@ -2995,28 +3190,28 @@
                 node2.translate= new Point(200, 100);
                 this.execCommand(new AddNodeCommand(this), [node2]);
                 let connector = new Connector(null, node, 'out_exec', node2, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [connector]);
+                this.addConnector(connector);
                 let node3 = type_registry.createNode("Image.Write");
                 node3.translate= new Point(400, 40);
                 this.execCommand(new AddNodeCommand(this), [node3]);
                 let connector2 = new Connector(null, node, 'image', node3, 'image');
-                this.execCommand(new AddConnectorCommand(this), [connector2]);
+                this.addConnector(connector2);
                 let connector3 = new Connector(null, node2, 'out_exec', node3, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [connector3]);
+                this.addConnector(connector3);
 
                 let node4 = type_registry.createNode("Image.Write");
                 node4.translate= new Point(550, 100);
                 this.execCommand(new AddNodeCommand(this), [ node4]);
                 let connector4 = new Connector(null, node3, 'out_exec', node4, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [connector4]);
+                this.addConnector(connector4);
                 let connector5 = new Connector(null, node2, 'image', node4, 'image');
-                this.execCommand(new AddConnectorCommand(this), [connector5]);
+                this.addConnector(connector5);
 
                 let connector6 = new Connector(null, node, 'image', node2, 'input');
-                this.execCommand(new AddConnectorCommand(this), [connector6]);
+                this.addConnector(connector6);
 
-                let connector8 = new Connector(null, node, 'out_exec', node2, 'in_exec');
-                this.execCommand(new AddConnectorCommand(this), [connector8]);
+                let connector8 = new Connector(null, node, 'out_exec', node4, 'in_exec');
+                this.addConnector(connector8);
 
                 let node5 = type_registry.createNode("Image.Image");
                 node5.translate= new Point(300, 100);
@@ -3029,6 +3224,10 @@
                 let node7 = type_registry.createNode("Comment");
                 node7.translate= new Point(20, 200);
                 this.execCommand(new AddNodeCommand(this), [ node7]);
+
+                let node8 = type_registry.createNode("RerouteNode");
+                node8.translate= new Point(100, 200);
+                this.execCommand(new AddNodeCommand(this), [ node8]);
                 //this.selectAllNodes();
                 e.preventDefault();
             }
@@ -3060,7 +3259,24 @@
             else if (e.code == "ArrowRight" && !(e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 NudgetNode(1, 0, this, e);
             }
+            else if(e.code == "KeyZ"){
+                let command = new RemoveAllConnectorsOfNodeCommand(this);
+                this.execCommand(command);
+            }
+            else if(e.code == "KeyQ"){
+                let command = new RemoveAllConnectorsOfSlotCommand(this);
+                this.execCommand(command);
+            }
+            else if (e.code == "KeyD" && e.ctrlKey && e.shiftKey) {
+                this.renderer.debug();
+            }
         }
+    }
+
+    Scene.prototype.onContextMenu = function(e) {
+        if(this.block_right_mouse_bubble)
+            e.stopPropagation();
+        e.preventDefault();
     }
 
     Scene.prototype.addSceneCoordinateIfHandleMouseEvent = function(e) {
@@ -3072,7 +3288,7 @@
     }
 
     Scene.prototype.leftMouseDownOnSlot = function(e, hit) {
-        let connectors = this.getConnectorsLinkedToSlot(hit.hit_node, hit.hit_component);
+        let connectors = this.getConnectorsLinkedToSlot(hit.hit_item, hit.hit_component);
         if (e.shiftKey)
             return;
         else if(e.altKey){
@@ -3080,20 +3296,21 @@
                 this.execCommand(new RemoveConnectorCommand(this), [connectors]);
             return;
         }
-        else if (e.ctrlKey && connectors.length>0) {
+        else if (e.ctrlKey && connectors.length>0 && !(hit.hit_item instanceof RerouteNode)) {
             this.execCommand(new ReconnectCommand(this), [e, connectors, hit.hit_component.isInput()]);
             return;
         }
-        this.execCommand(new ConnectCommand(this), [e, hit.hit_node, hit.hit_component.name]);
+        this.execCommand(new ConnectCommand(this), [e, hit.hit_item, hit.hit_component.name]);
     }
 
     Scene.prototype.leftMouseDownOnNode = function(e, hit) {
-        let border = whichBorder(hit.hit_local_x, hit.hit_local_y, hit.hit_node);
-        if (hit.hit_node.allow_resize && border)
-            this.execCommand(new ResizeCommand(this, hit.hit_node), [e, border]);
+        let border = whichBorder(hit.hit_local_x, hit.hit_local_y, hit.hit_item);
+        if (hit.hit_item.allow_resize && border)
+            this.execCommand(new ResizeCommand(this, hit.hit_item), [e, border]);
         else if (hit.hit_component instanceof NodeSlot) {
             this.leftMouseDownOnSlot(e, hit);
-        }
+        } else if(!this.hit_result.hit_item.allowToSelect(hit.hit_local_x, hit.hit_local_y))
+            this.leftMouseDownOnScene(e);
     }
 
     Scene.prototype.leftMouseDownOnScene = function(e) {
@@ -3101,20 +3318,19 @@
         this.bindEventToScene();
     }
 
-    Scene.prototype.leftMouseUp = function(e, hit) {
-        if (hit.is_hitted) {
+    Scene.prototype.onLeftMouseUp = function (e, hit) {
+        if (hit.is_hitted && hit.hit_item instanceof Node) {
             if (hit.hit_component)
                 return;
             if (e.ctrlKey && !e.shiftKey) {
-                this.toggleNodeSelection(hit.hit_node);
+                this.toggleNodeSelection(hit.hit_item);
                 return;
             }
-            this.selectNode(hit.hit_node, e.shiftKey);
+            if(hit.hit_item.allowToSelect(hit.hit_local_x, hit.hit_local_y))
+                this.selectNode(hit.hit_item, e.shiftKey);
+            else
+                this.deselectSelectedNodes();
         }
-    }
-
-    Scene.prototype.rightMouseUp = function(e, hit) {
-        //todo context menu
     }
 
     Scene.prototype.onMouseWheel = function(e) {
@@ -3147,17 +3363,17 @@
         this.pointer_down = e.button;
         this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (e.button == 0) {
-            if (!this.hit_result.is_hitted || !this.hit_result.hit_node)
+            if (!this.hit_result.is_hitted)
                 this.leftMouseDownOnScene(e);
-            else
+            else if(this.hit_result.hit_item instanceof Node)
                 this.leftMouseDownOnNode(e, this.hit_result);
         }
-        //e.preventDefault();
+        this.block_right_mouse_bubble = false;
     }
 
     Scene.prototype.mouseHover = function(e, new_hit) {
-        if(new_hit.is_hitted && new_hit.hit_node && new_hit.hit_node.allow_resize){
-            let border = whichBorder(new_hit.hit_local_x, new_hit.hit_local_y, new_hit.hit_node);
+        if(new_hit.is_hitted && new_hit.hit_item && new_hit.hit_item.allow_resize){
+            let border = whichBorder(new_hit.hit_local_x, new_hit.hit_local_y, new_hit.hit_item);
             if (border) {
                 let cursor = mapNodeBorderToCursor[border] || "default";
                 this.setCursor(cursor);
@@ -3170,26 +3386,26 @@
         else{
             this.setCursor( "default");
         }
-        if(this.hit_result &&
-            new_hit.hit_node == this.hit_result.hit_node &&
-            new_hit.hit_component == this.hit_result.hit_component) {
-            this.hit_result = new_hit;
+        let new_item = new_hit.hit_item;
+        let new_comp = new_hit.hit_component;
+        let old_item = this.hit_result != undefined? this.hit_result.hit_item : undefined;
+        let old_comp = this.hit_result != undefined? this.hit_result.hit_component : undefined;
+        if(this.hit_result && new_item == old_item && new_comp == old_comp)
             return;
-        }
         if(this.hit_result){
-            if(new_hit.hit_node != this.hit_result.hit_node && this.hit_result.hit_node)
-                this.hit_result.hit_node.mouseLeave(this.hit_result);
-            if (new_hit.hit_component != this.hit_result.hit_component && this.hit_result.hit_component)
-                this.hit_result.hit_component.mouseLeave();
+            if(new_item != old_item && old_item)
+                old_item.mouseLeave(this.hit_result);
+            if (new_comp != old_comp && old_comp)
+                old_comp.mouseLeave();
         }
         if (new_hit.is_hitted){
-            if(new_hit.hit_node && this.hit_result && new_hit.hit_node != this.hit_result.hit_node)
-                new_hit.hit_node.mouseEnter(new_hit);
-            if(new_hit.hit_component && this.hit_result.hit_component && new_hit.hit_component != this.hit_result.hit_component) {
-                new_hit.hit_component.mouseEnter();
-            }
+            if(new_item && (this.hit_result? new_item != old_item : true))
+                new_item.mouseEnter(new_hit);
+            if(new_comp && (this.hit_result? new_comp != old_comp : true))
+                new_comp.mouseEnter();
         }
         this.setToRender("nodes");
+        this.setToRender("connectors");
     }
 
     Scene.prototype.onMouseMove = function(e) {
@@ -3200,11 +3416,13 @@
             this.updateCommand([e, new_hit]);
         else if (this.pointer_down == null)
             this.mouseHover(e, new_hit);
-        else if (this.pointer_down == 0) {
-            this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_node]);
-        }
-        else if (this.pointer_down == 2)
+        else if (this.pointer_down == 0 && this.hit_result.hit_item instanceof Node
+            && this.hit_result.hit_item.allowToSelect(this.hit_result.hit_local_x, this.hit_result.hit_local_y)) {
+            this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_item]);
+        } else if (this.pointer_down == 2) {
+            this.block_right_mouse_bubble = true;
             this.pan(e.sceneMovementX, e.sceneMovementY);
+        }
         this.hit_result = new_hit;
         e.preventDefault();
     }
@@ -3221,66 +3439,32 @@
         if (!this.hit_result)
             this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (e.button == 0)
-            this.leftMouseUp(e, this.hit_result);
+            this.onLeftMouseUp(e, this.hit_result);
         else if (e.button == 2)
-            this.rightMouseUp(e, this.hit_result);
+            this.onRightMouseUp(e, this.hit_result);
         this.setCursor('default');
+        this.setToRender("nodes");
+        this.setToRender("connectors");
         e.preventDefault();
+    }
+
+    Scene.prototype.onRightMouseUp = function (e, hit_result) {
+        let node = hit_result.hit_item;
+        if (hit_result.is_hitted && node instanceof Node) {
+            if (!Object.keys(this.selected_nodes).includes(node.id.toString()))
+                this.selectNode(node, e.shiftKey || e.ctrlKey, true);
+        }
+    }
+
+    Scene.prototype.onDblclick = function(e){
+        debug_log('mouse double click ' +　e.button);
+        if (e.button == 0 &&　this.hit_result.hit_item instanceof Connector) {
+            this.execCommand(new AddRerouteToConnectorCommand(this), [this.hit_result.hit_item]);
+        }
     }
 
     Scene.prototype.getDocument = function() {
         return this.canvas.ownerDocument;
-    };
-
-    Scene.prototype.commands_for_node = [
-        RemoveSelectedNodesCommand, CutSelectedNodesCommand,
-        copySelectedNodeToClipboardCommand, DuplicateNodeCommand,
-        RemoveAllConnectorsOfNodeCommand];
-    Scene.prototype.commands_for_slot = [
-        RemoveAllConnectorsOfSlotCommand];
-
-    Scene.prototype.general_commands = [
-        CreateNodeCommand
-    ];
-
-    Scene.prototype.getAllContextCommands = function() {
-
-        let that = this;
-        function toContextCommand(command_class){
-            let command = new command_class(that);
-            return {name: command.constructor.name,
-            label: command.label || command.constructor.name,
-            exec: function(args){
-                that.execCommand(command, args);
-            }}
-        }
-
-        let context_commands = [];
-        for (const c of this.commands_for_node.concat(this.commands_for_slot).concat(this.general_commands)) {
-            let context_command = toContextCommand(c);
-            context_command.exec.bind(this);
-            context_commands.push(context_command);
-        };
-        return context_commands;
-    };
-
-    Scene.prototype.getContextCommands = function() {
-        let context_command_names = [];
-        if(this.hit_result.is_hitted){
-            if(this.hit_result.hit_node instanceof Node && !(this.hit_result.hit_node instanceof NodeSlot))
-            {
-                for (const c of this.commands_for_node) {
-                    context_command_names.push({command: c.name, args: []});
-                };
-            }
-            if(this.hit_result.hit_node instanceof NodeSlot)
-            {
-                 for (const c of this.commands_for_slot) {
-                    context_command_names.push({command: c.name, args: []});
-                };
-            }
-        }
-        return context_command_names;
     };
 
     Scene.prototype.serialize = function () {
@@ -3312,6 +3496,56 @@
         e.preventDefault();
     }
 
+    Scene.prototype.getContextCommands = function() {
+        let context_command_names = null;
+        if(this.hit_result.is_hitted){
+            context_command_names = [];
+            if(this.hit_result.hit_item instanceof Node && !(this.hit_result.hit_component instanceof NodeSlot))
+            {
+                for (const c of commands_for_node) {
+                    context_command_names.push({command: c.name, args: []});
+                };
+            }
+            else if(this.hit_result.hit_component instanceof NodeSlot)
+            {
+                 for (const c of commands_for_slot) {
+                    context_command_names.push({command: c.name, args: []});
+                };
+            }
+            else
+                context_command_names = null;
+        }
+        return context_command_names;
+    };
+
+    let commands_for_node = [
+        RemoveSelectedNodesCommand, CutSelectedNodesCommand,
+        copySelectedNodeToClipboardCommand, DuplicateNodeCommand,
+        RemoveAllConnectorsOfNodeCommand];
+    let commands_for_slot = [RemoveAllConnectorsOfSlotCommand];
+
+    let general_commands = [CreateNodeCommand];
+
+    getAllContextCommands = function() {
+        function toContextCommand(command_class){
+            let command = new command_class();
+            return {
+                name: command.constructor.name,
+                label: command.label || command.constructor.name,
+                exec: function(scene, args){
+                    command.updateScene(scene);
+                    scene.execCommand(command, args);
+            }}
+        }
+        let context_commands = [];
+        for (const c of commands_for_node.concat(commands_for_slot).concat(general_commands)) {
+            let context_command = toContextCommand(c);
+            context_command.exec.bind(this);
+            context_commands.push(context_command);
+        };
+        return context_commands;
+    };
+
     function Command() {}
 
     Command.prototype.label = "Command"; // shown in context menu
@@ -3325,6 +3559,9 @@
     Command.prototype.draw = function(ctx) {}
     Command.prototype.undo = function() {}
     Command.prototype.redo = function() {}
+    Command.prototype.updateScene = function(new_scene) {
+        this.scene = new_scene;
+    }
 
     function copySelectedNodeToClipboardCommand(scene) {
         this.label = "Copy";
@@ -3357,7 +3594,7 @@
         }
         for(const comment of comment_nodes){
             let overlap_nodes = this.scene.collision_detector.getItemsInside(comment.getBoundingRect(), Node);
-            for (const node of overlap_nodes) {
+            for (const node of overlap_nodes.reverse()) {
                 if(!this.moving_nodes.includes(node)){
                     this.moving_nodes.push(node);
                     this.start_state.push(new Point(node.translate.x, node.translate.y));
@@ -3446,7 +3683,9 @@
         this.node_border = node_border;
         let cursor = mapNodeBorderToCursor[this.node_border] || "all-scroll";
         this.scene.setCursor(cursor);
-        this.start_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
+        this.start_state = [
+            this.resized_node.translate.x, this.resized_node.translate.y,
+            this.resized_node.width(), this.resized_node.height()];
         this.support_undo = false;
     }
 
@@ -3480,20 +3719,26 @@
 
     ResizeCommand.prototype.end = function(e) {
         this.update(e);
-        this.end_state = [this.resized_node.translate, this.resized_node.width(), this.resized_node.height()];
+        this.end_state = [
+            this.resized_node.translate.x, this.resized_node.translate.y,
+            this.resized_node.width(), this.resized_node.height()];
         this.scene.setCursor('default');
     }
 
     ResizeCommand.prototype.undo = function() {
-        this.resized_node.translate = this.start_state[0];
-        this.resized_node.setWidth(this.start_state[1]);
-        this.resized_node.setHeight(this.start_state[2]);
+        this.resized_node.translate.x = this.start_state[0];
+        this.resized_node.translate.y = this.start_state[1];
+        this.resized_node.setWidth(this.start_state[2]);
+        this.resized_node.setHeight(this.start_state[3]);
+        this.scene.setToRender("nodes");
     }
 
     ResizeCommand.prototype.redo = function() {
-        this.resized_node.translate = this.end_state[0];
-        this.resized_node.setWidth(this.end_state[1]);
-        this.resized_node.setHeight(this.end_state[2]);
+        this.resized_node.translate.x = this.end_state[0];
+        this.resized_node.translate.y = this.end_state[1];
+        this.resized_node.setWidth(this.end_state[2]);
+        this.resized_node.setHeight(this.end_state[3]);
+        this.scene.setToRender("nodes");
     }
 
     Object.setPrototypeOf(ResizeCommand.prototype, Command.prototype);
@@ -3538,7 +3783,12 @@
         let top = Math.min(this.start_pos.y, this.end_pos.y);
         let width = Math.abs(this.start_pos.x - this.end_pos.x);
         let height = Math.abs(this.start_pos.y - this.end_pos.y);
-        let nodes = this.scene.collision_detector.getItemsOverlapWith(new Rect(left, top, width, height), Node);
+        let intersected_nodes = this.scene.collision_detector.getItemsOverlapWith(new Rect(left, top, width, height), Node);
+        let nodes = [];
+        for(const node of intersected_nodes){
+            if(node.allowToSelect(left - node.translate.x, top - node.translate.y, width, height))
+                nodes.push(node);
+        }
         this.toggleAll();
         this.deselectAll();
         if(this.key_down == 'ctrlKey') {
@@ -3592,8 +3842,8 @@
     function ConnectCommand(scene) {
         this.desc = "Create Connector";
         this.scene = scene;
-        //the target_node always follow the mouse move
-        this.target_node = {
+        //the dummy_target_node always follow the mouse move
+        this.dummy_target_node = {
             pos: new Point(0, 0),
             getConnectedAnchorPosInScene: function() {
                 return this.pos
@@ -3610,17 +3860,31 @@
         this.from_node = from_node;
         this.from_slot = from_node.getSlot(from_slot_name);
         this.last_hit_slot = this.from_slot;
-        this.target_node.pos = new Point(e.sceneX, e.sceneY);
+        this.dummy_target_node.pos = new Point(e.sceneX, e.sceneY);
+        // when unknown, drag from the reroute node
+        this.connector_dir_unknown = this.from_slot.isInput() == undefined;
+        // the link direction matters for rendering.
         if (this.from_slot.isInput())
-            this.connector = new Connector(null, this.target_node, null, this.from_node, from_slot_name);
+            this.connector = new Connector(null, this.dummy_target_node, null, this.from_node, from_slot_name);
         else
-            this.connector = new Connector(null, this.from_node, from_slot_name, this.target_node, null);
+            this.connector = new Connector(null, this.from_node, from_slot_name, this.dummy_target_node, null);
         this.connector.pluginRenderingTemplate(this.scene.rendering_template['Connector']);
+        this.scene.forceAlphaOfNotMatchedSlotsAndConnectors(this.from_node, this.from_slot);
+        this.scene.setToRender('nodes');
+        this.scene.setToRender('connectors');
+    }
+
+    ConnectCommand.prototype.setDragFrom = function(is_from_output) {
+        if ((!is_from_output && this.connector.out_node == this.from_node) ||
+            (is_from_output && this.connector.in_node == this.from_node)) {
+            [this.connector.out_node, this.connector.in_node] = swap(this.connector.out_node, this.connector.in_node);
+            [this.connector.out_slot_name, this.connector.in_slot_name] = swap(this.connector.out_slot_name, this.connector.in_slot_name);
+        }
     }
 
     ConnectCommand.prototype.update = function(e, new_hit) {
-        this.target_node.pos = new Point(e.sceneX, e.sceneY);
-        if(this.from_node == new_hit.hit_node && this.last_hit_slot == new_hit.hit_component)
+        this.dummy_target_node.pos = new Point(e.sceneX, e.sceneY);
+        if(this.from_node == new_hit.hit_item && this.last_hit_slot == new_hit.hit_component)
             return;
         if(this.last_hit_slot)
             this.last_hit_slot.mouseLeave();
@@ -3630,8 +3894,12 @@
         this.last_hit = new_hit;
         let target_slot = new_hit.hit_component;
         if (target_slot instanceof NodeSlot) {
-            this.connection = this.from_node.allowConnectTo(this.from_slot.name, new_hit.hit_node, target_slot);
-        }
+            if(this.connector_dir_unknown)
+                this.setDragFrom((this.last_hit.hit_item instanceof RerouteNode) || this.last_hit.hit_component.isInput());
+            this.connection = this.from_node.allowConnectTo(this.from_slot.name, new_hit.hit_item, target_slot);
+        } else if(this.connector_dir_unknown)
+             this.setDragFrom((e.sceneX - this.from_node.translate.x) >= this.from_slot.translate.x);
+        this.scene.forceAlphaOfNotMatchedSlotsAndConnectors(this.from_node, this.from_slot);
         this.scene.setToRender('nodes');
         this.scene.setToRender('connectors');
     }
@@ -3644,37 +3912,44 @@
                 return;
             }
             this.end_state = {};
-            let target_node = this.last_hit.hit_node;
+            let target_node = this.last_hit.hit_item;
             let target_slot = this.last_hit.hit_component;
+            let existed_connector = null;
             if (this.connection.method == SlotConnectionMethod.replace) {
-                let connector = null;
-                if(!this.from_slot.allowMultipleConnections()) {
-                    connector = this.scene.getConnectorsLinkedToSlot(this.from_node, this.from_slot)[0];
-                }
-                if(!target_slot.allowMultipleConnections()) {
-                    connector = this.scene.getConnectorsLinkedToSlot(target_node, target_slot);
-                }
-                if(connector)
+                let as_output = this.connection.args.node == this.from_node;
+                let existed_connector = this.scene.getConnectorsLinkedToSlot(this.connection.args.node,
+                    this.connection.args.slot, as_output)[0];
+                if(existed_connector)
                     this.end_state['removed_connector'] = [
-                        connector.out_node, connector.out_slot_name,
-                        connector.in_node, connector.in_slot_name
+                        existed_connector.out_node, existed_connector.out_slot_name,
+                        existed_connector.in_node, existed_connector.in_slot_name
                     ];
             }
-            if (this.from_slot.isInput()) {
+            if (this.connector.out_node == this.dummy_target_node) {
                 this.connector.out_node = target_node;
                 this.connector.out_slot_name = target_slot.name;
             } else {
                 this.connector.in_node = target_node;
                 this.connector.in_slot_name = target_slot.name;
             }
-            this.scene.addConnector(this.connector);
+            if(existed_connector)
+               if(existed_connector.out_node == this.connector.out_node
+                   && existed_connector.out_slot_name == this.connector.out_slot_name
+                   && existed_connector.in_node == this.connector.in_node
+                   && existed_connector.in_slot_name == this.connector.in_slot_name){
+                   this.support_undo = false;
+                   return;
+               }
+            this.scene.addConnector(this.connector, true);
             this.end_state['added_connector'] = [
                 this.connector.out_node, this.connector.out_slot_name,
                 this.connector.in_node, this.connector.in_slot_name
             ];
-        } else {
-            //todo search menu
+            this.support_undo = true;
+        } else{
+            this.support_undo = false;
         }
+        this.scene.cancelForceAlphaOfSlotsAndConnectors();
         this.scene.setToRender('nodes');
         this.scene.setToRender('connectors');
     }
@@ -3684,20 +3959,24 @@
             this.connector.draw(ctx, lod);
     }
 
+    ConnectCommand.prototype.replaceConnector = function(to_add, to_remove) {
+        if(to_add)
+            this.scene.addConnector(new Connector(null, to_add[0], to_add[1], to_add[2], to_add[3]), true);
+        // when scene adds connector will replace the old one, so we don't remove again here
+        if(!to_add && to_remove){
+            let connector = this.scene.getConnector(to_remove[0], to_remove[1], to_remove[2], to_remove[3]);
+            this.scene.removeConnector(connector, true);
+        }
+        this.scene.setToRender('nodes');
+        this.scene.setToRender('connectors');
+    }
+
     ConnectCommand.prototype.undo = function() {
-        let removed = this.end_state['removed_connector'];
-        if (removed)
-            this.scene.addConnector(new Connector(null, removed[0], removed[1], removed[2], removed[3]));
-        this.scene.removeConnector(this.connector);
+        this.replaceConnector(this.end_state['removed_connector'], this.end_state['added_connector']);
     }
 
     ConnectCommand.prototype.redo = function() {
-        let removed = this.end_state['removed_connector'];
-        if (removed) {
-            let connector = this.scene.getConnector(removed[0], removed[1], removed[2], removed[3]);
-            this.scene.removeConnector(connector);
-        }
-        this.scene.addConnector(this.connector);
+        this.replaceConnector(this.end_state['added_connector'], this.end_state['removed_connector']);
     }
 
     Object.setPrototypeOf(ConnectCommand.prototype, Command.prototype);
@@ -3705,49 +3984,54 @@
     function ReconnectCommand(scene) {
         this.desc = "Create Connector";
         this.scene = scene;
-        this.remove_connectors_command = new RemoveConnectorsCommand(this.scene);
-        this.add_connector_commands = [];
+        this._remove_connectors_command = new RemoveConnectorsCommand(this.scene);
+        this.connect_commands = [];
+    }
+
+    ReconnectCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._remove_connectors_command.updateScene(new_scene);
     }
 
     ReconnectCommand.prototype.exec = function(e, connectors, change_in_slot) {
-        this.remove_connectors_command.exec(connectors);
+        this._remove_connectors_command.exec(connectors);
         for (const connector of connectors) {
             let command = new ConnectCommand(this.scene);
             command.exec(e,
                 change_in_slot ? connector.out_node : connector.in_node,
                 change_in_slot ? connector.out_slot_name : connector.in_slot_name);
-            this.add_connector_commands.push(command);
+            this.connect_commands.push(command);
         }
     }
 
     ReconnectCommand.prototype.update = function(e, new_hit) {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.update(e, new_hit);
         }
     }
 
     ReconnectCommand.prototype.end = function(e) {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.end(e)
         }
     }
 
     ReconnectCommand.prototype.undo = function() {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.undo()
         }
-        this.remove_connectors_command.undo();
+        this._remove_connectors_command.undo();
     }
 
     ReconnectCommand.prototype.redo = function() {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.redo()
         }
-        this.remove_connectors_command.redo();
+        this._remove_connectors_command.redo();
     }
 
     ReconnectCommand.prototype.draw = function(ctx, lod) {
-        for (const command of this.add_connector_commands) {
+        for (const command of this.connect_commands) {
             command.draw(ctx, lod);
         }
     }
@@ -3759,30 +4043,21 @@
         this.scene = scene;
     }
 
-    AddNodeCommand.prototype.exec = function(node, connector) {
-        if(!node.translate)
-            node.translate = new Point(0,0);
+    AddNodeCommand.prototype.exec = function(node) {
         let did = this.scene.addNode(node);
         if(!did){
             this.support_undo = false;
             return;
         }
-        if (connector)
-            this.scene.addConnector(connector);
-        this.end_state = {
-            'node': node,
-            'connector': connector
-        };
+        this.end_state = node;
     }
 
     AddNodeCommand.prototype.undo = function() {
-        this.scene.removeNode(this.end_state['node']);
-        if (this.end_state['connector'])
-            this.scene.removeConnector(this.end_state['connector']);
+        this.scene.removeNode(this.end_state);
     }
 
     AddNodeCommand.prototype.redo = function() {
-        this.exec(null, this.end_state['node'], this.end_state['connector']);
+        this.scene.addNode(this.end_state);
     }
 
     Object.setPrototypeOf(AddNodeCommand.prototype, Command.prototype);
@@ -3793,11 +4068,17 @@
         this._add_node = new AddNodeCommand(this.scene);
     }
 
+    CreateNodeCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._add_node.updateScene(new_scene);
+    }
+
     CreateNodeCommand.prototype.exec = function(node_type) {
         let node = type_registry.createNode(node_type);
         node.translate = new Point(this.scene.last_scene_pos.x, this.scene.last_scene_pos.y);
         this._add_node.exec(node);
         this.support_undo = this._add_node.support_undo;
+        return node;
     }
 
     CreateNodeCommand.prototype.undo = function() {
@@ -3809,30 +4090,6 @@
     }
 
     Object.setPrototypeOf(CreateNodeCommand.prototype, Command.prototype);
-
-    function AddConnectorCommand(scene) {
-        this.desc = "Add Connector";
-        this.scene = scene;
-    }
-
-    AddConnectorCommand.prototype.exec = function(connector) {
-        let did = this.scene.addConnector(connector);
-        if(!did) {
-            this.support_undo = false;
-            return;
-        }
-        this.end_state = connector;
-    }
-
-    AddConnectorCommand.prototype.undo = function() {
-        this.scene.removeConnector(this.end_state);
-    }
-
-    AddConnectorCommand.prototype.redo = function() {
-        this.exec(null, this.end_state);
-    }
-
-    Object.setPrototypeOf(AddConnectorCommand.prototype, Command.prototype);
 
     function RemoveConnectorCommand(scene) {
         this.label = "Break Node Link(s)";
@@ -3854,7 +4111,7 @@
     }
 
     RemoveConnectorCommand.prototype.redo = function() {
-        this.exec(null, this.end_state);
+        this.exec(this.end_state);
     }
 
     Object.setPrototypeOf(RemoveConnectorCommand.prototype, Command.prototype);
@@ -3906,19 +4163,24 @@
     }
 
     RemoveConnectorsCommand.prototype.redo = function() {
-        this.exec(null, this.end_state);
+        this.exec(this.end_state);
     }
 
     Object.setPrototypeOf(RemoveConnectorsCommand.prototype, Command.prototype);
 
     function RemoveAllConnectorsOfNodeCommand(scene) {
-        this.desc = "Break Node Link(s)";
+        this.label = "Break Node Link(s)";
         this.scene = scene;
         this._removeConnectors = new RemoveConnectorCommand(this.scene);
     }
 
+    RemoveAllConnectorsOfNodeCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._removeConnectors.updateScene(new_scene);
+    }
+
     RemoveAllConnectorsOfNodeCommand.prototype.exec = function() {
-        let node = this.scene.hit_result.hit_node;
+        let node = this.scene.hit_result.hit_item;
         if(!node)
             return;
         let connectors = this.scene.getConnectorsLinkedToNodes([node]);
@@ -3937,13 +4199,18 @@
     Object.setPrototypeOf(RemoveAllConnectorsOfNodeCommand.prototype, Command.prototype);
 
     function RemoveAllConnectorsOfSlotCommand(scene) {
-        this.desc = "Break All Pin Link(s)";
+        this.label = "Break All Pin Link(s)";
         this.scene = scene;
         this._removeConnectors = new RemoveConnectorCommand(this.scene);
     }
 
+    RemoveAllConnectorsOfSlotCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._removeConnectors.updateScene(new_scene);
+    }
+
     RemoveAllConnectorsOfSlotCommand.prototype.exec = function() {
-        let node = this.scene.hit_result.hit_node;
+        let node = this.scene.hit_result.hit_item;
         let slot = this.scene.hit_result.hit_component;
         let connectors = this.scene.getConnectorsLinkedToSlot(node, slot);
         this._removeConnectors.exec(connectors);
@@ -3970,25 +4237,20 @@
         this.end_state = {
             "config": localStorage.getItem("visual_programming_env_clipboard")
         };
-        if (!this.end_state.config) {
-            this.support_undo = false;
-            return;
-        }
-        this.scene_x = this.scene.last_scene_pos.x;
-        this.scene_y = this.scene.last_scene_pos.y;
-        let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y);
-        this.support_undo = created.is_empty;
+        this.scene_x = this.scene.last_scene_pos.x || 0;
+        this.scene_y = this.scene.last_scene_pos.y || 0;
+        let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y, this.end_state.config);
+        this.support_undo = !created.is_empty;
         this.end_state.nodes = created.nodes;
-        this.end_state.connectors = created.connectors;
     }
 
     PasteFromClipboardCommand.prototype.undo = function() {
         this.scene.removeNodes(this.end_state.nodes);
-        this.scene.removeConnector(this.end_state.connectors);
     }
 
     PasteFromClipboardCommand.prototype.redo = function() {
-        this.scene.pasteFromClipboard(this.scene_x, this.scene_y, this.end_state.config);
+        let created = this.scene.pasteFromClipboard(this.scene_x, this.scene_y, this.end_state.config);
+        this.end_state.nodes = created.nodes;
     }
 
     Object.setPrototypeOf(PasteFromClipboardCommand.prototype, Command.prototype);
@@ -3996,8 +4258,13 @@
     function CutSelectedNodesCommand(scene) {
         this.label = "Cut";
         this.scene = scene;
-        this.delete_command = new RemoveSelectedNodesCommand(this.scene);
-        this.desc = this.delete_command.desc;
+        this._delete_command = new RemoveSelectedNodesCommand(this.scene);
+        this.desc = this._delete_command.desc;
+    }
+
+    CutSelectedNodesCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._delete_command.updateScene(new_scene);
     }
 
     CutSelectedNodesCommand.prototype.exec = function() {
@@ -4006,16 +4273,16 @@
             this.support_undo = false;
             return;
         }
-        let did = this.delete_command.exec();
-        this.support_undo = did;
+        this._delete_command.exec();
+        this.support_undo = this._delete_command.support_undo;
     }
 
     CutSelectedNodesCommand.prototype.undo = function() {
-        this.delete_command.undo();
+        this._delete_command.undo();
     }
 
     CutSelectedNodesCommand.prototype.redo = function() {
-        this.delete_command.redo();
+        this._delete_command.redo();
     }
 
     Object.setPrototypeOf(CutSelectedNodesCommand.prototype, Command.prototype);
@@ -4023,8 +4290,13 @@
     function DuplicateNodeCommand(scene) {
         this.label = "Duplicate";
         this.scene = scene;
-        this.paste_command = new PasteFromClipboardCommand(this.scene);
-        this.desc = this.paste_command.desc;
+        this._paste_command = new PasteFromClipboardCommand(this.scene);
+        this.desc = this._paste_command.desc;
+    }
+
+    DuplicateNodeCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._paste_command.updateScene(new_scene);
     }
 
     DuplicateNodeCommand.prototype.exec = function() {
@@ -4033,26 +4305,65 @@
             this.support_undo = false;
             return;
         }
-        this.paste_command.exec();
+        this._paste_command.exec();
     }
 
     DuplicateNodeCommand.prototype.undo = function() {
-        this.paste_command.undo();
+        this._paste_command.undo();
     }
 
     DuplicateNodeCommand.prototype.redo = function() {
-        this.paste_command.redo();
+        this._paste_command.redo();
     }
 
     Object.setPrototypeOf(DuplicateNodeCommand.prototype, Command.prototype);
 
-    //****************************************
+    function AddRerouteToConnectorCommand(scene) {
+        this.scene = scene;
+        this._add_command = new CreateNodeCommand(this.scene);
+        this.reroute = undefined;
+        this.reroute_pos = undefined;
+        this.output_connector = undefined;
+        this.input_connector = undefined;
+        this.origin_connector = undefined;
+        this.desc = "Create Reroute Node";
+    }
 
-    /**
-     *
-     * @param {Scene} scene
-     * @constructor
-     */
+    AddRerouteToConnectorCommand.prototype.updateScene = function(new_scene) {
+        Command.prototype.updateScene.call(this, new_scene);
+        this._add_command.updateScene(new_scene);
+    }
+
+    AddRerouteToConnectorCommand.prototype.replaceConnectors = function(connector){
+        this.reroute_pos = [this.reroute.translate.x, this.reroute.translate.y];
+        this.origin_connector = connector;
+        this.input_connector = new Connector(null, connector.out_node, connector.out_slot_name, this.reroute, this.reroute.slot_name);
+        this.scene.addConnector(this.input_connector, true);
+        this.output_connector = new Connector(null, this.reroute, this.reroute.slot_name, connector.in_node, connector.in_slot_name),
+        this.scene.addConnector(this.output_connector, true);
+        this.scene.setToRender("nodes");
+        this.scene.setToRender("connectors");
+    }
+
+    AddRerouteToConnectorCommand.prototype.exec = function(connector) {
+        this.reroute = this._add_command.exec('RerouteNode');
+        this.replaceConnectors(connector);
+    }
+
+    AddRerouteToConnectorCommand.prototype.undo = function() {
+        this._add_command.undo();
+        this.scene.addConnector(this.origin_connector);
+    }
+
+    AddRerouteToConnectorCommand.prototype.redo = function() {
+        let old_pos = this.reroute_pos;
+        this._add_command.redo();
+        [this.reroute.translate.x, this.reroute.translate.y] = old_pos;
+        this.replaceConnectors(this.origin_connector);
+    }
+
+    Object.setPrototypeOf(AddRerouteToConnectorCommand.prototype, Command.prototype);
+
     function View(scene) {
         this.scene = scene;
         // (pos_scene + translate) * scale = pos_view
@@ -4147,9 +4458,9 @@
             array.splice(index, 1);
     }
 
-    function HitResult(is_hitted, hit_node, hit_local_x, hit_local_y, hit_component) {
+    function HitResult(is_hitted, hit_item, hit_local_x, hit_local_y, hit_component) {
         this.is_hitted = is_hitted;
-        this.hit_node = hit_node;
+        this.hit_item = hit_item;
         this.hit_local_x = hit_local_x;
         this.hit_local_y = hit_local_y;
         this.hit_component = hit_component;
@@ -4173,7 +4484,10 @@
 
     CollisionDetector.prototype.addExcludeCommentsBoundingRect = function(rect) {
         this._boundingRectsExcludeComments[rect.owner.id] = rect;
-        this._idsOfNoCommentsWithDescendZOrder.unshift(rect.owner.id);
+        if(rect.owner instanceof Connector)
+            this._idsOfNoCommentsWithDescendZOrder.push(rect.owner.id);
+        else
+            this._idsOfNoCommentsWithDescendZOrder.unshift(rect.owner.id);
     };
 
     CollisionDetector.prototype.addCommentNodeBoundingRect = function(rect) {
@@ -4247,12 +4561,17 @@
         this.addBoundingRect(item)
     };
 
-    CollisionDetector.prototype.getHitResultAtPos = function(x, y) {
+    CollisionDetector.prototype.getHitResultAtPos = function(x, y, type) {
+        let type_match = type ? rect.owner instanceof type : true;
         for (const rect of this.allZOrderedBoundingRects()) {
-            if (rect.owner instanceof Node && rect.isInside(x, y)) {
-                const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
-                const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
-                return new HitResult(true, rect.owner, local_pos.x, local_pos.y, hit_component);
+            if (type_match && rect.isInside(x, y)){
+                if(rect.owner.isCollided == undefined || rect.owner.isCollided(x, y)){
+                    if(rect.owner instanceof Connector)
+                        return new HitResult(true, rect.owner, undefined, undefined, undefined);
+                    const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
+                    const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
+                    return new HitResult(true, rect.owner, local_pos.x, local_pos.y, hit_component);
+                }
             }
         }
         return new HitResult(false);
@@ -4285,7 +4604,7 @@
 
     CollisionDetector.prototype.getItemsInside = function(rect, include_type) {
         let insides = [];
-        for (const r of this.allBoundingRects()) {
+        for (const r of this.allZOrderedBoundingRects()) {
             let include = include_type ? r.owner instanceof include_type : true;
             if (include && r.isInsideRect(rect)) {
                 insides.push(r.owner);
@@ -4297,27 +4616,16 @@
     //API *************************************************
     //like rect but rounded corners
     if (typeof(window) != "undefined" && window.CanvasRenderingContext2D && !window.CanvasRenderingContext2D.prototype.roundRect) {
-        window.CanvasRenderingContext2D.prototype.roundRect = function(
-            x,
-            y,
-            w,
-            h,
-            radius,
-            radius_low
-        ) {
-            var top_left_radius = 0;
-            var top_right_radius = 0;
-            var bottom_left_radius = 0;
-            var bottom_right_radius = 0;
-
+        window.CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radius, radius_low) {
+            let top_left_radius = 0;
+            let top_right_radius = 0;
+            let bottom_left_radius = 0;
+            let bottom_right_radius = 0;
             if (radius === 0) {
                 this.rect(x, y, w, h);
                 return;
             }
-
-            if (radius_low === undefined)
-                radius_low = radius;
-
+            radius_low = radius_low || radius;
             //make it compatible with official one
             if (radius != null && radius.constructor === Array) {
                 if (radius.length == 1)
@@ -4339,30 +4647,21 @@
                 bottom_left_radius = radius_low || 0;
                 bottom_right_radius = radius_low || 0;
             }
-
             //top right
             this.moveTo(x + top_left_radius, y);
             this.lineTo(x + w - top_right_radius, y);
             this.quadraticCurveTo(x + w, y, x + w, y + top_right_radius);
-
             //bottom right
             this.lineTo(x + w, y + h - bottom_right_radius);
-            this.quadraticCurveTo(
-                x + w,
-                y + h,
-                x + w - bottom_right_radius,
-                y + h
-            );
-
+            this.quadraticCurveTo(x + w, y + h, x + w - bottom_right_radius, y + h);
             //bottom left
             this.lineTo(x + bottom_left_radius, y + h);
             this.quadraticCurveTo(x, y + h, x, y + h - bottom_left_radius);
-
             //top left
             this.lineTo(x, y + top_left_radius);
             this.quadraticCurveTo(x, y, x + top_left_radius, y);
         };
-    } //if
+    }
 
     function distance(a, b) {
         return Math.sqrt(
@@ -4383,6 +4682,78 @@
             ")"
         );
     }
+
+    function isPointOnCubicCurve(x, y, p0, p1, p2, p3, distance){
+        // rearrange cubic bezier function to cubic function of t
+        // p = p_0(1 - t)^3 + 3p_1t(1 - t)^2 + 3p_2t^2(1 - t) + p_3t^3
+        // t^3(p_3 - 3p_2 + 3p_1 - p_0) + t^23(p_2 - 2p_1 + p_0) + t3(p_1 - p_0) + p_0 - p = 0
+        function coefficient(v0, v1, v2, v3){
+            let a = v3 - 3*v2 + 3*v1 - v0;
+            let b = 3*(v2 - 2*v1 + v0);
+            let c = 3*(v1 - v0);
+            return [a, b, c]
+        }
+        let [a, b, c] = coefficient(p0.x, p1.x, p2.x, p3.x);
+        let d = p0.x - x;
+        let roots = solveCubic(a, b, c, d);
+        [a, b, c] = coefficient(p0.y, p1.y, p2.y, p3.y);
+        d = p0.y
+        for(const t of roots){
+            let y_on_curve = a*Math.pow(t, 3) + b*Math.pow(t, 2) + c*t + d;
+            if(Math.abs(y - y_on_curve) < distance){
+                return true;
+            }
+        }
+        return false;
+    }
+    //from https://stackoverflow.com/questions/27176423/function-to-solve-cubic-equation-analytically
+    function solveCubic(a, b, c, d) {
+        if (Math.abs(a) < 1e-8) { // Quadratic case, ax^2+bx+c=0
+            a = b; b = c; c = d;
+            if (Math.abs(a) < 1e-8) { // Linear case, ax+b=0
+                a = b; b = c;
+                if (Math.abs(a) < 1e-8) // Degenerate case
+                    return [];
+                return [-b/a];
+            }
+
+            let D = b*b - 4*a*c;
+            if (Math.abs(D) < 1e-8)
+                return [-b/(2*a)];
+            else if (D > 0)
+                return [(-b+Math.sqrt(D))/(2*a), (-b-Math.sqrt(D))/(2*a)];
+            return [];
+        }
+
+        // Convert to depressed cubic t^3+pt+q = 0 (subst x = t - b/3a)
+        let p = (3*a*c - b*b)/(3*a*a);
+        let q = (2*b*b*b - 9*a*b*c + 27*a*a*d)/(27*a*a*a);
+        let roots;
+
+        if (Math.abs(p) < 1e-8) { // p = 0 -> t^3 = -q -> t = -q^1/3
+            roots = [Math.cbrt(-q)];
+        } else if (Math.abs(q) < 1e-8) { // q = 0 -> t^3 + pt = 0 -> t(t^2+p)=0
+            roots = [0].concat(p < 0 ? [Math.sqrt(-p), -Math.sqrt(-p)] : []);
+        } else {
+            let D = q*q/4 + p*p*p/27;
+            if (Math.abs(D) < 1e-8) {       // D = 0 -> two roots
+                roots = [-1.5*q/p, 3*q/p];
+            } else if (D > 0) {             // Only one real root
+                let u = Math.cbrt(-q/2 - Math.sqrt(D));
+                roots = [u - p/(3*u)];
+            } else {                        // D < 0, three roots, but needs to use complex numbers/trigonometric solution
+                let u = 2*Math.sqrt(-p/3);
+                let t = Math.acos(3*q/p/u)/3;  // D < 0 implies p < 0 and acos argument in [-1..1]
+                let k = 2*Math.PI/3;
+                roots = [u*Math.cos(t), u*Math.cos(t-k), u*Math.cos(t-2*k)];
+            }
+        }
+        // Convert back from depressed cubic
+        for (let i = 0; i < roots.length; i++)
+            roots[i] -= b/(3*a);
+        return roots;
+    }
+
 })(this);
 
 //import './nodes/scipy.js'

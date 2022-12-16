@@ -22,20 +22,20 @@
         // CDN testing ---
         // "@lumino": "https://cdn.jsdelivr.net/npm/@lumino",
 
-        // Local testing ---
-        "@lumino/algorithm": "https://cdn.jsdelivr.net/npm/@lumino/algorithm/dist/index.min",
-        "@lumino/collections": "https://cdn.jsdelivr.net/npm/@lumino/collections/dist/index.min",
-        "@lumino/properties": "https://cdn.jsdelivr.net/npm/@lumino/properties/dist/index.min",
-        "@lumino/messaging": "https://cdn.jsdelivr.net/npm/@lumino/messaging/dist/index.min",
-        "@lumino/signaling": "https://cdn.jsdelivr.net/npm/@lumino/signaling/dist/index.min",
-        "@lumino/disposable": "https://cdn.jsdelivr.net/npm/@lumino/disposable/dist/index.min",
-        "@lumino/domutils": "https://cdn.jsdelivr.net/npm/@lumino/domutils/dist/index.min",
-        "@lumino/coreutils": "https://cdn.jsdelivr.net/npm/@lumino/coreutils/dist/index.min",
-        "@lumino/keyboard": "https://cdn.jsdelivr.net/npm/@lumino/keyboard/dist/index.min",
-        "@lumino/commands": "https://cdn.jsdelivr.net/npm/@lumino/commands/dist/index.min",
-        "@lumino/dragdrop": "https://cdn.jsdelivr.net/npm/@lumino/dragdrop/dist/index.min",
-        "@lumino/virtualdom": "https://cdn.jsdelivr.net/npm/@lumino/virtualdom/dist/index.min",
-        "@lumino/widgets": "https://cdn.jsdelivr.net/npm/@lumino/widgets/dist/index.min",
+         // Local testing ---
+        "@lumino/algorithm": "./lumino/packages/algorithm/dist/index.min",
+        "@lumino/collections": "./lumino/packages/collections/dist/index.min",
+        "@lumino/properties": "./lumino/packages/properties/dist/index.min",
+        "@lumino/messaging": "./lumino/packages/messaging/dist/index.min",
+        "@lumino/signaling": "./lumino/packages/signaling/dist/index.min",
+        "@lumino/disposable": "./lumino/packages/disposable/dist/index.min",
+        "@lumino/domutils": "./lumino/packages/domutils/dist/index.min",
+        "@lumino/coreutils": "./lumino/packages/coreutils/dist/index.min",
+        "@lumino/keyboard": "./lumino/packages/keyboard/dist/index.min",
+        "@lumino/commands": "./lumino/packages/commands/dist/index.min",
+        "@lumino/dragdrop": "./lumino/packages/dragdrop/dist/index.min",
+        "@lumino/virtualdom": "./lumino/packages/virtualdom/dist/index.min",
+        "@lumino/widgets": "./lumino/packages/widgets/dist/index",
         "@litegraph": "../../notebook/static/components/litegraph/litegraph"
 
       }
@@ -50,6 +50,21 @@
     requirejs(['./src/index'], function (main) {
       main();
     });
+    function myFunction(){
+    //  setTimeout(function(){
+      //   tab_bars = document.getElementsByClassName('lm-TabBar-tab p-TabBar-tab lm-mod-closable p-mod-closable');
+      //   for(const tab_bar of tab_bars) {
+      //   tab_bar.addEventListener('mousedown', function (event) {
+      //     console.log("hdfsd");
+      //     document.search_menu.close();
+      //   });
+      // };
+    //     document.addEventListener('keydown', function(){
+    //       console.log('dfs');
+    //       document.search_menu.close();
+    //     }, true);
+    // }, 2000);
+    }
   </script>
 </body>
 
