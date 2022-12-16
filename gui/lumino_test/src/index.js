@@ -58,8 +58,18 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
     dock.addWidget(createEditor(graph1));
     dock.addWidget(createEditor(graph2));
+    dock.addWidget(createEditor(graph2));
 
     main.addWidget(dock);
+
+    document.dock = dock;
+
+  //   for (const tab_bar of dock.tabBars()) {
+  //       tab_bar.currentChanged.connect(function(sender, args){
+  //       console.log('s')
+  // });
+  //
+  //   }
     main.id = 'main';
     window.onresize = function () {
       main.update();
@@ -73,13 +83,19 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
     let r1 = createMembersPanel(graph);
     let r2 = createGraphEditor(graph);
+    let r4 = createGraphEditor(graph);
+    let r5 = createGraphEditor(graph);
     let r3 = createPropertiesPanel(graph);
     r1.source = dock;
     r2.source = dock;
     r3.source = dock;
+    r4.source = dock;
+    r5.source = dock;
     dock.addWidget(r1);
     dock.addWidget(r2,{ mode: 'split-right', ref: r1 });
     dock.addWidget(r3,{ mode: 'split-right', ref: r2 });
+    dock.addWidget(r4,{ mode: 'split-right', ref: r2 });
+    dock.addWidget(r5,{ mode: 'split-right', ref: r2 });
     dock.addClass('content');
 
     dock.title.label = graph.name;
