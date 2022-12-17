@@ -1,32 +1,23 @@
-define(['@lumino/commands', '@lumino/widgets'], function (
-  lumino_commands,
-  lumino_widgets,
-) {
-
-
-  const CommandRegistry = lumino_commands.CommandRegistry;
-  const BoxPanel = lumino_widgets.BoxPanel;
-  const ContextMenu = lumino_widgets.ContextMenu;
-  const DockPanel = lumino_widgets.DockPanel;
-  const Menu = lumino_widgets.Menu;
-  const MenuBar = lumino_widgets.MenuBar;
+define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumino_widgets) {
   const Widget = lumino_widgets.Widget;
+  const DockPanel = lumino_widgets.DockPanel;
+  const ContextMenu = lumino_widgets.ContextMenu;
+  const Menu = lumino_widgets.Menu;
+  const CommandRegistry = lumino_commands.CommandRegistry;
   const commands = new CommandRegistry();
 
-
-  function createBar(){
-    let bar = new MenuBar();
-
+  function createMenuBar(commands){
+    let bar = new lumino_widgets.MenuBar();
     let file = new Menu({commands:commands});
     file.title.label = "File";
-    file.addItem({command: "file:new"})
-    file.addItem({command: "file:load"})
+    file.addItem({command: "file:new"});
+    file.addItem({command: "file:load"});
     file.title.mnemonic = 0;
 
     let edit = new Menu({commands:commands});
-    edit.addItem({command: "file:load"})
-    edit.addItem({command: "editor:undo"})
-    edit.addItem({command: "editor:redo"})
+    edit.addItem({command: "file:load"});
+    edit.addItem({command: "editor:undo"});
+    edit.addItem({command: "editor:redo"});
     edit.title.label = "Edit";
     edit.title.mnemonic = 0;
 
@@ -977,7 +968,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
   }
 
   function main(){
-    let bar = createBar();
+    let bar = createMenuBar(commands);
     let dock = createDock();
     Widget.attach(bar,document.body);
     Widget.attach(dock,document.body);
