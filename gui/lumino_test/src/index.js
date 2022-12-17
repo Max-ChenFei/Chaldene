@@ -26,34 +26,25 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     return bar;
   }
 
-  function createDock(){
-    //wraps the dockpanel in a box panel for resize issues?
-    let main = new BoxPanel({ direction: 'left-to-right', spacing: 0 });
-    let dock = new DockPanel({tabsConstrained: true});
+  function addNewEditor(editor_panel, tab_bar){
+    editor_panel.editors_count +=1;
+    let new_editor = createEditor({"name": `New Editor ${editor_panel.editors_count}`});
+    let last_widget = tab_bar? tab_bar.titles[tab_bar.titles.length-1].owner : null;
+    editor_panel.addWidget(new_editor, {ref: last_widget});
+    editor_panel.activateWidget(new_editor);
+  }
 
-    let graph1 = {name: "main"};
-    let graph2 = {name: "func1"};
-
-
-    dock.addWidget(createEditor(graph1));
-    dock.addWidget(createEditor(graph2));
-    dock.addWidget(createEditor(graph2));
-
-    main.addWidget(dock);
-
-    document.dock = dock;
-
-  //   for (const tab_bar of dock.tabBars()) {
-  //       tab_bar.currentChanged.connect(function(sender, args){
-  //       console.log('s')
-  // });
-  //
-  //   }
-    main.id = 'main';
+  function createEditorPanel(){
+    let editor_panel = new DockPanel({tabsConstrained: true, addButtonEnabled : true});
+    editor_panel.editors_count = 0;
+    document.dock = editor_panel;
+    addNewEditor(editor_panel);
+    editor_panel.addRequested.connect(addNewEditor);
+    editor_panel.id = 'main'; //set main otherwise the height won't 100%
     window.onresize = function () {
-      main.update();
+      editor_panel.update();
     };
-    return main;
+    return editor_panel;
   }
 
   function createEditor(graph){
@@ -969,7 +960,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
   function main(){
     let bar = createMenuBar(commands);
-    let dock = createDock();
+    let dock = createEditorPanel();
     Widget.attach(bar,document.body);
     Widget.attach(dock,document.body);
     let focus_tracker = new EditorFocusTracker(document.dock);
