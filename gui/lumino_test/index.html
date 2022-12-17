@@ -1,18 +1,10 @@
-<!--
-  ~ Copyright (c) Jupyter Development Team.
-  ~ Distributed under the terms of the Modified BSD License.
--->
-
 <!DOCTYPE html>
 <html>
-
 <head>
   <meta charset="UTF-8">
-  <title>example-dockpanel-iife</title>
+  <title>WVPE</title>
 
   <link href="http://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
-
-  <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.auto.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.js"></script>
   <script src="../../notebook/static/components/litegraph/litegraph.js"></script>
   <script>
@@ -37,7 +29,6 @@
         "@lumino/virtualdom": "./lumino/packages/virtualdom/dist/index.min",
         "@lumino/widgets": "./lumino/packages/widgets/dist/index",
         "@litegraph": "../../notebook/static/components/litegraph/litegraph"
-
       }
     });
   </script>
@@ -50,21 +41,6 @@
     requirejs(['./src/index'], function (main) {
       main();
     });
-    function myFunction(){
-    //  setTimeout(function(){
-      //   tab_bars = document.getElementsByClassName('lm-TabBar-tab p-TabBar-tab lm-mod-closable p-mod-closable');
-      //   for(const tab_bar of tab_bars) {
-      //   tab_bar.addEventListener('mousedown', function (event) {
-      //     console.log("hdfsd");
-      //     document.search_menu.close();
-      //   });
-      // };
-    //     document.addEventListener('keydown', function(){
-    //       console.log('dfs');
-    //       document.search_menu.close();
-    //     }, true);
-    // }, 2000);
-    }
   </script>
 </body>
 
