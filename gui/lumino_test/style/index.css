@@ -44,13 +44,10 @@ body {
 
 #main {
   flex: 1 1 auto;
+  padding: 4px;
 }
 
 #palette {
   min-width: 300px;
   border-right: 1px solid #dddddd;
-}
-
-#dock {
-  padding: 4px;
 }
