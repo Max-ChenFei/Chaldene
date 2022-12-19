@@ -42,7 +42,7 @@ body {
   flex: 0 0 auto;
 }
 
-#main {
+#editorPanel {
   flex: 1 1 auto;
   padding: 4px;
 }

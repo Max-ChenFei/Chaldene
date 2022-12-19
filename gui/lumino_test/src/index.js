@@ -42,7 +42,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     editor_panel.editors_count = 0;
     addNewEditor(editor_panel);
     editor_panel.addRequested.connect(addNewEditor);
-    editor_panel.id = 'main'; //set main otherwise the height won't 100%
+    editor_panel.id = 'editorPanel';
     window.onresize = function () {
       editor_panel.update();
     };
