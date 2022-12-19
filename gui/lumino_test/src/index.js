@@ -324,6 +324,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     canvas.style.margin = "0px";
     canvas.style.height="100%";
     canvas.style.width = "100%";
+    canvas.tabIndex = -1;
     node.appendChild(canvas);
     function getRegisteredNodes(reg){
         let cats = reg.getNodeTypesInAllCategories();
