@@ -3582,6 +3582,108 @@
         this.scene = new_scene;
     }
 
+    function CRUDCommand(scene, members) {
+        this._ctor(scene, members);
+    }
+
+    CRUDCommand.prototype._ctor = function (scene, members){
+        this.scene = scene;
+        this.support_undo = false;
+        this.members = members;
+    }
+
+    Object.setPrototypeOf(CRUDCommand.prototype, Command.prototype);
+
+    function GetAllMembersCommand(scene, members) {
+        this._ctor(scene, members);
+    }
+
+    GetAllMembersCommand.prototype.exec = function(){
+        return Object.values(this.members);
+    };
+
+    Object.setPrototypeOf(GetAllMembersCommand.prototype, CRUDCommand.prototype);
+
+    function GetAllVariablesCommand(scene) {
+        this._ctor(scene, scene.graph.variables);
+    }
+
+    Object.setPrototypeOf(GetAllVariablesCommand.prototype, GetAllMembersCommand.prototype);
+
+    function AddVariableCommand(scene) {
+        this.scene = scene;
+        this.support_undo = true;
+    }
+
+    AddVariableCommand.prototype.exec = function(name, type, value){
+        this.var = {name: name, type: type, value: value};
+        this.scene.graph.addVariable(this.var.name, this.var.type, this.var.value);
+    };
+
+    AddVariableCommand.prototype.undo = function(){
+        this.scene.graph.removeVariable(this.var.name);
+    };
+
+    AddVariableCommand.prototype.redo = function(){
+        this.scene.graph.addVariable(this.var.name, this.var.type, this.var.value);
+    };
+
+    Object.setPrototypeOf(AddVariableCommand.prototype, Command.prototype);
+
+    function DeleteVariableCommand(scene) {
+        this.scene = scene;
+        this.support_undo = true;
+    }
+
+    DeleteVariableCommand.prototype.exec = function(name){
+        this.var = this.scene.graph.getVariable(name);
+        this.scene.graph.removeVariable(name);
+    };
+
+    DeleteVariableCommand.prototype.undo = function(){
+        this.scene.graph.addVariable(this.var.name, this.var.type, this.var.value);
+    };
+
+    DeleteVariableCommand.prototype.redo = function(){
+        this.exec(this.var.name);
+    };
+
+    Object.setPrototypeOf(DeleteVariableCommand.prototype, Command.prototype);
+
+    function UpdateVariableCommand(scene) {
+        this.scene = scene;
+        this.support_undo = true;
+    }
+
+    UpdateVariableCommand.prototype.exec = function(old_name, new_name, new_type, new_value){
+        this.var = this.scene.graph.getVariable(old_name);
+        this.current_name = old_name;
+        if(old_name != new_name){
+            this.scene.graph.renameVariable(old_name, new_name);
+            this.old_name = old_name;
+            this.current_name = new_name;
+        }
+        if(this.var.type != new_type){
+            this.old_type = this.var.type;
+            this.scene.graph.changeVariableType(this.current_name, new_type);
+        }
+        if(this.var.value != new_value){
+            this.old_value = this.var.old_value;
+            this.scene.graph.setVariableValue(this.current_name, new_value);
+        }
+    };
+
+    UpdateVariableCommand.prototype.undo = function(){
+        this.exec(this.current_name, this.old_name, this.old_type, this.old_value);
+    };
+
+    UpdateVariableCommand.prototype.redo = function(){
+        this.exec(this.current_name, this.old_name, this.old_type, this.old_value);
+    };
+
+    Object.setPrototypeOf(UpdateVariableCommand.prototype, Command.prototype);
+
+
     function copySelectedNodeToClipboardCommand(scene) {
         this.label = "Copy";
         this.scene = scene;
