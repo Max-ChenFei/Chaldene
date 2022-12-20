@@ -9,6 +9,8 @@
         DEBUG: true,
         TypeRegistry: type_registry,
         Scene: Scene,
+        Graph: Graph,
+        Variable: Variable
     };
     function debug_log(msg) {
         if(global.VPE.DEBUG)
