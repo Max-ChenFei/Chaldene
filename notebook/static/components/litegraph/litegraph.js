@@ -160,14 +160,15 @@
         return [this.name, this.type, this.value];
     };
 
-    function Graph() {
-        this.init();
+    function Graph(name) {
+        this.init(name);
     }
 
-    Graph.prototype.init = function() {
+    Graph.prototype.init = function(name) {
+        this.name = name;
         this.nodes = {};
         this.connectors = {};
-        this.local_vars = {};
+        this.variables = {};
         this.inputs = {};
         this.outputs = {};
         this.subgraphs = {};
@@ -183,7 +184,7 @@
             return out;
         }
 
-        const to_serialize = ['nodes', 'connectors', 'local_vars', 'inputs', 'outputs', 'subgraphs'];
+        const to_serialize = ['nodes', 'connectors', 'variables', 'inputs', 'outputs', 'subgraphs'];
         let out = {};
         for (const t of to_serialize) {
             out[t] = serializeEachElementIn(Object.values(this[t]));
@@ -207,8 +208,8 @@
             this.connectors[connector.id] = connector;
             this.next_unique_id = Math.max(connector.id+1, this.next_unique_id);
         }
-        for (const v of config.local_vars) {
-            this.addLocalVar(v[0], v[1], v[2]);
+        for (const v of config.variables) {
+            this.addVariable(v[0], v[1], v[2]);
         }
         for (const v of config.inputs) {
             this.addInput(v[0], v[1], v[2]);
@@ -403,7 +404,7 @@
     Graph.prototype.addVarTo = function(name, type, value, obj) {
         assertNameUniqueIn(name, Object.keys(this.inputs));
         assertNameUniqueIn(name, Object.keys(this.outputs));
-        assertNameUniqueIn(name, Object.keys(this.local_vars));
+        assertNameUniqueIn(name, Object.keys(this.variables));
         let v = new Variable(name, type, value);
         obj[name] = v;
     };
@@ -416,8 +417,24 @@
         this.addVarTo(name, type, value, this.outputs);
     };
 
-    Graph.prototype.addLocalVar = function(name, type, value) {
-        this.addVarTo(name, type, value, this.local_vars);
+    Graph.prototype.addVariable = function(name, type, value) {
+        this.addVarTo(name, type, value, this.variables);
+    };
+
+    Graph.prototype.getVarFrom = function(name, obj) {
+       return v = obj[name];
+    };
+
+    Graph.prototype.getInput = function(name) {
+        this.getVarFrom(name, this.inputs);
+    };
+
+    Graph.prototype.getOutput = function(name) {
+        this.getVarFrom(name, this.outputs);
+    };
+
+    Graph.prototype.getVariable = function(name) {
+        this.getVarFrom(name, this.variables);
     };
 
     Graph.prototype.getVarValueFrom = function(name, obj) {
@@ -434,8 +451,8 @@
         this.getVarValueFrom(name, this.outputs)
     };
 
-    Graph.prototype.getLocalVarValue = function(name) {
-        this.getVarValueFrom(name, this.local_vars)
+    Graph.prototype.getVariableValue = function(name) {
+        this.getVarValueFrom(name, this.variables)
     };
 
     Graph.prototype.setVarValueOf = function(name, new_value, obj) {
@@ -452,8 +469,8 @@
         this.setVarValueOf(name, new_value, this.outputs)
     };
 
-    Graph.prototype.setLocalVarValue = function(name, new_value) {
-        this.setVarValueOf(name, new_value, this.local_vars)
+    Graph.prototype.setVariableValue = function(name, new_value) {
+        this.setVarValueOf(name, new_value, this.variables)
     };
 
     Graph.prototype.renameVarOf = function(name, new_name, obj, callback) {
@@ -481,8 +498,8 @@
         this.renameVarOf(name, new_name, this.outputs);
     };
 
-    Graph.prototype.renameLocalVarVar = function(name, new_name) {
-        this.renameVarOf(name, new_name, this.local_vars);
+    Graph.prototype.renameVariable = function(name, new_name) {
+        this.renameVarOf(name, new_name, this.variables);
     };
 
     Graph.prototype.changeVarTypeOf = function(name, new_type, obj) {
@@ -499,8 +516,8 @@
         this.changeVarTypeOf(name, new_type, this.outputs)
     };
 
-    Graph.prototype.changeLocalVarType = function(name, new_type) {
-        this.changeVarTypeOf(name, new_type, this.local_vars)
+    Graph.prototype.changeVariableType = function(name, new_type) {
+        this.changeVarTypeOf(name, new_type, this.variables)
     };
 
     Graph.prototype.removeVarOf = function(name, obj) {
@@ -517,8 +534,8 @@
         this.removeVarOf(name, this.outputs);
     };
 
-    Graph.prototype.removeLocalVar = function(name) {
-        this.removeVarOf(name, this.local_vars);
+    Graph.prototype.removeVariable = function(name) {
+        this.removeVarOf(name, this.variables);
     };
 
 
