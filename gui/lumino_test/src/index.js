@@ -31,7 +31,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
   function addNewEditor(editor_panel, tab_bar){
     editor_panel.editors_count +=1;
-    let new_editor = createEditor({"name": `New Editor ${editor_panel.editors_count}`});
+    let new_editor = new VPEEditor(null, `New Editor ${editor_panel.editors_count}`);
     let last_widget = tab_bar? tab_bar.titles[tab_bar.titles.length-1].owner : null;
     editor_panel.addWidget(new_editor, {ref: last_widget});
     editor_panel.activateWidget(new_editor);
@@ -49,58 +49,104 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     return editor_panel;
   }
 
-  function createEditor(editor_options){
-    let editor = new DockPanel({tabsConstrained: true});
-    let members_panel = new MembersPanel(editor_options, editor);
-    let graph_edtior_1 = new GraphEditor(editor_options, editor);
-    let graph_edtior_2 = new GraphEditor(editor_options, editor);
-    let properties_panel = new PropertiesPanel(editor);
-    editor.addWidget(members_panel);
-    editor.addWidget(graph_edtior_1,{ mode: 'split-right', ref: members_panel });
-    editor.addWidget(properties_panel,{ mode: 'split-right', ref: graph_edtior_1 });
-    editor.addWidget(graph_edtior_2,{ ref: graph_edtior_1 });
-    editor.addClass('content');
-    let children_config = [
-        {currentIndex: 0, type: "tab-area", widgets: [members_panel]},
-        {currentIndex: 0, type: "tab-area", widgets: [graph_edtior_1, graph_edtior_2]},
-        {currentIndex: 0, type: "tab-area", widgets: [properties_panel]}];
-    let layout_config = { main:  { type: 'split-area', orientation: 'horizontal', children: children_config, sizes: [0.1, 0.8, 0.1]}};
-    editor.restoreLayout(layout_config);
-    editor.options = editor_options;
-    editor.title.label = editor_options.name;
-    editor.title.closable = true;
-    editor.title.caption = editor_options.name;
-    return editor;
+  class VPEEditor extends DockPanel {
+    constructor(data_graph, name, caption){
+      super({tabsConstrained: true});
+      this.data_graph = data_graph || new VPE.Graph();
+      this.title.label = name;
+      this.title.caption = caption || name;
+      this.title.closable = true;
+      this.members_panel = new MembersPanel(this);
+      this.graph_edtiors = [];
+      this.graph_edtiors.push(new GraphEditor(this));
+      this.properties_panel = new PropertiesPanel(this);
+      this.addWidget(this.members_panel);
+      this.addWidget(this.graph_edtiors[0], { mode: 'split-right', ref: this.members_panel });
+      this.addWidget(this.properties_panel, { mode: 'split-right', ref: this.graph_edtiors[0] });
+      this.addClass('content');
+      this.setDefaultLayout();
+      this.selected_member = null;
+    }
+
+    setDefaultLayout(){
+      let split_layout_config = [
+          {currentIndex: 0, type: "tab-area", widgets: [this.members_panel]},
+          {currentIndex: 0, type: "tab-area", widgets: [this.graph_edtiors[0]]},
+          {currentIndex: 0, type: "tab-area", widgets: [this.properties_panel]}];
+      let default_layout_config = {main:  {
+          type: 'split-area', orientation: 'horizontal',
+          children: split_layout_config, sizes: [0.1, 0.8, 0.1]}};
+      this.restoreLayout(default_layout_config);
+    }
+
+    getMembers(){
+      return {};
+    }
+  }
+
+  class ClassEditor extends VPEEditor{
+    constructor(data_graph, name, caption){
+      super(data_graph, name, caption);
+    }
+
+    getMembers(){
+      let varialbes = [];
+      for (const v of Object.values(this.data_graph.variables)) {
+        varialbes.push(v);
+      }
+      let functions = [];
+      for (const f of Object.values(this.data_graph.subgraphs)) {
+        functions.push(f);
+      }
+      return {'Variables': varialbes, 'Functions': functions};
+    }
+  }
+
+  class FunctionLibraryEditor extends VPEEditor{
+    constructor(data_graph, name, caption){
+      super(data_graph, name, caption);
+    }
+
+    getMembers(){
+      let functions = [];
+      for (const f of Object.values(this.data_graph.subgraphs)) {
+        functions.push(f);
+      }
+      return {'Functions': functions};
+    }
   }
 
   class Panel extends Widget {
-    constructor(source, class_type, label, options) {
-      let node = class_type.prototype.createNode(options);
+    constructor(parent, class_type, title_label, title_caption) {
+      let node = class_type.prototype.createNode(parent);
       super({ node: node});
-      this.source = source;
+      this.source = parent;
       this.setFlag(Widget.Flag.DisallowLayout);
       this.addClass('content');
-      this.title.label = label;
+      this.title.label = title_label;
       this.title.closable = true;
-      this.title.caption = label;
+      this.title.caption = title_caption || title_label;
     }
   }
 
   class PropertiesPanel extends Panel {
-    constructor(source) {
-      super(source, PropertiesPanel, 'Properties');
+    constructor(parent) {
+      super(parent, PropertiesPanel, 'Properties');
     }
   }
 
-  PropertiesPanel.prototype.createNode = function () {
-    let node = document.createElement('div');
-    let content = document.createElement('div');
-    let input = document.createElement('input');
-    input.placeholder = 'Placeholder...';
-    content.appendChild(input);
-    node.appendChild(content);
-    return node;
-  };
+  PropertiesPanel.prototype.createNode = function(parent) {
+      let node = document.createElement('div');
+      // if(!source.selected_member)
+      //   return node;
+      //get properties from this.source_selected_members and generate dom elements
+      let content = document.createElement('div');
+      let input = document.createElement('input');
+      input.placeholder = 'Placeholder...';
+      content.appendChild(input);
+      node.appendChild(content);
+      return node;
+    }
 
   PropertiesPanel.prototype.inputNode = function () {
     return this.node.getElementsByTagName('input')[0];
@@ -113,12 +159,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
   };
 
   class MembersPanel extends Panel {
-    constructor(source) {
-      super(source, MembersPanel, 'Members');
+    constructor(parent) {
+      super(parent, MembersPanel, 'Members');
     }
   }
 
-  MembersPanel.prototype.createNode = function () {
+  MembersPanel.prototype.createNode = function(parent) {
+    //this.source.getmembers() and show
     let node = document.createElement('div');
     node.classList.add('membersPanel');
     let input = document.createElement('input');
@@ -282,16 +329,14 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
   }
 
   class GraphEditor extends Panel {
-    constructor(source, options) {
-      super(source, GraphEditor, 'Graph Editor', options);
+    constructor(parent) {
+      super(parent, GraphEditor, 'Graph Editor');
       this.scene = this.node.graph.scene;
-      this.scene.start();
     }
   }
 
-  GraphEditor.prototype.createNode = function (options) {
+  GraphEditor.prototype.createNode = function (parent) {
     function createMenu(items,label='', scene, commands,inactive){
-
         let m = new Menu({commands:commands});
         for(let i =0; i<items.length; i++){
           //let args = items[i].args || {};
@@ -348,10 +393,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       };
       //todo: call this on a global
     let gs = getRegisteredNodes(VPE.TypeRegistry);
-    let scene = new VPE.Scene(canvas, options.graph);
-    scene.start();
+    this.scene = new VPE.Scene(canvas, parent.data_graph);
+    this.scene.start();
     graph = {};
-    graph.scene = scene;
+    graph.scene = this.scene;
     let searchMenu = new SearchMenu(graph, gs);
     graph.search_menu = searchMenu;
     graph.commands = new CommandRegistry();
