@@ -2630,6 +2630,7 @@
         this.renderer.startRender();
         this.event_capture = event_capture == true;
         this.bindEventToScene();
+        this.showZoomButtons();
     }
 
     Scene.prototype.stop = function() {
@@ -3023,6 +3024,36 @@
         this.view.addTranslate(delta_x, delta_y);
         debug_log('scene move');
         this.renderer.forceRenderLayers();
+    };
+
+    Scene.prototype.showZoomButtons = function(){
+        let zoom_buttons = document.createElement('div');
+        zoom_buttons.style = "position: absolute; bottom: 20px; right:20px";
+        function zoom (delta){
+            this.zoom(this.viewScale() + delta);
+        }
+        let zoom_callback = zoom.bind(this);
+        let zoom_in_button = document.createElement('button');
+        zoom_in_button.style= 'width:20px; height:10px';
+        //zoom_in_button.classList.add('fa fa-search-minus');
+        zoom_in_button.onclick = function(){
+            zoom_callback(5);
+        }
+        let zoom_out_button = document.createElement('button');
+        //zoom_out_button.classList.add('fa fa-search-plus');
+        zoom_out_button.style= 'width:20px; height:10px';
+        zoom_out_button.onclick = function(){
+            zoom_callback(6);
+        }
+        let fullscreen_button = document.createElement('button');
+        fullscreen_button.style= 'width:20px; height:10px';
+        zoom_out_button.class = 'fa fa-search-plus';
+        fullscreen_button.onclick = this.toggleFullScreen.bind(this);
+        let parent = this.canvas.parentNode;
+        zoom_buttons.appendChild(zoom_in_button);
+        zoom_buttons.appendChild(zoom_out_button);
+        zoom_buttons.appendChild(fullscreen_button);
+        parent.insertBefore(zoom_buttons, this.canvas);
     };
 
     Scene.prototype.draw = function(ctx, rect, lod) {
