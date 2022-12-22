@@ -250,6 +250,14 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       obj.classList.add("selected");
     };
 
+    function onDrag(obj){
+      graph.draggedElement = obj;
+    }
+
+    function onDragEnd(){
+      graph.draggedElement = null;
+    }
+
     function groupClick(group){
       group.show = !group.show;
       that.update();
@@ -301,8 +309,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
               let memberEl = document.createElement('p');
               memberEl.innerHTML = group.list[i];
               memberEl.classList.add('memberEl');
+              memberEl.draggable = true;
               memberEl.onclick = function(){onclick(memberEl);};
-
+              memberEl.ondragstart = function(){onDrag(group.list[i])}
+              memberEl.ondragend = function(){onDragEnd(group.list[i])}
 
               this._list.appendChild(memberEl);
             }
@@ -370,6 +380,18 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     canvas.style.height="100%";
     canvas.style.width = "100%";
     canvas.tabIndex = -1;
+
+    canvas.addEventListener('dragenter', function(e){e.preventDefault();})
+    canvas.addEventListener('dragover', function(e){
+      canvas.dispatchEvent(new MouseEvent("mousemove",e));
+      e.preventDefault();
+    })
+
+    canvas.addEventListener("drop",function(){
+      if(graph.draggedElement){
+        graph.commands.execute("litegraph:CreateNodeCommand", {_scene: graph.scene, _content: ["Image.Image"]});
+      }
+    });
     node.appendChild(canvas);
     function getRegisteredNodes(reg){
         let cats = reg.getNodeTypesInAllCategories();
