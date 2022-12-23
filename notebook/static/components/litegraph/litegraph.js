@@ -615,6 +615,12 @@
         boolean: "boolean"
     }
 
+    const DataTypeDefaultValue = {
+        "number": 0,
+        "string": "",
+        "boolean": false
+    }
+
     // *************************************************************
     //   Slot CLASS                                          *******
     // *************************************************************
@@ -697,7 +703,8 @@
         this.name = name;
         this.slot_pos = slot_pos;
         this.data_type = data_type;
-        this.default_value = default_value;
+        this.default_value = default_value || DataTypeDefaultValue[this.data_type];
+        this.value = this.default_value;
         this.connections = 0;
         this.current_state = VisualState.normal;
         this.translate = new Point(0, 0);
