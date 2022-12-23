@@ -699,18 +699,33 @@
      * @param {String} data_type
      * @param {String} default_value: value when the slot type is data_in or data_out
      */
-    function NodeSlot(name, slot_pos, data_type, default_value) {
+    function NodeSlot(name, slot_pos, data_type, default_value, show_widget) {
         this.name = name;
         this.slot_pos = slot_pos;
         this.data_type = data_type;
         this.default_value = default_value || DataTypeDefaultValue[this.data_type];
         this.value = this.default_value;
+        this.show_widget = show_widget;
         this.connections = 0;
         this.current_state = VisualState.normal;
         this.translate = new Point(0, 0);
         this.force_alpha = null;
         this.show_exec_label = false;
+        this.createWidget();
     };
+
+    NodeSlot.prototype.createWidget = function(){
+        if(!this.show_widget)
+            return
+        let widget = DataTypeToWidget[this.data_type];
+        if(!widget)
+            return
+        this.widget = new widget(this);
+    }
+
+    NodeSlot.prototype.to_render_widget = function(){
+        return this.show_widget && this.isInput() && this.widget && !this.isConnected();
+    }
 
     NodeSlot.prototype.mouseEnter = function() {
         this.current_state = VisualState.hovered;
@@ -4619,6 +4634,79 @@
         }
         return insides;
     }
+
+    const DataTypeToWidget = {
+        'boolean': Checkbox
+    }
+
+    function Widget(bind_object){
+        this._ctor('widget', bind_object);
+    }
+
+    Widget.prototype._ctor = function(name, bind_object) {
+        this.name = name;
+        this.bind_object = bind_object;
+        this.value = this.bind_object.value;
+        this._width = 0;
+        this._height = 0;
+        this.translate = new Point(0, 0);
+        this._callbacks = {};
+    }
+
+    Widget.prototype.runCallbacks = function(name, arg){
+        let callbacks =  Object.entries(this._callbacks[name]);
+        for(let callback of Object.values(callbacks)){
+            callback(arg);
+        }
+    }
+
+    Widget.prototype.addCallback = function(name, callback){
+        this._callbacks[name][callback] = callback;
+    }
+
+    Widget.prototype.updateValue = function(new_value){
+        this.value = new_value;
+        this.bind_object.value = new_value;
+    }
+
+    Widget.prototype.resetValue = function(){
+        this.updateValue(this.bind_object.default_value);
+    }
+
+    Widget.prototype.width = function(){
+        return this._width;
+    }
+
+    Widget.prototype.height = function(){
+        return this._height;
+    }
+
+    Widget.prototype.setTranslate = function(x, y){
+        this.translate = new Point(x, y);
+    }
+
+    Widget.prototype.getBoundingRect = function() {
+        return new Rect(this.translate.x, this.translate.y, this.width(), this.height());
+    }
+
+    Widget.prototype.onFocus = function(dom){
+    }
+
+    Widget.prototype.onBlur = function(){
+    }
+
+    Widget.prototype.onMouseUp = function(){
+    }
+
+    Widget.prototype.onMouseDown = function(){
+    }
+
+    Widget.prototype.onMouseMove = function(){
+    }
+
+    Widget.prototype.draw = function(ctx, height){}
+
+    Widget.prototype.drawDomElement = function(){}
 
     //API *************************************************
     //like rect but rounded corners
