@@ -779,8 +779,11 @@
     };
 
     NodeSlot.prototype.breakConnection = function() {
-        if (this.connections > 0)
+        if (this.connections > 0){
             this.connections = this.connections - 1;
+            if(this.connections == 0 && this.widget)
+                this.widget.resetValue();
+        }
     };
 
     NodeSlot.prototype.clearConnections = function() {
