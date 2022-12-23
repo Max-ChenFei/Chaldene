@@ -792,9 +792,16 @@
     };
 
     NodeSlot.prototype.pluginRenderingTemplate = function(template) {
-        for (const [name, value] of Object.entries(template)) {
+        for (const [name, value] of Object.entries(template['NodeSlot']))
             this[name] = value;
+        if(this.widget && template[this.widget.name])
+        {
+            this.show_widget = true;
+            this.widget.pluginRenderingTemplate(template[this.widget.name], this.height());
+            this.setWidgetTranslation();
         }
+        else
+            this.show_widget = false;
         this.updateStyleForNewType();
     };
 
@@ -921,7 +928,7 @@
         this._ctor();
     }
 
-    Node.prototype._ctor = function() {
+    Node.prototype._ctor = function(show_widget) {
         this.id = undefined;
         this.title = undefined;
         this.type = "*";
@@ -934,6 +941,7 @@
         this.collidable_components = {};
         this.current_state = VisualState.normal;
         this.lod = 0;
+        this.show_widget = show_widget;
     }
 
     Node.prototype.allSlots = function() {
@@ -993,7 +1001,7 @@
     Node.prototype.addSlotTo = function(slot_name, slot_pos, data_type, default_value, slots) {
         assertNameUniqueIn(slot_name, Object.keys(this.inputs));
         assertNameUniqueIn(slot_name, Object.keys(this.outputs));
-        let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value);
+        let slot = new NodeSlot(slot_name, slot_pos, data_type, default_value, this.show_widget);
         slots[slot_name] = slot;
         this.collidable_components[slot_name] = slot;
     };
@@ -1186,7 +1194,7 @@
         }
         this.overrideRenderingTemplate();
         for (const slot of this.allSlots()) {
-            slot.pluginRenderingTemplate(template['NodeSlot']);
+            slot.pluginRenderingTemplate(template);
             this.overrideRenderingTemplateOfSlot(slot);
         }
         if(this.allSlots().length > 0)
