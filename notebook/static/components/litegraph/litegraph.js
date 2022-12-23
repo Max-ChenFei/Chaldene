@@ -3389,6 +3389,7 @@
     Scene.prototype.moveAndUpEventsToDocument = function() {
         //mouse move event to the window in case it drags outside of the canvas
         this.canvas.removeEventListener("mousemove", this._mouseMove_callback);
+        this.canvas.removeEventListener("mouseup", this._mouseUp_callback);
         this.getDocument().addEventListener("mousemove", this._mouseMove_callback, false);
         this.getDocument().addEventListener("mouseup", this._mouseUp_callback, false);
     }
@@ -3396,8 +3397,48 @@
     Scene.prototype.moveAndUpEventsToScene = function() {
         //restore the mousemove event back to the canvas
         this.canvas.addEventListener("mousemove", this._mouseMove_callback, this.event_capture);
+        this.canvas.addEventListener("mouseup", this._mouseUp_callback, this.event_capture);
         this.getDocument().removeEventListener("mousemove", this._mouseMove_callback);
         this.getDocument().removeEventListener("mouseup", this._mouseUp_callback);
+    }
+
+    Scene.prototype.mouseUpOnWidget = function(hit){
+      return this.mouseEventOnWidget(hit, 'onMouseUp')
+    }
+
+    Scene.prototype.mouseDownOnWidget = function(hit){
+      return this.mouseEventOnWidget(hit, 'onMouseDown')
+    }
+
+    Scene.prototype.mouseEventOnWidget = function(hit, callback_name){
+        function blurFocusedWidget(){
+             if(this.focused_widget){
+                this.focused_widget.onBlur();
+                this.focused_widget = null;
+            }
+        }
+        let not_select_widget =!hit.is_hitted || !(hit.hit_item instanceof Node) || !hit.hit_widget;
+        if(not_select_widget){
+            blurFocusedWidget.call(this);
+            return false;
+        }
+        if(hit.hit_widget) {
+            let same_widget = hit.hit_widget == this.focused_widget
+                && hit.hit_item == this.focused_widget.node
+                && hit.hit_component == this.focused_widget.slot;
+            if(same_widget){
+                this.focused_widget[callback_name]();
+                return true;
+            }
+            if(this.focused_widget)
+                this.focused_widget.onBlur();
+            this.focused_widget = hit.hit_widget;
+            this.focused_widget.node = hit.hit_item;
+            this.focused_widget.slot = hit.hit_component;
+            this.focused_widget.onFocus();
+            this.focused_widget[callback_name]();
+            return true;
+        }
     }
 
     Scene.prototype.onMouseDown = function(e) {
@@ -3407,6 +3448,10 @@
         this.moveAndUpEventsToDocument();
         this.pointer_down = e.button;
         this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+        if(this.mouseDownOnWidget(this.hit_result)){
+            this.setToRender("nodes");
+            return;
+        }
         if (e.button == 0) {
             if (!this.hit_result.is_hitted)
                 this.leftMouseDownOnScene(e);
@@ -3462,7 +3507,8 @@
         else if (this.pointer_down == null)
             this.mouseHover(e, new_hit);
         else if (this.pointer_down == 0 && this.hit_result.hit_item instanceof Node
-            && this.hit_result.hit_item.allowToSelect(this.hit_result.hit_local_x, this.hit_result.hit_local_y)) {
+            && this.hit_result.hit_item.allowToSelect(this.hit_result.hit_local_x, this.hit_result.hit_local_y)
+            && !this.focused_widget) {
             this.execCommand(new MoveCommand(this), [e, this.hit_result.hit_item]);
         } else if (this.pointer_down == 2) {
             this.block_right_mouse_bubble = true;
@@ -3483,6 +3529,10 @@
         }
         if (!this.hit_result)
             this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+        if(this.mouseUpOnWidget(this.hit_result)){
+            this.setToRender("nodes");
+            return;
+        }
         if (e.button == 0)
             this.onLeftMouseUp(e, this.hit_result);
         else if (e.button == 2)
