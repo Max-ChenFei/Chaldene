@@ -1420,8 +1420,9 @@
             margin_between_icon_text: 3,
             width: function() {
                 let to_show_label = this.to_render_text && (this.data_type == DataType.Exec? this.show_exec_label : true);
-                let text_width = to_show_label ? textWidth(this.name, this.font) : 0;
-                return this.icon_width + (text_width > 0 ? this.margin_between_icon_text + text_width : 0);
+                let text_width = to_show_label ? textWidth(this.name, this.font) + this.margin_between_icon_text: 0;
+                let widget_width = this.to_render_widget()? this.widget.width() + this.margin_between_icon_text: 0;
+                return this.icon_width + text_width + widget_width;
             },
             height: function() {
                 return this.icon_height;
