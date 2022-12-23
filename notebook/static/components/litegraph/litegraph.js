@@ -3323,13 +3323,13 @@
             if (hit.hit_component)
                 return;
             if (e.ctrlKey && !e.shiftKey) {
-                this.toggleNodeSelection(hit.hit_item);
+                this.toggleNodeSelection(hit.hit_item, true);
                 return;
             }
             if(hit.hit_item.allowToSelect(hit.hit_local_x, hit.hit_local_y))
-                this.selectNode(hit.hit_item, e.shiftKey);
+                this.selectNode(hit.hit_item, e.shiftKey, true);
             else
-                this.deselectSelectedNodes();
+                this.deselectSelectedNodes(true);
         }
     }
 
