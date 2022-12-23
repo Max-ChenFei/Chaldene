@@ -1427,6 +1427,10 @@
             height: function() {
                 return this.icon_height;
             },
+            setWidgetTranslation: function(){
+                this.widget.translate.x = this.icon_width + textWidth(this.name, this.font) + 2*this.margin_between_icon_text;
+                this.widget.translate.y = 0;
+            },
             getConnectedAnchorPos: function(as_output) {
                 let pos = {};
                 let wild_slot = this.isInput() == undefined;
@@ -1495,8 +1499,10 @@
                     _draw_when_normal: function(ctx, ctx_style, lod, force_alpha) {
                         this.type_style._drawShape.call(this, ctx, ctx_style, lod, force_alpha);
                         let to_show_label = this.to_render_text && (this.data_type == DataType.Exec? this.show_exec_label : true);
-                        if (lod == 0 && to_show_label) {
-                            this.type_style._drawLabel.call(this, ctx, ctx_style);
+                        if (lod == 0) {
+                            if(to_show_label)
+                                this.type_style._drawLabel.call(this, ctx, ctx_style);
+                            this.type_style._drawWidget.call(this, ctx);
                         }
                     },
                     _draw_when_hovered: function(ctx, ctx_style, lod, force_alpha) {
@@ -1551,6 +1557,14 @@
                             x = -(this.icon_width + this.margin_between_icon_text);
                         }
                         ctx.fillText(this.name, x, this.icon_height / 2.0);
+                        ctx.restore();
+                    },
+                    _drawWidget: function(ctx){
+                        if(!this.to_render_widget())
+                            return;
+                        ctx.save();
+                        ctx.translate(this.widget.translate.x, this.widget.translate.y);
+                        this.widget.draw.call(this.widget, ctx);
                         ctx.restore();
                     },
                     _hovered: function(ctx, style, force_alpha) {
