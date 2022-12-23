@@ -4503,12 +4503,13 @@
             array.splice(index, 1);
     }
 
-    function HitResult(is_hitted, hit_item, hit_local_x, hit_local_y, hit_component) {
+    function HitResult(is_hitted, hit_item, hit_local_x, hit_local_y, hit_component, hit_widget) {
         this.is_hitted = is_hitted;
         this.hit_item = hit_item;
         this.hit_local_x = hit_local_x;
         this.hit_local_y = hit_local_y;
         this.hit_component = hit_component;
+        this.hit_widget = hit_widget;
     };
 
     /**
@@ -4614,8 +4615,8 @@
                     if(rect.owner instanceof Connector)
                         return new HitResult(true, rect.owner, undefined, undefined, undefined);
                     const local_pos = new Point(x - rect.owner.translate.x, y - rect.owner.translate.y);
-                    const hit_component = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
-                    return new HitResult(true, rect.owner, local_pos.x, local_pos.y, hit_component);
+                    const [hit_component, hit_widget] = this.getHitComponentAtPos(local_pos.x, local_pos.y, rect.owner);
+                    return new HitResult(true, rect.owner, local_pos.x, local_pos.y, hit_component, hit_widget);
                 }
             }
         }
@@ -4624,13 +4625,20 @@
 
     CollisionDetector.prototype.getHitComponentAtPos = function(x, y, item) {
         if(!item.collidable_components)
-            return null;
+            return [null, null];
         for (const comp of Object.values(item.collidable_components)) {
-            if (comp.getBoundingRect().isInside(x, y)) {
-                return comp;
+            let bounding_rect = comp.getBoundingRect();
+            if (bounding_rect.isInside(x, y)) {
+                let x_in_comp = x - bounding_rect.left;
+                let y_in_comp = y - bounding_rect.top;
+                if( comp.to_render_widget &&
+                    comp.to_render_widget() &&
+                    comp.widget.getBoundingRect().isInside(x_in_comp, y_in_comp))
+                    return [comp, comp.widget];
+                return [comp, null];
             }
         }
-        return null;
+        return [null, null];
     };
 
     CollisionDetector.prototype.getItemsOverlapWith = function(rect, include_type, exclude_type, z_order_ascend) {
