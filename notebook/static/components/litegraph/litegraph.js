@@ -2100,6 +2100,22 @@
             isCollided: function(scene_x, scene_y){
                 return isPointOnCubicCurve(scene_x, scene_y, this.fromPos(), this.cp1, this.cp2, this.toPos(), this.detect_distance);
             }
+        },
+        Checkbox:{
+            aspect_radio: 1,
+            style:{
+                unchecked:{
+                    fill_style: "#f7bebe",
+                    stroke_style: "#ed0000",
+                    line_width: 1,
+                },
+                checked:{
+                    fill_style: "#0aff39",
+                    stroke_style: "#11d4fd",
+                    line_width: 1,
+                    checkmark_style: "#aaf914",
+                }
+            }
         }
     }
 
@@ -4792,6 +4808,93 @@
 
     Widget.prototype.drawDomElement = function(){}
 
+    function Checkbox(bind_object){
+        this._ctor('Checkbox', bind_object);
+        this._callbacks = {"toggle": {}};
+    }
+
+    Object.setPrototypeOf(Checkbox.prototype, Widget.prototype);
+
+    Checkbox.prototype.onFocus = function(){
+    }
+
+    Checkbox.prototype.onBlur = function(){
+    }
+
+    Checkbox.prototype.onMouseUp = function(){
+        this.toggle();
+    }
+
+    Checkbox.prototype.toggle = function(){
+        this.updateValue(!this.value);
+        this.runCallbacks("toggle", this.value);
+    }
+
+    Checkbox.prototype.setSize = function(height) {
+        this._height = height;
+        this._width = this._height * this.aspect_radio;
+    }
+
+    Checkbox.prototype.pluginRenderingTemplate = function(template, height) {
+        for (const [name, value] of Object.entries(template)) {
+            this[name] = value;
+        }
+        this.setSize(height);
+    }
+
+    Checkbox.prototype.draw = function(ctx){
+        let state = this.value? 'checked' : 'unchecked';
+        let style = this.style[state];
+        ctx.save();
+        ctx.beginPath();
+        ctx.fillStyle = style.fill_style;
+        ctx.strokeStyle = style.stroke_style;
+        ctx.lineWidth = style.line_width;
+        ctx.rect(0, 0, this.width(), this.height());
+        ctx.fill();
+        ctx.stroke();
+        ctx.closePath();
+        if(this.value){
+            let base_curve = [
+                [this.width()*.1, this.height()*0.6],
+                [this.width()*.5, this.height()*.9],
+                [this.width()*.9, this.height()*.1]];
+            let normals = [
+                [base_curve[1][1]-base_curve[0][1],base_curve[0][0]-base_curve[1][0]],
+                [1,1],
+                [base_curve[2][1]-base_curve[1][1],base_curve[1][0]-base_curve[2][0]]
+            ]
+            for(let i =0; i<3; i++){
+                let f = normals[i][0]*normals[i][0] + normals[i][1]*normals[i][1];
+                f = 1.0/Math.sqrt(f);
+                normals[i][0]*=f;
+                normals[i][1]*=f;
+            }
+            normals[1][0] = normals[0][0]+normals[2][0];
+            normals[1][1] = normals[0][1]+normals[2][1];
+            for(let i =0; i<3; i++){
+                let f = normals[i][0]*normals[i][0] + normals[i][1]*normals[i][1];
+                f = 1.0/Math.sqrt(f);
+                normals[i][0]*=f;
+                normals[i][1]*=f;
+            }
+            ctx.beginPath();
+            let cw = 0.1*this.height();
+            ctx.moveTo(base_curve[0][0]+normals[0][0]*cw,base_curve[0][1]+normals[0][1]*cw);
+            ctx.lineTo(base_curve[0][0]-normals[0][0]*cw,base_curve[0][1]-normals[0][1]*cw);
+            ctx.lineTo(base_curve[1][0]-normals[1][0]*cw,base_curve[1][1]-normals[1][1]*cw);
+            ctx.lineTo(base_curve[2][0]-normals[2][0]*cw,base_curve[2][1]-normals[2][1]*cw);
+            ctx.lineTo(base_curve[2][0]+normals[2][0]*cw,base_curve[2][1]+normals[2][1]*cw);
+            ctx.lineTo(base_curve[1][0]+normals[1][0]*cw,base_curve[1][1]+normals[1][1]*cw);
+            ctx.lineTo(base_curve[0][0]+normals[0][0]*cw,base_curve[0][1]+normals[0][1]*cw);
+            ctx.fillStyle = style.checkmark_style;
+            ctx.fill();
+            ctx.closePath();
+        }
+        ctx.restore();
+    }
+
+
     //API *************************************************
     //like rect but rounded corners
     if (typeof(window) != "undefined" && window.CanvasRenderingContext2D && !window.CanvasRenderingContext2D.prototype.roundRect) {
@@ -4973,10 +5076,11 @@
     type_registry.registerNodeType("Image.Show", ImageShow);
 
     function ImageGaussianFilter() {
-        this._ctor();
+        this._ctor(true);
         this.addInput("in_exec", "exec");
         this.addInput("input", "numpy.ndarray");
         this.addInput("sigma", "number");
+        this.addInput("boolean", "boolean");
         this.addOutput("out_exec", "exec");
         this.addOutput("image", "numpy.ndarray");
         this.title = "Gaussian Filter";
