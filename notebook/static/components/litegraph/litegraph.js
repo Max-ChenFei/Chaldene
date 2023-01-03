@@ -1314,7 +1314,22 @@
         this._min_height=10;
         this.detection_area_height=15;
         this.detection_area = new Rect(0, 0, 0, 0);
+        this.value = ''; //desc
+        this.text_input_widget = new TextEditor(this);
+        this.text_input_widget.allow_focus = false;
+        this.text_input_widget.default_text = 'comment';
+        this.text_input_widget.addCallback('editEnd', this.disalbeTextInput.bind(this))
         this.updateDetectionArea();
+        this.collidable_components = {"text_input": this.text_input_widget};
+    }
+
+    CommentNode.prototype.dblClick = function(e) {
+        this.text_input_widget.allow_focus = true;
+        this.text_input_widget.onMouseDown(e);
+    }
+
+    CommentNode.prototype.disalbeTextInput = function() {
+        this.text_input_widget.allow_focus = false;
     }
 
     CommentNode.prototype.setWidth = function(w) {
@@ -1344,12 +1359,15 @@
         this.detection_area.top = this.resize_detection_distance;
         this.detection_area.width = this.width() - 2*this.resize_detection_distance;
         this.detection_area.height = this.detection_area_height;
+        this.text_input_widget.setWidth(this.detection_area.width);
     }
 
     CommentNode.prototype.pluginRenderingTemplate = function(template) {
         let this_node = template['CommentNode'];
         for (const [name, value] of Object.entries(this_node))
             this[name] = value;
+        this.text_input_widget.pluginRenderingTemplate(template['TextEditor'], this.detection_area.height);
+        this.text_input_widget.setWidth(this.detection_area.width);
     }
 
     CommentNode.prototype.getBoundingRect = function() {
@@ -1979,11 +1997,8 @@
                 ctx.stroke();
                 ctx.globalAlpha = 1;
                 ctx.fillRect(this.detection_area.left, this.detection_area.top, this.detection_area.width, this.detection_area.height);
-                ctx.font = "20px Arial";
-                ctx.textBaseline = "bottom";
-                ctx.textAlign = "left";
-                ctx.fillStyle = "#2b2b2b";
-                ctx.fillText("Gaussian Filter", 0, 0);
+                ctx.translate(this.detection_area.left, this.detection_area.top);
+                this.text_input_widget.draw(ctx);
                 ctx.restore();
             },
         },
@@ -3472,21 +3487,24 @@
                 && hit.hit_item == this.focused.item
                 && hit.hit_component == this.focused.component;
             if(same_widget){
-                e = this.mapToWidget(e);
                 this.focused.widget[callback_name](e);
             }else{
                 if(this.focused.widget)
                     this.blurFocusedWidget();
-                this.focused.widget = hit.hit_widget;
-                this.focused.component = hit.hit_component;
-                this.focused.item = hit.hit_item;
-                this.focused.widget.onFocus();
-                e = this.mapToWidget(e);
-                this.focused.widget[callback_name](e);
+                if(hit.hit_widget.allow_focus){
+                    this.focused.widget = hit.hit_widget;
+                    this.focused.component = hit.hit_component;
+                    this.focused.item = hit.hit_item;
+                    this.focused.widget.onFocus();
+                    this.focused.widget[callback_name](e);
+                }
+                else
+                    return false;
             }
-            let cursor = this.focused.widget.cursor;
-            if(cursor)
-                this.setCursor(cursor);
+            if(this.focused.widget){
+                let cursor = this.focused.widget.cursor;
+                if(cursor)
+                    this.setCursor(cursor);}
             return true;
         }
     }
@@ -3498,6 +3516,7 @@
         this.moveAndUpEventsToDocument();
         this.pointer_down = e.button;
         this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+        this.addWidgetCoordinateToEvent(e, this.hit_result);
         this.renderer.force_to_render_nodes_layer = this.mouseDownOnWidget(e, this.hit_result);
         if(this.renderer.force_to_render_nodes_layer){
             this.setToRender("nodes");
@@ -3549,9 +3568,30 @@
         this.setToRender("connectors");
     }
     Scene.prototype.mapToWidget = function(e){
-        e.widgetX = e.sceneX - this.focused.item.translate.x - this.focused.component.translate.x - this.focused.widget.translate.x;
-        e.widgetY = e.sceneX - this.focused.item.translate.y - this.focused.component.translate.y - this.focused.widget.translate.y;
+        let comp = this.focused.component;
+        e.widgetX = e.sceneX - this.focused.item.translate.x - (comp? comp.translate.x : 0) - this.focused.widget.translate.x;
+        e.widgetY = e.sceneX - this.focused.item.translate.y - (comp? comp.translate.y : 0)  - this.focused.widget.translate.y;
         return e;
+    }
+
+    Scene.prototype.addWidgetCoordinateToEvent = function(e, hit){
+        let comp = hit.hit_component;
+        if(hit.hit_widget) {
+            e.widgetX = e.sceneX - hit.hit_item.translate.x - (comp ? comp.translate.x : 0) - hit.hit_widget.translate.x;
+            e.widgetY = e.sceneX - hit.hit_item.translate.y - (comp ? comp.translate.y : 0) - hit.hit_widget.translate.y;
+        }
+        return e;
+    }
+    Scene.prototype.onMouseMoveOnWidget = function(e, new_hit){
+        if(this.pointer_down == 0) {
+            this.addWidgetCoordinateToEvent(e, {hit_item: this.focused.item,
+                hit_component: this.focused.component, hit_widget: this.focused.widget});
+            this.focused.widget.onMouseMove(e);
+        }
+        if(!new_hit.hit_widget)
+            this.setCursor( "default");
+        else
+            this.setCursor(this.focused.widget.cursor || "default");
     }
 
     Scene.prototype.onMouseMove = function(e) {
@@ -3561,10 +3601,7 @@
         if (this.command_in_process)
             this.updateCommand([e, new_hit]);
         else if(this.focused.widget){
-            if(this.pointer_down == 0) {
-                e = this.mapToWidget(e);
-                this.focused.widget.onMouseMove(e);
-            }
+            this.onMouseMoveOnWidget(e, new_hit);
             return;
         }
         else if (this.pointer_down == null)
@@ -3592,6 +3629,7 @@
         }
         if (!this.hit_result)
             this.hit_result = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
+        this.addWidgetCoordinateToEvent(e, this.hit_result);
         this.renderer.force_to_render_nodes_layer = this.mouseUpOnWidget(e, this.hit_result);
         if(this.renderer.force_to_render_nodes_layer){
             this.setToRender("nodes");
@@ -3620,6 +3658,12 @@
         if (e.button == 0){
             if(this.hit_result.hit_item instanceof Connector) {
                 this.execCommand(new AddRerouteToConnectorCommand(this), [this.hit_result.hit_item]);
+            }
+            if(this.hit_result.hit_item){
+                this.addSceneCoordinateToEvent(e);
+                this.addWidgetCoordinateToEvent(e, this.hit_result);
+                if(this.hit_result.hit_item.dblClick)
+                    this.hit_result.hit_item.dblClick(e);
             }
             if(this.hit_result.hit_widget){
                 this.focused.widget.onDblclick(e);
@@ -4754,6 +4798,8 @@
                     comp.to_render_widget() &&
                     comp.widget.getBoundingRect().isInside(x_in_comp, y_in_comp))
                     return [comp, comp.widget];
+                if(comp instanceof Widget)
+                    return [null, comp];
                 return [comp, null];
             }
         }
@@ -4802,6 +4848,7 @@
         this._height = 0;
         this.translate = new Point(0, 0);
         this._callbacks = {};
+        this.allow_focus = true;
     }
 
     Widget.prototype.runCallbacks = function(name, arg){
@@ -4966,7 +5013,7 @@
         }
     }
 
-    function TextEditor(bind_object, text, options){
+    function TextEditor(bind_object, options){
         this._ctor('TextEditor', bind_object);
         this.default_text = this.value;
         options = options || {};
@@ -5586,6 +5633,11 @@
     }
 
     Object.setPrototypeOf(TextEditor.prototype, Widget.prototype);
+    TextEditor.prototype.setWidth = function(w){
+        this._width = w;
+        if(this.padding)
+            this.bbox.width = w - (this.padding[1]+this.padding[3]);
+    }
 
     TextEditor.prototype.onFocus = function(){
     }
