@@ -309,7 +309,7 @@
         node.id = this.getUniqueId();
         this.nodes[node.id] = node;
 
-        this.signalHandler.send("onAddNode");
+        this.signalHandler.send("addNode");
         return true;
     };
 
@@ -413,7 +413,7 @@
         this.clearConnectorsOfNode(node);
         delete this.nodes[node.id];
 
-       // this.signalHandler.send("onRemoveNode");
+        this.signalHandler.send("removeNode");
         return true;
     };
 
@@ -441,7 +441,7 @@
         assertNameUniqueIn(name, Object.keys(this.variables));
         let v = new Variable(name, type, value);
         obj[name] = v;
-        this.signalHandler.send("onAddNode");
+        this.signalHandler.send("memberChange");
     };
 
     Graph.prototype.addInput = function(name, type, value) {
@@ -455,6 +455,32 @@
     Graph.prototype.addVariable = function(name, type, value) {
         this.addVarTo(name, type, value, this.variables);
     };
+
+    Graph.prototype.createVariable = function(category){
+        let that = this;
+        function getUnusedName(base_name){
+            let i = 0;
+            let n = base_name+String(i);
+            while((n in that.variables) || (n in that.inputs) || (n in that.outputs)){
+                i++;
+                n = base_name +String(i);
+            }
+            return n;
+        }
+        let c = category.toLowerCase();
+        let base_name = "";
+        if(category === "Variables"){
+            base_name = "var";
+        } else if(category === "Inputs"){
+            base_name = "in";
+        } else if(category === "Outputs"){
+            base_name = "out";
+        } else {
+            throw "Unknown Category for Variable: " + category;
+        }
+
+        this.addVarTo(getUnusedName(base_name), null, null, this[c]);
+    }
 
     Graph.prototype.getVarFrom = function(name, obj) {
        return v = obj[name];

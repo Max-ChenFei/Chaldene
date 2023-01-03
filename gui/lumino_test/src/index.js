@@ -280,8 +280,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     let callback = function(){
       that.setMembers(parent.getMembers());
     }
-    let signal1 = graph.signalHandler.connect("onAddNode", callback);
-    let signal2 = graph.signalHandler.connect("onDeleteNode", callback);
+    let signal1 = graph.signalHandler.connect("addNode", callback);
+    let signal2 = graph.signalHandler.connect("deleteNode", callback);
+    let signal3 = graph.signalHandler.connect("membersChange", callback);
 
     let prevObj = null;
 
@@ -292,6 +293,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       prevObj = obj;
       obj.classList.add("selected");
     };
+
+
 
     function onDrag(obj){
       graph.draggedElement = obj;
@@ -305,6 +308,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       group.show = !group.show;
       that.update();
     };
+
+    function addNewMember(category){
+      graph.createVariable(category);
+    }
 
     this.update = function(){
         this._list.remove();
@@ -335,6 +342,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
           let button = document.createElement('button')
           button.classList.add('addbutton')
           button.innerHTML = "Add...";
+          button.onclick = function(){
+            addNewMember(category);
+          }
 
           let catName = document.createElement('div');
           catName.appendChild(icon);
