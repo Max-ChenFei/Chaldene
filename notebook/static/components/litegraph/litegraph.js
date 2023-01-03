@@ -3560,14 +3560,14 @@
         let new_hit = this.collision_detector.getHitResultAtPos(e.sceneX, e.sceneY);
         if (this.command_in_process)
             this.updateCommand([e, new_hit]);
-        if(this.focused.widget){
+        else if(this.focused.widget){
             if(this.pointer_down == 0) {
                 e = this.mapToWidget(e);
                 this.focused.widget.onMouseMove(e);
             }
             return;
         }
-        if (this.pointer_down == null)
+        else if (this.pointer_down == null)
             this.mouseHover(e, new_hit);
         else if (this.pointer_down == 0 && this.hit_result.hit_item instanceof Node
             && this.hit_result.hit_item.allowToSelect(this.hit_result.hit_local_x, this.hit_result.hit_local_y)
