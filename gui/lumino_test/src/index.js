@@ -697,22 +697,12 @@ define(['@lumino/commands', '@lumino/widgets'], function (
         return m;
       }
 
-
-      let canvas = document.createElement('canvas');
-
-      canvas.style.margin = "0px";
-      canvas.style.height="100%";
-      canvas.style.width = "100%";
-      node.appendChild(canvas);
-      let ctx = canvas.getContext('2d');
-      ctx.fillStyle = 'pink';
-      canvas.tabIndex=-1;
-      ctx.fillRect(0,0,canvas.width,canvas.height);
-
+      let scene = new VPE.Scene(node);
+      let canvas = scene.canvas;
       super({ node: node });
 
       let that = this;
-      this.ctx = ctx;
+      this.scene = scene;
 
       function getRegisteredNodes(reg){
         let cats = reg.getNodeTypesInAllCategories();
@@ -738,7 +728,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (
       let gs = getRegisteredNodes(VPE.TypeRegistry);
       console.log(gs);
 
-      this.scene = new VPE.Scene(canvas);
       graph.scene = this.scene;
       let searchMenu =createSearchMenu(graph,gs);
       graph.search_menu = searchMenu;
@@ -804,7 +793,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (
 
 
   GraphEditor.prototype.onResize = function(){
-    this.scene.resize(this.ctx.canvas.clientWidth,this.ctx.canvas.clientHeight);
+    this.scene.fitToParentSize();
   }
 
 
