@@ -80,7 +80,23 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     }
 
     getMembers(){
-      return {};
+      let variables = [];
+      for (const v of Object.values(this.data_graph.variables)) {
+        variables.push(v);
+      }
+      let functions = [];
+      for (const f of Object.values(this.data_graph.subgraphs)) {
+        functions.push(f);
+      }
+      let inputs = [];
+      for (const f of Object.values(this.data_graph.inputs)) {
+        inputs.push(f);
+      }
+      let outputs = [];
+      for (const f of Object.values(this.data_graph.outputs)) {
+        outputs.push(f);
+      }
+      return {variables: variables, functions: functions, inputs: inputs, outputs:outputs};
     }
   }
 
@@ -90,15 +106,15 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     }
 
     getMembers(){
-      let varialbes = [];
+      let variables = [];
       for (const v of Object.values(this.data_graph.variables)) {
-        varialbes.push(v);
+        variables.push(v);
       }
       let functions = [];
       for (const f of Object.values(this.data_graph.subgraphs)) {
         functions.push(f);
       }
-      return {'Variables': varialbes, 'Functions': functions};
+      return {variables: variables, functions: functions};
     }
   }
 
@@ -240,6 +256,33 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
       this._groups[category].list.push(name);
     };
+
+    this.setMembers = function(members){
+      this._groups = {};
+      for(const value of Object.values(members.inputs)){
+        this.addMember("Inputs", value.name);
+      }
+
+      for(const value of Object.values(members.outputs)){
+        this.addMember("Outputs", value.name);
+      }
+
+      for(const value of Object.values(members.functions)){
+        this.addMember("Functions", value.name);
+      }
+
+      for(const value of Object.values(members.variables)){
+        this.addMember("Variables", value.name);
+      }
+      this.update();
+    }
+    let graph = parent.data_graph;
+    let callback = function(){
+      that.setMembers(parent.getMembers());
+    }
+    let signal1 = graph.signalHandler.connect("onAddNode", callback);
+    let signal2 = graph.signalHandler.connect("onDeleteNode", callback);
+
     let prevObj = null;
 
     function onclick(obj){
@@ -319,13 +362,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
           }
         }
       };
-    this.addMember('Inputs','var1');
-    this.addMember('Inputs','var2');
-    this.addMember('Inputs','var3');
-    this.addMember('Outputs','out1');
-    this.addMember('Outputs','out2');
-    this.addMember('Functions','func1');
-    this.update();
     return node;
   };
 
@@ -443,7 +479,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     }
     fillCommandRegistry(graph.commands, getAllContextCommands());
     node.addEventListener('contextmenu', function (event) {
-        let cs = scene.getContextCommands();
+        let cs = graph.scene.getContextCommands();
         searchMenu.close();
         if(cs!=null){
           let m = createMenu(cs,"", graph.scene, graph.commands);
@@ -803,7 +839,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
   }
 
   function isInBoundingRect(x, y, rect){
-    return  x>rect.left && x<rect.right &&　y > rect.top && y< rect.bottom;
+    return  x>rect.left && x<rect.right && y > rect.top && y< rect.bottom;
   }
 
   function EditorFocusTracker(dock_panel){
@@ -887,7 +923,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       label: "Undo",
       mnemonic: 0,
       execute: function(){
-          focus_tracker.focusd_graph_editor.scene.undo_history.undo();
+          //focus_tracker.focusd_graph_editor.scene.undo_history.undo();
       }
     });
 
@@ -895,7 +931,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       label: "Redo",
       mnemonic: 0,
       execute: function(){
-        focus_tracker.focusd_graph_editor.scene.undo_history.redo();
+        //focus_tracker.focusd_graph_editor.scene.undo_history.redo();
       }
     });
   }
@@ -905,8 +941,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     let editor_panel = createEditorPanel();
     Widget.attach(menu_bar, document.body);
     Widget.attach(editor_panel, document.body);
-    let focus_tracker = new EditorFocusTracker(editor_panel);
-    createCommands(focus_tracker);
+    //let focus_tracker = new EditorFocusTracker(editor_panel);
+    createCommands(/*focus_tracker*/);
 
     //todo: abstract away in a CreateContextMenu function
     let c = new ContextMenu({commands:commands});
