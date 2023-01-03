@@ -4968,7 +4968,7 @@
 
     function TextEditor(bind_object, text, options){
         this._ctor('TextEditor', bind_object);
-        this.default_text = "sadfassssssssss";
+        this.default_text = this.value;
         options = options || {};
         this.max_lines = options.max_lines || 1;
         this.rolling_text = options.rolling_text;
