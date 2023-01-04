@@ -1465,6 +1465,24 @@
 
     type_registry.registerNodeType("SetVariableNode", SetVariableNode);
 
+    function FunctionNode(args){
+        this._ctor();
+        this.type = "FunctionNode";
+        if(args && args.function){
+            this.title = args.function.name;
+            this.addInput("in_exec", "exec");
+            for (const input of Object.values(args.function.inputs)) {
+                this.addInput(input.name, input.type, input.value);
+            }
+            this.addOutput("out_exec", "exec");
+            for (const output of Object.values(args.function.outputs)) {
+                this.addOutput(output.name, output.type, null);
+            }
+        }
+    }
+
+    type_registry.registerNodeType("FunctionNode", FunctionNode);
+
     function textWidth(text, font) {
         let canvas = document.getElementsByTagName("canvas")[0];
         let ctx = canvas.getContext("2d");
@@ -3390,6 +3408,15 @@
                 let node12 = type_registry.createNode("SetVariableNode", {variable: v4});
                 node12.translate= new Point(140, 350);
                 this.execCommand(new AddNodeCommand(this), [node12]);
+
+                let graph = new Graph('function1');
+                graph.addOutput("A2aa","Image", null);
+                graph.addInput("A4aa","Image", null);
+                this.graph.addSubGraph(graph.name, graph);
+                let node13 = type_registry.createNode("FunctionNode", {function: this.graph.getSubGraph('function1')});
+                node13.translate= new Point(150, 350);
+                this.execCommand(new AddNodeCommand(this), [node13]);
+
                 e.preventDefault();
             }
             else if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
