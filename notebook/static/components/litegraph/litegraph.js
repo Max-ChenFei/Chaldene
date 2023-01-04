@@ -1453,6 +1453,18 @@
     }
     type_registry.registerNodeType("GetVariableNode", GetVariableNode);
 
+    function SetVariableNode(args){
+        this._ctor();
+        this.type = "SetVariableNode";
+        this.title = "SET";
+        if(args && args.variable){
+            this.addInput(args.variable.name, args.variable.type, null);
+            this.addOutput(args.variable.name, args.variable.type, null);
+        }
+    }
+
+    type_registry.registerNodeType("SetVariableNode", SetVariableNode);
+
     function textWidth(text, font) {
         let canvas = document.getElementsByTagName("canvas")[0];
         let ctx = canvas.getContext("2d");
@@ -3370,8 +3382,14 @@
                 let v2 = new Variable('lambda', 'number');
                 let node10 = type_registry.createNode("GetVariableNode", {variable: v2});
                 node10.translate= new Point(100, 350);
-                this.execCommand(new AddNodeCommand(this), [node10]);
-
+                let v3 = new Variable('boolean', 'boolean');
+                let node11 = type_registry.createNode("SetVariableNode", {variable: v3});
+                node11.translate= new Point(120, 250);
+                this.execCommand(new AddNodeCommand(this), [node11]);
+                let v4 = new Variable('lambda', 'number');
+                let node12 = type_registry.createNode("SetVariableNode", {variable: v4});
+                node12.translate= new Point(140, 350);
+                this.execCommand(new AddNodeCommand(this), [node12]);
                 e.preventDefault();
             }
             else if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
