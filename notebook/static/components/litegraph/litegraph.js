@@ -2685,6 +2685,14 @@
             throw "This browser doesn't support Canvas";
     }
 
+    Scene.prototype.addHTMLElement = function(element, x, y) {
+        element.style.position = 'absolute';
+        element.style.zIndex = 1;
+        element.style.left = x.toString()+'px';
+        element.style.top = y.toString()+'px';
+        this.container.appendChild(element);
+    }
+
     Scene.prototype.createCanvas = function(container) {
         if(container instanceof String)
             this.container = document.getElementById(container);
