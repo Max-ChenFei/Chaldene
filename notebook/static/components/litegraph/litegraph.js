@@ -441,7 +441,7 @@
         assertNameUniqueIn(name, Object.keys(this.variables));
         let v = new Variable(name, type, value);
         obj[name] = v;
-        this.signalHandler.send("memberChange");
+        this.signalHandler.send("membersChange");
     };
 
     Graph.prototype.addInput = function(name, type, value) {
