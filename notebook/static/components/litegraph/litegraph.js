@@ -105,13 +105,13 @@
         delete this.registered_node_types[node_class.type];
     };
 
-    TypeRegistry.prototype.createNode = function(type_name) {
+    TypeRegistry.prototype.createNode = function(type_name, args) {
         let node_class = this.registered_node_types[type_name];
         if (!node_class) {
             console.warn(`Can not create node with type ${type_name}`);
             return undefined;
         };
-        let node = new node_class();
+        let node = new node_class(args);
         if (node.onNodeCreated) {
             node.onNodeCreated();
         }
@@ -1433,6 +1433,25 @@
     }
 
     type_registry.registerNodeType("Comment", CommentNode);
+
+    function GetVariableNode(args){
+        this._ctor();
+        this.type = "Get Variable";
+        if(args && args.variable)
+            this.addOutput(args.variable.name, args.variable.type, null);
+    }
+
+    GetVariableNode.prototype.overrideRenderingTemplate = function (){
+        this.title_bar = {
+            to_render: false,
+            color: "#a3a3fa",
+            height: 25,
+            font: "12px Arial",
+            font_color: '#000000',
+            text_to_border: 5
+        };
+    }
+    type_registry.registerNodeType("GetVariableNode", GetVariableNode);
 
     function textWidth(text, font) {
         let canvas = document.getElementsByTagName("canvas")[0];
@@ -3344,7 +3363,15 @@
                 this.graph.addOutput("A2aa","Image", null);
                 this.graph.addInput("A4aa","Image", null);
                 this.graph.addVariable("Aaaaffa","Image", null);
-                //this.selectAllNodes();
+                let v1 = new Variable('ndarray', 'numpy.ndarray');
+                let node9 = type_registry.createNode("GetVariableNode", {variable: v1});
+                node9.translate= new Point(100, 250);
+                this.execCommand(new AddNodeCommand(this), [node9]);
+                let v2 = new Variable('lambda', 'number');
+                let node10 = type_registry.createNode("GetVariableNode", {variable: v2});
+                node10.translate= new Point(100, 350);
+                this.execCommand(new AddNodeCommand(this), [node10]);
+
                 e.preventDefault();
             }
             else if (e.code == "KeyC" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
