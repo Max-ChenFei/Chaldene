@@ -35,6 +35,8 @@
         let id_counter = 0;
 
         this.send = function(signal,args){
+            if(!this.signals[signal])
+                return;
             for(const callback of Object.values(this.signals[signal])){
                 callback(args);
             }
@@ -3393,6 +3395,7 @@
                 this.graph.addOutput("A2aa","Image", null);
                 this.graph.addInput("A4aa","Image", null);
                 this.graph.addVariable("Aaaaffa","Image", null);
+                this.graph.addSubGraph("myGraph", new Graph("myGraph"));
                 let v1 = new Variable('ndarray', 'numpy.ndarray');
                 let node9 = type_registry.createNode("GetVariableNode", {variable: v1});
                 node9.translate= new Point(100, 250);
@@ -3409,9 +3412,9 @@
                 node12.translate= new Point(140, 350);
                 this.execCommand(new AddNodeCommand(this), [node12]);
 
-                let graph = new Graph('function1');
-                graph.addOutput("A2aa","Image", null);
-                graph.addInput("A4aa","Image", null);
+                let graph = new Graph('myFun');
+                graph.addOutput("output1","Image", null);
+                graph.addInput("myInput2","Image", null);
                 this.graph.addSubGraph(graph.name, graph);
                 let node13 = type_registry.createNode("FunctionNode", {function: this.graph.getSubGraph('function1')});
                 node13.translate= new Point(150, 350);
