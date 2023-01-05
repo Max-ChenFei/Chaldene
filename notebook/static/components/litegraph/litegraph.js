@@ -4366,8 +4366,8 @@
         this._add_node.updateScene(new_scene);
     }
 
-    CreateNodeCommand.prototype.exec = function(node_type) {
-        let node = type_registry.createNode(node_type);
+    CreateNodeCommand.prototype.exec = function(args) {
+        let node = type_registry.createNode(args.node_type,args.opts);
         node.translate = new Point(this.scene.last_scene_pos.x, this.scene.last_scene_pos.y);
         this._add_node.exec(node);
         this.support_undo = this._add_node.support_undo;
@@ -4639,7 +4639,7 @@
     }
 
     AddRerouteToConnectorCommand.prototype.exec = function(connector) {
-        this.reroute = this._add_command.exec('RerouteNode');
+        this.reroute = this._add_command.exec({node_type:'RerouteNode'});
         this.replaceConnectors(connector);
     }
 

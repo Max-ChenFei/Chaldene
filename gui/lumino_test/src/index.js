@@ -289,13 +289,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
       this.update();
     }
-    let graph = parent.data_graph;
+    let dgraph = parent.data_graph;
     let callback = function(){
       that.setMembers(parent.getMembers());
     }
-    let signal1 = graph.signalHandler.connect("addNode", callback);
-    let signal2 = graph.signalHandler.connect("deleteNode", callback);
-    let signal3 = graph.signalHandler.connect("membersChange", callback);
+    let signal1 = dgraph.signalHandler.connect("addNode", callback);
+    let signal2 = dgraph.signalHandler.connect("deleteNode", callback);
+    let signal3 = dgraph.signalHandler.connect("membersChange", callback);
 
     let prevObj = null;
 
@@ -329,7 +329,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     };
 
     function addNewMember(category){
-      graph.createVariable(category);
+      dgraph.createVariable(category);
     }
 
     this._groups = {};
@@ -350,6 +350,16 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
           }
         }
         for (const [category, group] of Object.entries(help)){
+          let type = null;
+          if(category === "Variables"){
+            type = "variables";
+          } else if(category==="Inputs"){
+            type = "inputs";
+          } else if(category==="Outputs"){
+            type = "outputs";
+          }else if(category==="Functions"){
+            type = "subgraphs";
+          }
           let icon= document.createElement('i');
           icon.style.width = "1rem";
           icon.classList.add("fa");
@@ -392,8 +402,12 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
                   onDblClick({subgraph: parent.data_graph.subgraphs[group.list[i]]});
                 };
               }
-              memberEl.ondragstart = function(){onDrag(group.list[i])}
-              memberEl.ondragend = function(){onDragEnd(group.list[i])}
+              memberEl.ondragstart = function(){
+                onDrag(
+                  {graph: parent.data_graph, type: type, name: group.list[i]}
+                )
+              }
+              memberEl.ondragend = function(){onDragEnd()}
 
               this._list.appendChild(memberEl);
             }
@@ -422,7 +436,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
   }
 
   GraphEditor.prototype.createNode = function (parent) {
-    function createMenu(items,label='', scene, commands,inactive){
+    function createMenu(items,label='', prefix, scene, commands,inactive){
         let m = new Menu({commands:commands});
         for(let i =0; i<items.length; i++){
           //let args = items[i].args || {};
@@ -436,13 +450,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
               args._active=false;
             }
             m.addItem({
-              command: "litegraph:"+items[i].command,
+              command: prefix+items[i].command,
               args: args
             });
           } else {
             m.addItem({type: 'submenu',
             submenu: createMenu(items[i].submenu.items,
-                              items[i].submenu.label,commands,items[i].inactive)});
+                              items[i].submenu.label,prefix,commands,items[i].inactive)});
           }
 
         }
@@ -463,9 +477,22 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       e.preventDefault();
     })
 
-    canvas.addEventListener("drop",function(){
-      if(graph.draggedElement){
-        graph.commands.execute("litegraph:CreateNodeCommand", {_scene: graph.scene, _content: ["Image.Image"]});
+    canvas.addEventListener("drop",function(event){
+      let el = graph.draggedElement;
+      if(el){
+        if(el.type === "subgraphs"){
+          let subgraph = el.graph.subgraphs[el.name]
+          graph.commands.execute("litegraph:CreateNodeCommand", {_scene: graph.scene, _content: [{node_type:"FunctionNode", opts:{function: subgraph}}]});
+        } else {
+          //should be a variable
+
+          let m = createMenu([
+            {command: "graph:CreateSetNode", args: el},
+            {command: "graph:CreateGetNode", args: el},
+          ],"", "",graph.scene, graph.commands);
+
+          m.open(event.clientX,event.clientY);
+        }
       }
     });
     node.appendChild(canvas);
@@ -510,19 +537,52 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
             execute: function(args){
               return helper[i].exec(args._scene, args._content);
             },
-            isEnabled: function(args){
-              return args._active;
-            }
           }
         )
       }
+
+      //Set
+      commands.addCommand("graph:CreateSetNode",
+        {
+          label: "Set", mnemonic:0,
+          execute: function(args){
+            let new_args = {_scene: args._scene, _content:[{}]};
+            new_args._content[0].node_type = "SetVariableNode"
+            new_args._content[0].opts = {};
+            let opts = new_args._content[0].opts;
+            opts.variable = args._content;
+            commands.execute("litegraph:CreateNodeCommand", new_args)
+          },
+          isEnabled: function(args){
+            return args._active;
+          }
+        }
+      );
+
+      //Set
+      commands.addCommand("graph:CreateGetNode",
+        {
+          label: "Get", mnemonic:0,
+          execute: function(args){
+            let new_args = {_scene: args._scene, _content:[{}]};
+            new_args._content[0].node_type = "GetVariableNode"
+            new_args._content[0].opts = {};
+            let opts = new_args._content[0].opts;
+            opts.variable = args._content;
+            commands.execute("litegraph:CreateNodeCommand", new_args)
+          },
+          isEnabled: function(args){
+            return args._active;
+          }
+        }
+      );
     }
     fillCommandRegistry(graph.commands, getAllContextCommands());
     node.addEventListener('contextmenu', function (event) {
         let cs = graph.scene.getContextCommands();
         searchMenu.close();
         if(cs!=null){
-          let m = createMenu(cs,"", graph.scene, graph.commands);
+          let m = createMenu(cs,"", "litegraph:",graph.scene, graph.commands);
           m.open(event.clientX,event.clientY);
         }
          else {
@@ -653,7 +713,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
         }
         prevObj = obj;
         obj.classList.add("selected");
-        graph.commands.execute("litegraph:CreateNodeCommand", {_scene: graph.scene, _content: [obj.node_type]});
+        graph.commands.execute("litegraph:CreateNodeCommand", {_scene: graph.scene, _content: [{node_type: obj.node_type}]});
         graph.search_menu.close();
       }
 
