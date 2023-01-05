@@ -601,6 +601,30 @@
         this.removeVarOf(name, this.variables);
     };
 
+    Graph.prototype.getMembers = function(){
+      return {
+          variables: Object.values(this.variables), subgraph: Object.values(this.subgraphs),
+          inputs: Object.values(this.inputs), outputs: Object.values(this.outputs)};
+    }
+
+    function FunctionLibrary(name) {
+        this.init(name);
+    }
+
+    FunctionLibrary.prototype.getMembers = function(){
+      return {Functions: Object.values(this.subgraphs)};
+    }
+
+    Object.setPrototypeOf(FunctionLibrary.prototype, Graph.prototype);
+
+    function Class(name) {
+        this.init(name);
+    }
+
+    Class.prototype.getMembers = function(){
+       return {Variables: Object.values(this.variables), Functions: Object.values(this.subgraphs)};}
+
+    Object.setPrototypeOf(Class.prototype, Graph.prototype);
 
     // *************************************************************
     //   Connector CLASS                                     *******

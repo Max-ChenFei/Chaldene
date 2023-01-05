@@ -86,58 +86,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
           children: split_layout_config, sizes: [0.1, 0.8, 0.1]}};
       this.restoreLayout(default_layout_config);
     }
-
-    getMembers(){
-      let variables = [];
-      for (const v of Object.values(this.data_graph.variables)) {
-        variables.push(v);
-      }
-      let functions = [];
-      for (const f of Object.values(this.data_graph.subgraphs)) {
-        functions.push(f);
-      }
-      let inputs = [];
-      for (const f of Object.values(this.data_graph.inputs)) {
-        inputs.push(f);
-      }
-      let outputs = [];
-      for (const f of Object.values(this.data_graph.outputs)) {
-        outputs.push(f);
-      }
-      return {variables: variables, functions: functions, inputs: inputs, outputs:outputs};
-    }
-  }
-
-  class ClassEditor extends VPEEditor{
-    constructor(data_graph, name, caption){
-      super(data_graph, name, caption);
-    }
-
-    getMembers(){
-      let variables = [];
-      for (const v of Object.values(this.data_graph.variables)) {
-        variables.push(v);
-      }
-      let functions = [];
-      for (const f of Object.values(this.data_graph.subgraphs)) {
-        functions.push(f);
-      }
-      return {variables: variables, functions: functions};
-    }
-  }
-
-  class FunctionLibraryEditor extends VPEEditor{
-    constructor(data_graph, name, caption){
-      super(data_graph, name, caption);
-    }
-
-    getMembers(){
-      let functions = [];
-      for (const f of Object.values(this.data_graph.subgraphs)) {
-        functions.push(f);
-      }
-      return {'Functions': functions};
-    }
   }
 
   class Panel extends Widget {
@@ -284,14 +232,14 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       for(const value of Object.values(members.variables)){
         this.addMember("Variables", value.name);
       }
-      for(const value of Object.values(members.functions)){
-        this.addMember("Functions", value.name);
+      for(const value of Object.values(members.subgraph)){
+        this.addMember("subgraph", value.name);
       }
       this.update();
     }
     let dgraph = parent.data_graph;
     let callback = function(){
-      that.setMembers(parent.getMembers());
+      that.setMembers(dgraph.getMembers());
     }
     let signal1 = dgraph.signalHandler.connect("addNode", callback);
     let signal2 = dgraph.signalHandler.connect("deleteNode", callback);
