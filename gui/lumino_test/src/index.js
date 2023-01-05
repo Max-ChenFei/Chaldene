@@ -29,9 +29,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     return bar;
   }
 
-  function addNewEditor(editor_panel, tab_bar){
+  function addNewEditor(editor_panel, tab_bar, data, name){
     editor_panel.editors_count +=1;
-    let new_editor = new VPEEditor(null, `New Editor ${editor_panel.editors_count}`);
+    let new_editor = new VPEEditor(data, name || `New Editor ${editor_panel.editors_count}`);
     let last_widget = tab_bar? tab_bar.titles[tab_bar.titles.length-1].owner : null;
     editor_panel.addWidget(new_editor, {ref: last_widget});
     editor_panel.activateWidget(new_editor);
@@ -48,7 +48,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
   function createEditorPanel(){
     let editor_panel = new DockPanel({tabsConstrained: true, addButtonEnabled : true});
     editor_panel.editors_count = 0;
-    addNewEditor(editor_panel);
     editor_panel.addRequested.connect(addNewEditor);
     editor_panel.id = 'editorPanel';
     window.onresize = function () {
@@ -205,13 +204,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     this._list = document.createElement('div');
     node.appendChild(this._list);
 
-    function initializeCategories(){
-      that.addMember("Inputs");
-      that.addMember("Outputs");
-      that.addMember("Variables");
-      that.addMember("Functions");
-    }
-
     this.addMember = function(category,name){
       if(!this._groups[category]){
         this._groups[category] = {name: category,show:true, list:[]};
@@ -222,21 +214,15 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
     this.setMembers = function(members){
       this._groups = {};
-      initializeCategories();
-      for(const value of Object.values(members.inputs)){
-        this.addMember("Inputs", value.name);
-      }
-      for(const value of Object.values(members.outputs)){
-        this.addMember("Outputs", value.name);
-      }
-      for(const value of Object.values(members.variables)){
-        this.addMember("Variables", value.name);
-      }
-      for(const value of Object.values(members.subgraph)){
-        this.addMember("subgraph", value.name);
+      for (const [category, values] of Object.entries(members)) {
+        this.addMember(category);
+        for (const value of values) {
+          this.addMember(category, value.name);
+        }
       }
       this.update();
     }
+
     let dgraph = parent.data_graph;
     let callback = function(){
       that.setMembers(dgraph.getMembers());
@@ -277,11 +263,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     };
 
     function addNewMember(category){
-      dgraph.createVariable(category);
+      dgraph.addMember(category);
     }
 
     this._groups = {};
-    initializeCategories();
 
 
     this.update = function(){
@@ -298,23 +283,14 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
           }
         }
         for (const [category, group] of Object.entries(help)){
-          let type = null;
-          if(category === "Variables"){
-            type = "variables";
-          } else if(category==="Inputs"){
-            type = "inputs";
-          } else if(category==="Outputs"){
-            type = "outputs";
-          }else if(category==="Functions"){
-            type = "subgraphs";
-          }
+          let type = category;
           let icon= document.createElement('i');
           icon.style.width = "1rem";
           icon.classList.add("fa");
           if(group.show)
-          icon.classList.add("fa-chevron-down");
+            icon.classList.add("fa-chevron-down");
           else
-          icon.classList.add("fa-chevron-right");
+            icon.classList.add("fa-chevron-right");
           icon.ariaHidden=true;
           let catTitle = document.createElement('p');
           catTitle.innerHTML = group.name;
@@ -984,6 +960,25 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     });
   }
   let editor_panel;
+
+  function examples(){
+    let graph = new VPE.Graph('graph');
+    graph.addVariable("Aaa","Image", null);
+    graph.addOutput("A2aa","Image", null);
+    graph.addInput("A4aa","Image", null);
+    graph.addVariable("Aaaaffa","Image", null);
+    graph.addSubGraph("myGraph", new VPE.Graph("myGraph"));
+    addNewEditor(editor_panel, null, graph, 'abstract graph example');
+
+    let class_data = new VPE.Class('class');
+    class_data.addVariable("Aaa","Image", null);
+    addNewEditor(editor_panel, null, class_data, 'class example');
+
+    let function_library = new VPE.FunctionLibrary('functions');
+    function_library.addSubGraph("myGraph", new VPE.Graph("myGraph"));
+    addNewEditor(editor_panel, null, function_library, 'functions example');
+  }
+
   function main(){
     let menu_bar = createMenuBar(commands);
     editor_panel = createEditorPanel();
@@ -991,6 +986,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     Widget.attach(editor_panel, document.body);
     //let focus_tracker = new EditorFocusTracker(editor_panel);
     createCommands(/*focus_tracker*/);
+    examples();
 
     //todo: abstract away in a CreateContextMenu function
     let c = new ContextMenu({commands:commands});

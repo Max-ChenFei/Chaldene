@@ -10,8 +10,11 @@
         TypeRegistry: type_registry,
         Scene: Scene,
         Graph: Graph,
-        Variable: Variable
+        Variable: Variable,
+        Class: Class,
+        FunctionLibrary: FunctionLibrary
     };
+
     function debug_log(msg) {
         if(global.VPE.DEBUG)
             console.log(msg);
@@ -458,32 +461,6 @@
         this.addVarTo(name, type, value, this.variables);
     };
 
-    Graph.prototype.createVariable = function(category){
-        let that = this;
-        function getUnusedName(base_name){
-            let i = 0;
-            let n = base_name+String(i);
-            while((n in that.variables) || (n in that.inputs) || (n in that.outputs)){
-                i++;
-                n = base_name +String(i);
-            }
-            return n;
-        }
-        let c = category.toLowerCase();
-        let base_name = "";
-        if(category === "Variables"){
-            base_name = "var";
-        } else if(category === "Inputs"){
-            base_name = "in";
-        } else if(category === "Outputs"){
-            base_name = "out";
-        } else {
-            throw "Unknown Category for Variable: " + category;
-        }
-
-        this.addVarTo(getUnusedName(base_name), null, null, this[c]);
-    }
-
     Graph.prototype.getVarFrom = function(name, obj) {
        return v = obj[name];
     };
@@ -603,8 +580,39 @@
 
     Graph.prototype.getMembers = function(){
       return {
-          variables: Object.values(this.variables), subgraph: Object.values(this.subgraphs),
-          inputs: Object.values(this.inputs), outputs: Object.values(this.outputs)};
+          VARIABLES: Object.values(this.variables), INPUTS: Object.values(this.inputs),
+          SUBGRAPHS: Object.values(this.subgraphs),OUTPUTS: Object.values(this.outputs)};
+    }
+
+    Graph.prototype.addMember = function(category){
+        let base_name = "New";
+        if(category === "VARIABLES"){
+            base_name += "Var_";
+        } else if(category === "INPUTS"){
+            base_name += "In_";
+        } else if(category === "OUTPUTS"){
+            base_name += "Out_";
+        } else if(category === "SUBGRAPHS"){
+            base_name += "Graph_";
+        } else {
+            throw "Unknown Category: " + category;
+        }
+        let to = this[category.toLowerCase()];
+        let name = getUnusedNameIn(base_name, to);
+        if(category != "SUBGRAPHS")
+            this.addVarTo(name, DataType.boolean, null, to);
+        else
+            this.addSubGraph(name, new Graph(name));
+    }
+
+    function getUnusedNameIn(base_name, list){
+        let i = 0;
+        let name = base_name + String(i);
+        while(name in list){
+            i++;
+            name = base_name + String(i);
+        }
+        return name;
     }
 
     function FunctionLibrary(name) {
@@ -612,7 +620,14 @@
     }
 
     FunctionLibrary.prototype.getMembers = function(){
-      return {Functions: Object.values(this.subgraphs)};
+      return {FUNCTIONS: Object.values(this.subgraphs)};
+    }
+
+    FunctionLibrary.prototype.addMember = function(){
+        let base_name = "NewFunction_";
+        let to = this['subgraphs'];
+        let name = getUnusedNameIn(base_name, to);
+        this.addSubGraph(name, new Graph(name));
     }
 
     Object.setPrototypeOf(FunctionLibrary.prototype, Graph.prototype);
@@ -622,7 +637,25 @@
     }
 
     Class.prototype.getMembers = function(){
-       return {Variables: Object.values(this.variables), Functions: Object.values(this.subgraphs)};}
+       return {VARIABLES: Object.values(this.variables), FUNCTIONS: Object.values(this.subgraphs)};}
+
+    Class.prototype.addMember = function(category){
+        let base_name = "New";
+        if(category === "VARIABLES"){
+            base_name += "Var_";
+        } else if(category === "FUNCTIONS"){
+            base_name += "Graph_";
+        } else {
+            throw "Unknown Category: " + category;
+        }
+        let to = this[category.toLowerCase()];
+        let name = getUnusedNameIn(base_name, to);
+        if(category != "FUNCTIONS")
+            this.addVarTo(name, DataType.boolean, null, to);
+        else
+            this.addSubGraph(name, new Graph(name));
+    }
+
 
     Object.setPrototypeOf(Class.prototype, Graph.prototype);
 
