@@ -33,37 +33,6 @@
         this.registered_node_types = {}; // type_name: node_type
     }
 
-    function SignalHandler(){
-        //private
-        let id_counter = 0;
-
-        this.send = function(signal,args){
-            if(!this.signals[signal])
-                return;
-            for(const callback of Object.values(this.signals[signal])){
-                callback(args);
-            }
-        }
-        this.connect = function(signal, callback){
-            let id = id_counter;
-            id_counter++;
-
-            if(!(signal in this.signals)){
-                this.signals[signal] = {};
-            }
-            this.signals[signal][id] = callback;
-
-            return {id:id, signal:signal}
-        }
-        this.disconnect = function(connector){
-            if(connector.signal in this.signals &&
-                connector.id in this.signals[connector.signal]){
-                delete this.signals[connector.signal][connector.id]
-            }
-        }
-        this.signals = {};
-    }
-
     TypeRegistry.prototype.registerNodeType = function(type, node_class) {
         if (!node_class.prototype) {
             throw "Cannot register a simple object, it must be a class with a prototype";
@@ -207,7 +176,6 @@
         this.outputs = {};
         this.subgraphs = {};
         this.next_unique_id = 0;
-        this.signalHandler = new SignalHandler();
     };
 
     Graph.prototype.serialize = function() {
@@ -313,8 +281,6 @@
             return false;
         node.id = this.getUniqueId();
         this.nodes[node.id] = node;
-
-        this.signalHandler.send("addNode");
         return true;
     };
 
@@ -417,8 +383,6 @@
             return false;
         this.clearConnectorsOfNode(node);
         delete this.nodes[node.id];
-
-        this.signalHandler.send("removeNode");
         return true;
     };
 
@@ -446,7 +410,6 @@
         assertNameUniqueIn(name, Object.keys(this.variables));
         let v = new Variable(name, type, value);
         obj[name] = v;
-        this.signalHandler.send("membersChange");
     };
 
     Graph.prototype.addInput = function(name, type, value) {
