@@ -2686,14 +2686,12 @@
      *
      * @class Scene
      * @constructor
-     * @param {HTMLCanvas} canvas required. the canvas where you want to render, if canvas is undefined, then fail.
+     * @param {HTMLElement || String} the container of the canvas
      * @param {Graph} graph, the content to display
      * @param {Object} options [optional] {drawing_context, rendering_template}
      */
-    function Scene(canvas, graph, options) {
-        this.assertCanvasValid(canvas);
-        this.canvas = canvas;
-        canvas.owner = this;
+    function Scene(container, graph, options) {
+        this.createCanvas(container);
         this.graph = graph || new Graph();
         options = options || {};
         this.drawing_context = options.drawing_context || '2d';
@@ -2775,6 +2773,24 @@
             throw "No-canvas object passed as the canvas argument."
         if (!canvas.getContext)
             throw "This browser doesn't support Canvas";
+    }
+
+    Scene.prototype.createCanvas = function(container) {
+        if(container instanceof String)
+            this.container = document.getElementById(container);
+        else if(container instanceof HTMLElement)
+            this.container = container;
+        this.container = this.container || document;
+        this.container.style.position = "relative";
+        this.canvas = document.createElement('canvas');
+        this.canvas.style.margin = "0px";
+        this.canvas.style.height="100%";
+        this.canvas.style.width = "100%";
+        this.canvas.tabIndex=-1;
+        this.canvas.owner = this;
+        this.container.appendChild(this.canvas);
+        this.container.scene = this;
+        window.addEventListener("resize", this.fitToParentSize.bind(this));
     }
 
     Scene.prototype.pluginSceneRenderingConfig = function() {
