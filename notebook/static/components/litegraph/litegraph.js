@@ -604,14 +604,16 @@
 
     Class.prototype.addMember = function(category){
         let base_name = "New";
+        let to = null;
         if(category === "VARIABLES"){
             base_name += "Var_";
+            to = this['variables'];
         } else if(category === "FUNCTIONS"){
             base_name += "Graph_";
+            to = this['subgraphs'];
         } else {
             throw "Unknown Category: " + category;
         }
-        let to = this[category.toLowerCase()];
         let name = getUnusedNameIn(base_name, to);
         if(category != "FUNCTIONS")
             this.addVarTo(name, DataType.boolean, null, to);
