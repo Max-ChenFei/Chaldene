@@ -42,15 +42,16 @@
 }
 
 .membersPanel .categoryName > div:hover {
-
     background: rgb(200, 230,245);
 }
 
 .membersPanel .memberEl{
     padding-left: 2.4rem;
-
 }
 
+.membersPanel .selected{
+    background-color: darkcyan;
+}
 
 .membersPanel .categoryName{
     padding-left: 1rem;
@@ -60,6 +61,8 @@
 .membersPanel .categoryName p{
     padding-left: 0.2rem;
 }
-.membersPanel .selected{
-    background-color: darkcyan;
+
+
+.matched_text{
+    background-color: lightblue;
 }

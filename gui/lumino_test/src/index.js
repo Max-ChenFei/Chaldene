@@ -2,6 +2,23 @@
  * Node here refers to dom element
  */
 define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumino_widgets) {
+  class Signal{
+      constructor(){
+        this.slots = {};
+      }
+      connect(slot){
+        this.slots[slot] = slot;
+      }
+      disconnect(slot){
+        delete this.slots[slot];
+      }
+      emit(args){
+        for (const slot of Object.values(this.slots)) {
+          slot(args);
+        }
+      }
+  }
+
   const Widget = lumino_widgets.Widget;
   const DockPanel = lumino_widgets.DockPanel;
   const ContextMenu = lumino_widgets.ContextMenu;
@@ -37,14 +54,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     editor_panel.activateWidget(new_editor);
   }
 
-  function addEditor(editor, editor_panel, tab_bar){
-    editor_panel.editors_count +=1;
-    let new_editor = editor
-    let last_widget = tab_bar? tab_bar.titles[tab_bar.titles.length-1].owner : null;
-    editor_panel.addWidget(new_editor, {ref: last_widget});
-    editor_panel.activateWidget(new_editor);
-  }
-
   function createEditorPanel(){
     let editor_panel = new DockPanel({tabsConstrained: true, addButtonEnabled : true});
     editor_panel.editors_count = 0;
@@ -63,285 +72,288 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       this.title.label = name;
       this.title.caption = caption || name;
       this.title.closable = true;
-      this.members_panel = new MembersPanel(this);
-      this.graph_edtiors = [];
-      this.graph_edtiors.push(new GraphEditor(this));
-      this.properties_panel = new PropertiesPanel(this);
-      this.addWidget(this.members_panel);
-      this.addWidget(this.graph_edtiors[0], { mode: 'split-right', ref: this.members_panel });
-      this.addWidget(this.properties_panel, { mode: 'split-right', ref: this.graph_edtiors[0] });
-      this.addClass('content');
-      this.setDefaultLayout();
+      this.setDefaultWidget();
       this.selected_member = null;
     }
 
-    setDefaultLayout(){
+    setDefaultWidget(){
+      this.members_panel = new MembersPanel(this);
+      this.members_panel.onmemberdblclick.connect(this.onClickMember.bind(this));
+      this.addWidget(this.members_panel);
+      this.graph_edtiors = {};
+      let default_graph_editor = this.openGraphEditor('Graph Editor');
+      this.graph_edtiors['Graph Editor'] = default_graph_editor;
+      this.properties_panel = new PropertiesPanel(this);
+      this.addWidget(this.graph_edtiors['Graph Editor'], { mode: 'split-right', ref: this.members_panel });
+      this.addWidget(this.properties_panel, { mode: 'split-right', ref: default_graph_editor });
+      this.addClass('content');
       let split_layout_config = [
           {currentIndex: 0, type: "tab-area", widgets: [this.members_panel]},
-          {currentIndex: 0, type: "tab-area", widgets: [this.graph_edtiors[0]]},
+          {currentIndex: 0, type: "tab-area", widgets: [default_graph_editor]},
           {currentIndex: 0, type: "tab-area", widgets: [this.properties_panel]}];
       let default_layout_config = {main:  {
           type: 'split-area', orientation: 'horizontal',
           children: split_layout_config, sizes: [0.1, 0.8, 0.1]}};
       this.restoreLayout(default_layout_config);
     }
+
+    onClickMember(args){
+      let data = args.data;
+      if(data instanceof VPE.Graph)
+        this.openGraphEditor(data.name);
+    }
+    openGraphEditor(name){
+      let graph_editor = this.graph_edtiors[name];
+      if(!graph_editor) {
+        graph_editor = new GraphEditor(this, name || 'Graph Editor');
+        if(Object.values(this.graph_edtiors).length == 0){
+          this.addWidget(graph_editor, { mode: 'split-right', ref: this.members_panel });
+        }
+        else{
+          let ref_widget = Object.values(this.graph_edtiors)[0];
+          let tab_bar = this.findTabBar(ref_widget);
+          let last_widget = tab_bar.titles[tab_bar.titles.length-1].owner;
+          this.addWidget(graph_editor, {ref: last_widget});
+        }
+        this.graph_edtiors[name] = graph_editor;
+        graph_editor.onclose.connect(this.closeGraphEditor.bind(this));
+      }
+      this.activateWidget(graph_editor);
+      return graph_editor;
+    }
+
+    findTabBar(widget){
+      let tab_bars = this.layout.tabBars();
+      for(const bar of tab_bars){
+        if(bar.titles.includes(widget.title))
+          return bar;
+      }
+      throw 'Reference widget is not in the layout.';
+    }
+
+    closeGraphEditor(args){
+      delete this.graph_edtiors[args.name];
+    }
+
+    getDataMembers(){
+      return this.data_graph.getMembers();
+    }
+
+    newDataMember(category){
+      this.data_graph.addMember(category);
+    }
   }
 
   class Panel extends Widget {
-    constructor(parent, class_type, title_label, title_caption) {
-      let node = class_type.prototype.createNode(parent);
-      super({ node: node});
-      this.source = parent;
+    constructor(parent_widget, title_label, title_caption) {
+      super({});
+      this.setParentWidget(parent_widget);
+      this.setWidgetTitle(title_label, title_caption);
+      this.setWidgetStyle();
+      this.addSubNodesTo(this.node);
+    }
+
+    setWidgetStyle(){
       this.setFlag(Widget.Flag.DisallowLayout);
       this.addClass('content');
-      this.title.label = title_label;
+    }
+
+    setWidgetTitle(title_label, title_caption){
+      this.name = title_label;
+      this.title.label = this.name;
       this.title.closable = true;
       this.title.caption = title_caption || title_label;
+    }
+
+    setParentWidget(widget){
+      this.source = widget;
+    }
+
+    getParentWidget(){
+      return this.source;
+    }
+
+    addSubNodesTo(parent_node){
     }
   }
 
   class PropertiesPanel extends Panel {
-    constructor(parent) {
-      super(parent, PropertiesPanel, 'Properties');
+    constructor(parent_widget) {
+      super(parent_widget, 'Properties');
     }
+
+    addSubNodesTo(parent_node) {
+        let content = document.createElement('div');
+        let input = document.createElement('input');
+        input.placeholder = 'Placeholder...';
+        content.appendChild(input);
+        parent_node.appendChild(content);
+      }
   }
-
-  PropertiesPanel.prototype.createNode = function(parent) {
-      let node = document.createElement('div');
-      // if(!source.selected_member)
-      //   return node;
-      //get properties from this.source_selected_members and generate dom elements
-      let content = document.createElement('div');
-      let input = document.createElement('input');
-      input.placeholder = 'Placeholder...';
-      content.appendChild(input);
-      node.appendChild(content);
-      return node;
-    }
-
-  PropertiesPanel.prototype.inputNode = function () {
-    return this.node.getElementsByTagName('input')[0];
-  };
-
-  PropertiesPanel.prototype.onActivateRequest = function (msg) {
-    if (this.isAttached) {
-      this.inputNode().focus();
-    }
-  };
 
   class MembersPanel extends Panel {
-    constructor(parent) {
-      super(parent, MembersPanel, 'Members');
+    constructor(parent_widget) {
+      super(parent_widget, 'Members');
+      this.filter = null;
+      this.onmemberclick = new Signal();
+      this.onmemberdblclick = new Signal();
+      this.onmemberclick.connect(this.onClickMember.bind(this));
+    }
+
+    onClickMember(args){
+      let new_mber = args.member;
+      if(new_mber == this.selected_member)
+        return;
+      if(this.selected_member)
+        this.selected_member.classList.remove("selected");
+      new_mber.classList.add("selected");
+      this.selected_member = new_mber;
+    }
+
+    addMembers(category, members) {
+      if (!this.categorized_members[category])
+        this.categorized_members[category] = {collapse: false, members: [], name: ''};
+      if (members)
+        this.categorized_members[category].members = this.categorized_members[category].members.concat(members);
+    }
+
+    fetchMembers() {
+      this.categorized_members = {};
+      for (const [category, members] of Object.entries(this.getParentWidget().getDataMembers()))
+        this.addMembers(category, members);
+    }
+
+    addSubNodesTo(parent_node) {
+      this.fetchMembers();
+      parent_node.classList.add('membersPanel');
+      let input = document.createElement('input');
+      input.in_panel = this;
+      input.placeholder = "Search...";
+      input.addEventListener("input",function(){
+        this.in_panel.filter = this.value;
+        this.in_panel.updateMemberTreeView(this.in_panel.filter, true);
+      });
+      parent_node.appendChild(input);
+      this.members_tree_view = document.createElement('div');
+      this.updateMemberTreeView();
+      parent_node.appendChild(this.members_tree_view);
+    }
+
+    updateMemberTreeView(filter, not_collapse) {
+      this.members_tree_view.innerHTML = '';
+      for (const [name, category] of Object.entries(this.categorized_members)) {
+        //todo hierarchical html elements
+        let sub_nodes = this.createNodeForCategory(name, category, filter, not_collapse);
+        for (const node of sub_nodes) {
+          this.members_tree_view.appendChild(node);
+        }
+      }
+    }
+
+    createNodeForCategory(name, category, filter, not_collapse) {
+      let category_node = document.createElement('div');
+      category_node.classList.add('categoryName');
+      let icon = document.createElement('i');
+      icon.style.width = "1rem";
+      icon.classList.add("fa");
+      if (!category.collapse || not_collapse)
+        icon.classList.add("fa-chevron-down");
+      else
+        icon.classList.add("fa-chevron-right");
+      icon.ariaHidden = true;
+      let title = document.createElement('p');
+      title.innerHTML = name;
+      let label = document.createElement('div');
+      label.appendChild(icon);
+      label.appendChild(title);
+      category_node.appendChild(label);
+      let add_button = document.createElement('button');
+      add_button.classList.add('addbutton');
+      add_button.innerHTML = "Add...";
+      add_button.in_panel = this;
+      add_button.category_name = name;
+      add_button.onclick = function(event){
+        this.in_panel.getParentWidget().newDataMember(this.category_name);
+        this.in_panel.fetchMembers();
+        this.in_panel.updateMemberTreeView();
+        event.stopPropagation();
+      }
+      category_node.appendChild(add_button);
+      category_node.in_panel = this;
+      category_node.in_category = category;
+      category_node.onclick = function(){
+        this.in_category.collapse = !this.in_category.collapse;
+        this.in_panel.updateMemberTreeView(this.in_panel.filter);
+      };
+      let subnodes = this.attachNodesInCategory(category, category_node, filter, not_collapse);
+      subnodes.unshift(category_node);
+      return subnodes;
+    }
+
+    attachNodesInCategory(category, category_node, filter, not_collapse) {
+      let sub_nodes = [];
+      if(!category.collapse || not_collapse) {
+          for (const member of category.members) {
+            let node = this.createOneMemberNode(member, filter);
+            if(node)
+              sub_nodes.push(node);
+          }
+      }
+      return sub_nodes;
+    }
+
+    createOneMemberNode(member, filter){
+      let name = member.name;
+      if(filter && !name.includes(filter))
+        return null;
+      let memberEl = document.createElement('p');
+      if(!filter){
+        let text = document.createTextNode(name);
+        memberEl.appendChild(text);
+      }
+      else{
+        let last_index = 0;
+        for (const substring of name.matchAll(filter)) {
+        let not_matched_span = document.createElement("span");
+        if(last_index != substring.index){
+          let not_matched_text = document.createTextNode(name.substring(last_index, substring.index));
+          not_matched_span.appendChild(not_matched_text);
+          memberEl.appendChild(not_matched_span);
+        }
+        let matched_span = document.createElement("span");
+        last_index = substring.index + substring[0].length;
+        let matched_text = document.createTextNode(name.substring(substring.index, last_index));
+        matched_span.classList.add('matched_text');
+        matched_span.appendChild(matched_text);
+        memberEl.appendChild(matched_span);
+      }
+        if(last_index<name.length){
+          let not_matched_span = document.createElement("span");
+          let not_matched_text = document.createTextNode(name.substring(last_index, name.length));
+          not_matched_span.appendChild(not_matched_text);
+          memberEl.appendChild(not_matched_span);
+        }
+      }
+      memberEl.classList.add('memberEl');
+      memberEl.draggable = true;
+      memberEl.in_panel = this;
+      memberEl.data = member;
+      memberEl.ondblclick = function(){
+        this.in_panel.onmemberdblclick.emit({data: this.data});
+      };
+      memberEl.onclick = function(){
+        this.in_panel.onmemberclick.emit({data:this.data, member:this});
+      };
+      memberEl.ondragstart = function(){
+
+        onDrag(
+          {graph: parent.data_graph, type: type, name: group.list[i]}
+        )
+      }
+      return memberEl;
     }
   }
 
-  MembersPanel.prototype.createNode = function(parent) {
-    //this.source.getmembers() and show
-    let node = document.createElement('div');
-    node.classList.add('membersPanel');
-    let input = document.createElement('input');
-    let that = this;
-    this._search = null;
-    function createLabel(name,search_results){
-      let s = "";
-      s+=name.slice(0,search_results[0].index);
-      for(let i = 0;i<search_results.length-1;i++){
-        s+="<b>" +search_results[i][0] + "</b>";
-        s+=name.slice(search_results[i].index + search_results[i][0].length,search_results[i+1].index);
-      }
-      let i = search_results.length-1;
-      s+="<b>" +search_results[i][0] + "</b>";
-      s+=name.slice(search_results[i].index + search_results[i][0].length);
-      return s;
-    }
-    function updateSearch(){
-      if(!input.value){
-        that._search = null;
-        that.update();
-        return;
-      }
-
-      that._search = {};
-
-      for (const [category, group] of Object.entries(that._groups)){
-        let s1 = [...category.matchAll(input.value)];
-        let added = false;
-        if(s1.length>0){
-          that._search[category] = {name: createLabel(category, s1), list:[]}
-          added = true;
-        }
-
-        for(let i = 0; i<group.list.length; i++){
-          let member = group.list[i];
-          let s2 = [...member.matchAll(input.value)];
-          if(s2.length>0){
-            if(!added){
-              that._search[category] = {name: category, list:[]}
-              added = true;
-            }
-            that._search[category].list.push(createLabel(member,s2));
-            that._search[category].show = true;
-          } else {
-            if(added){
-              that._search[category].list.push(member);
-              that._search[category].show = group.show;
-            }
-          }
-
-        }
-
-      }
-      that.update();
-
-    }
-
-    input.addEventListener("input",function(){
-        updateSearch();
-    });
-    node.appendChild(input);
-    input.placeholder = "Search...";
-
-    this._list = document.createElement('div');
-    node.appendChild(this._list);
-
-    this.addMember = function(category,name){
-      if(!this._groups[category]){
-        this._groups[category] = {name: category,show:true, list:[]};
-      }
-      if(name)
-        this._groups[category].list.push(name);
-    };
-
-    this.setMembers = function(members){
-      this._groups = {};
-      for (const [category, values] of Object.entries(members)) {
-        this.addMember(category);
-        for (const value of values) {
-          this.addMember(category, value.name);
-        }
-      }
-      this.update();
-    }
-
-    let dgraph = parent.data_graph;
-    let callback = function(){
-      that.setMembers(dgraph.getMembers());
-    }
-    let signal1 = dgraph.signalHandler.connect("addNode", callback);
-    let signal2 = dgraph.signalHandler.connect("deleteNode", callback);
-    let signal3 = dgraph.signalHandler.connect("membersChange", callback);
-
-    let prevObj = null;
-
-    function onclick(obj){
-      if(prevObj){
-        prevObj.classList.remove("selected");
-      }
-      prevObj = obj;
-      obj.classList.add("selected");
-    };
-
-    function onDblClick(obj){
-      if(obj.subgraph){
-        addEditor(new VPEEditor(obj.subgraph, obj.subgraph.name,obj.subgraph.name + " description"),editor_panel);
-      }
-    }
-
-
-
-    function onDrag(obj){
-      graph.draggedElement = obj;
-    }
-
-    function onDragEnd(){
-      graph.draggedElement = null;
-    }
-
-    function groupClick(group){
-      group.show = !group.show;
-      that.update();
-    };
-
-    function addNewMember(category){
-      dgraph.addMember(category);
-    }
-
-    this._groups = {};
-
-
-    this.update = function(){
-        this._list.remove();
-        this._list = document.createElement('div');
-        node.appendChild(this._list);
-        let help = this._groups;
-        if(this._search){
-          if(Object.keys(this._search).length === 0){
-            this._list.innerHTML = "No search results...";
-            return;
-          } else {
-            help = this._search;
-          }
-        }
-        for (const [category, group] of Object.entries(help)){
-          let type = category;
-          let icon= document.createElement('i');
-          icon.style.width = "1rem";
-          icon.classList.add("fa");
-          if(group.show)
-            icon.classList.add("fa-chevron-down");
-          else
-            icon.classList.add("fa-chevron-right");
-          icon.ariaHidden=true;
-          let catTitle = document.createElement('p');
-          catTitle.innerHTML = group.name;
-          let catItem = document.createElement('div');
-
-          let button = document.createElement('button')
-          button.classList.add('addbutton')
-          button.innerHTML = "Add...";
-          button.onclick = function(){
-            addNewMember(category);
-          }
-
-          let catName = document.createElement('div');
-          catName.appendChild(icon);
-          catName.appendChild(catTitle);
-          catItem.classList.add('categoryName');
-
-          catItem.appendChild(catName);
-          catItem.appendChild(button);
-          catName.onclick = function(){groupClick(group);};
-
-
-          this._list.appendChild(catItem);
-          if(group.show){
-            for(let i = 0; i<group.list.length; i++){
-              let memberEl = document.createElement('p');
-              memberEl.innerHTML = group.list[i];
-              memberEl.classList.add('memberEl');
-              memberEl.draggable = true;
-              memberEl.onclick = function(){onclick(memberEl);};
-              if(group.name === "Functions"){
-                memberEl.ondblclick = function(){
-                  onDblClick({subgraph: parent.data_graph.subgraphs[group.list[i]]});
-                };
-              }
-              memberEl.ondragstart = function(){
-                onDrag(
-                  {graph: parent.data_graph, type: type, name: group.list[i]}
-                )
-              }
-              memberEl.ondragend = function(){onDragEnd()}
-
-              this._list.appendChild(memberEl);
-            }
-          }
-        }
-      };
-    //setsmemebts
-    callback();
-    return node;
-  };
 
   function _getWindowData(){
     return {
@@ -353,177 +365,166 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
   }
 
   class GraphEditor extends Panel {
-    constructor(parent) {
-      super(parent, GraphEditor, 'Graph Editor');
-      this.scene = this.node.graph.scene;
+    constructor(parent_widget, name) {
+      super(parent_widget, name);
+       this.onclose = new Signal();
     }
-  }
 
-  GraphEditor.prototype.createNode = function (parent) {
-    function createMenu(items,label='', prefix, scene, commands,inactive){
-        let m = new Menu({commands:commands});
-        for(let i =0; i<items.length; i++){
-          //let args = items[i].args || {};
-          let args = {}
-          args._scene = scene;
-          args._content = items[i].args;
-          args._active = true;
-          if(!items[i].submenu){
-            //todo: we are seeting the args of the item itself?
-            if(items[i].inactive || inactive){
-              args._active=false;
-            }
-            m.addItem({
-              command: prefix+items[i].command,
-              args: args
-            });
-          } else {
-            m.addItem({type: 'submenu',
-            submenu: createMenu(items[i].submenu.items,
-                              items[i].submenu.label,prefix,commands,items[i].inactive)});
-          }
+    onCloseRequest(msg) {
+      super.onCloseRequest(msg);
+      this.onclose.emit({name: this.name});
+    }
 
-        }
-        m.title.label = label;
-        m.title.mnemonic = 0;
-        return m;
-      };
-    let node = document.createElement('div');
-    let canvas = document.createElement('canvas');
-    canvas.style.margin = "0px";
-    canvas.style.height="100%";
-    canvas.style.width = "100%";
-    canvas.tabIndex = -1;
-
-    canvas.addEventListener('dragenter', function(e){e.preventDefault();})
-    canvas.addEventListener('dragover', function(e){
-      canvas.dispatchEvent(new MouseEvent("mousemove",e));
-      e.preventDefault();
-    })
-
-    canvas.addEventListener("drop",function(event){
-      let el = graph.draggedElement;
-      if(el){
-        if(el.type === "subgraphs"){
-          let subgraph = el.graph.subgraphs[el.name]
-          graph.commands.execute("litegraph:CreateNodeCommand", {_scene: graph.scene, _content: [{node_type:"FunctionNode", opts:{function: subgraph}}]});
-        } else {
-          //should be a variable
-
-          let m = createMenu([
-            {command: "graph:CreateSetNode", args: el},
-            {command: "graph:CreateGetNode", args: el},
-          ],"", "",graph.scene, graph.commands);
-
-          m.open(event.clientX,event.clientY);
-        }
-      }
-    });
-    node.appendChild(canvas);
-    function getRegisteredNodes(reg){
-        let cats = reg.getNodeTypesInAllCategories();
-        function putInCat(object){
-
-          let array = [];
-          for(const [key,obj] of Object.entries(object)){
-            if(key == "__is_category")
-              continue;
-            if(!obj.__is_category){
-              array.push({label:key, node_type: (new obj()).type});
+    addSubNodesTo(parent_node) {
+      function createMenu(items,label='', prefix, scene, commands,inactive){
+          let m = new Menu({commands:commands});
+          for(let i =0; i<items.length; i++){
+            //let args = items[i].args || {};
+            let args = {}
+            args._scene = scene;
+            args._content = items[i].args;
+            args._active = true;
+            if(!items[i].submenu){
+              //todo: we are seeting the args of the item itself?
+              if(items[i].inactive || inactive){
+                args._active=false;
+              }
+              m.addItem({
+                command: prefix+items[i].command,
+                args: args
+              });
             } else {
-              let help = putInCat(obj);
-              array.push({name:key,value:help});
+              m.addItem({type: 'submenu',
+              submenu: createMenu(items[i].submenu.items,
+                                items[i].submenu.label,prefix,commands,items[i].inactive)});
             }
-          }
-          return array;
-        }
 
-        return putInCat(cats);
-      };
-      //todo: call this on a global
-    let gs = getRegisteredNodes(VPE.TypeRegistry);
-    this.scene = new VPE.Scene(canvas, parent.data_graph);
-    this.scene.start();
-    graph = {};
-    graph.scene = this.scene;
-    let searchMenu = new SearchMenu(graph, gs);
-    graph.search_menu = searchMenu;
-    graph.commands = new CommandRegistry();
-
-    //decorates the litegraph commands with lumino information
-    function fillCommandRegistry(commands, allCommands){
-      let helper = getAllContextCommands();
-      for(let i = 0; i< helper.length; i++){
-        commands.addCommand(
-          "litegraph:"+helper[i].name,{
-            label: helper[i].label,
-            mnemonic:0,
-            execute: function(args){
-              return helper[i].exec(args._scene, args._content);
-            },
           }
-        )
-      }
+          m.title.label = label;
+          m.title.mnemonic = 0;
+          return m;
+        };
+      this.scene = new VPE.Scene(parent_node);
+      let canvas = this.scene.canvas;
+      this.scene.start();
+      // canvas.addEventListener('dragenter', function(e){e.preventDefault();})
+      // canvas.addEventListener('dragover', function(e){
+      //   canvas.dispatchEvent(new MouseEvent("mousemove",e));
+      //   e.preventDefault();
+      // })
+      // canvas.addEventListener("drop",function(event){
+      //   let el = graph.draggedElement;
+      //   if(el){
+      //     if(el.type === "subgraphs"){
+      //       let subgraph = el.graph.subgraphs[el.name]
+      //       graph.commands.execute("litegraph:CreateNodeCommand", {_scene: graph.scene, _content: [{node_type:"FunctionNode", opts:{function: subgraph}}]});
+      //     } else {
+      //       //should be a variable
+      //
+      //       let m = createMenu([
+      //         {command: "graph:CreateSetNode", args: el},
+      //         {command: "graph:CreateGetNode", args: el},
+      //       ],"", "",graph.scene, graph.commands);
+      //
+      //       m.open(event.clientX,event.clientY);
+      //     }
+      //   }
+      // });
+      // function getRegisteredNodes(reg){
+      //     let cats = reg.getNodeTypesInAllCategories();
+      //     function putInCat(object){
+      //
+      //       let array = [];
+      //       for(const [key,obj] of Object.entries(object)){
+      //         if(key == "__is_category")
+      //           continue;
+      //         if(!obj.__is_category){
+      //           array.push({label:key, node_type: (new obj()).type});
+      //         } else {
+      //           let help = putInCat(obj);
+      //           array.push({name:key,value:help});
+      //         }
+      //       }
+      //       return array;
+      //     }
+      //
+      //     return putInCat(cats);
+      //   };
+      //let gs = getRegisteredNodes(VPE.TypeRegistry);
+      //let searchMenu = new SearchMenu(graph, gs);
+      // graph.search_menu = searchMenu;
+      // graph.commands = new CommandRegistry();
 
-      //Set
-      commands.addCommand("graph:CreateSetNode",
-        {
-          label: "Set", mnemonic:0,
-          execute: function(args){
-            let new_args = {_scene: args._scene, _content:[{}]};
-            new_args._content[0].node_type = "SetVariableNode"
-            new_args._content[0].opts = {};
-            let opts = new_args._content[0].opts;
-            opts.variable = args._content;
-            commands.execute("litegraph:CreateNodeCommand", new_args)
-          },
-          isEnabled: function(args){
-            return args._active;
-          }
-        }
-      );
-
-      //Set
-      commands.addCommand("graph:CreateGetNode",
-        {
-          label: "Get", mnemonic:0,
-          execute: function(args){
-            let new_args = {_scene: args._scene, _content:[{}]};
-            new_args._content[0].node_type = "GetVariableNode"
-            new_args._content[0].opts = {};
-            let opts = new_args._content[0].opts;
-            opts.variable = args._content;
-            commands.execute("litegraph:CreateNodeCommand", new_args)
-          },
-          isEnabled: function(args){
-            return args._active;
-          }
-        }
-      );
+      //decorates the litegraph commands with lumino information
+      // function fillCommandRegistry(commands, allCommands){
+      //   let helper = getAllContextCommands();
+      //   for(let i = 0; i< helper.length; i++){
+      //     commands.addCommand(
+      //       "litegraph:"+helper[i].name,{
+      //         label: helper[i].label,
+      //         mnemonic:0,
+      //         execute: function(args){
+      //           return helper[i].exec(args._scene, args._content);
+      //         },
+      //       }
+      //     )
+      //   }
+      //
+      //   //Set
+      //   commands.addCommand("graph:CreateSetNode",
+      //     {
+      //       label: "Set", mnemonic:0,
+      //       execute: function(args){
+      //         let new_args = {_scene: args._scene, _content:[{}]};
+      //         new_args._content[0].node_type = "SetVariableNode"
+      //         new_args._content[0].opts = {};
+      //         let opts = new_args._content[0].opts;
+      //         opts.variable = args._content;
+      //         commands.execute("litegraph:CreateNodeCommand", new_args)
+      //       },
+      //       isEnabled: function(args){
+      //         return args._active;
+      //       }
+      //     }
+      //   );
+      //
+      //   //Set
+      //   commands.addCommand("graph:CreateGetNode",
+      //     {
+      //       label: "Get", mnemonic:0,
+      //       execute: function(args){
+      //         let new_args = {_scene: args._scene, _content:[{}]};
+      //         new_args._content[0].node_type = "GetVariableNode"
+      //         new_args._content[0].opts = {};
+      //         let opts = new_args._content[0].opts;
+      //         opts.variable = args._content;
+      //         commands.execute("litegraph:CreateNodeCommand", new_args)
+      //       },
+      //       isEnabled: function(args){
+      //         return args._active;
+      //       }
+      //     }
+      //   );
+      // }
+      //fillCommandRegistry(graph.commands, getAllContextCommands());
+      // parent_node.addEventListener('contextmenu', function (event) {
+      //     let cs = graph.scene.getContextCommands();
+      //     searchMenu.close();
+      //     if(cs!=null){
+      //       let m = createMenu(cs,"", "litegraph:",graph.scene, graph.commands);
+      //       m.open(event.clientX,event.clientY);
+      //     }
+      //      else {
+      //       console.log("show default search menu");
+      //       searchMenu.open(event.clientX,event.clientY);
+      //     }
+      //     event.preventDefault();
+      //     event.stopPropagation();
+      //   });
     }
-    fillCommandRegistry(graph.commands, getAllContextCommands());
-    node.addEventListener('contextmenu', function (event) {
-        let cs = graph.scene.getContextCommands();
-        searchMenu.close();
-        if(cs!=null){
-          let m = createMenu(cs,"", "litegraph:",graph.scene, graph.commands);
-          m.open(event.clientX,event.clientY);
-        }
-         else {
-          console.log("show default search menu");
-          searchMenu.open(event.clientX,event.clientY);
-        }
-        event.preventDefault();
-        event.stopPropagation();
-      });
-
-    node.graph = graph;
-    return node;
-  }
-
-
-  GraphEditor.prototype.onResize = function(){
-    this.scene.resize(this.node.clientWidth, this.node.clientHeight);
+    onResize(){
+      this.scene.fitToParentSize();
+    }
   }
 
   class SearchMenu extends Widget {
@@ -686,7 +687,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
               catItem.appendChild(icon);
               catItem.appendChild(catTitle);
               catItem.classList.add('categoryName');
-              catItem.onclick = function(){groupClick(group);};
+              catItem.onclick = function(){
+                groupClick(group);
+              };
 
               that._list.appendChild(catItem);
               if(group.show)
@@ -1000,5 +1003,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
     });
   }
+
   return main;
 })
