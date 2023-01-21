@@ -63,7 +63,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     let editor_panel = new DockPanel({tabsConstrained: true, addButtonEnabled : true});
     editor_panel.editors_count = 0;
     let fileMenu = createFileMenu();
-    let ed = addNewEditor(editor_panel);
+    //let ed = addNewEditor(editor_panel);
     editor_panel.addWidget(fileMenu, {mode:"split-left"});
     editor_panel.addRequested.connect(addNewEditor);
     editor_panel.id = 'editorPanel';
