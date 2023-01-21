@@ -52,11 +52,19 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     let last_widget = tab_bar? tab_bar.titles[tab_bar.titles.length-1].owner : null;
     editor_panel.addWidget(new_editor, {ref: last_widget});
     editor_panel.activateWidget(new_editor);
+    return new_editor;
+  }
+  function createFileMenu(){
+    let fileBrowser = new FileBrowser();
+    return fileBrowser;
   }
 
   function createEditorPanel(){
     let editor_panel = new DockPanel({tabsConstrained: true, addButtonEnabled : true});
     editor_panel.editors_count = 0;
+    let fileMenu = createFileMenu();
+    let ed = addNewEditor(editor_panel);
+    editor_panel.addWidget(fileMenu, {mode:"split-left"});
     editor_panel.addRequested.connect(addNewEditor);
     editor_panel.id = 'editorPanel';
     window.onresize = function () {
@@ -142,6 +150,263 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     newDataMember(category){
       this.data_graph.addMember(category);
     }
+  }
+
+  class FileSystemObject{
+    //type := 'dir'|'file'
+    //name : String
+    constructor(type, full_path){
+      this.type = type;
+      this.name = full_path[full_path.length-1];
+      this.full_path = full_path;
+    }
+  }
+
+ class Dir extends FileSystemObject {
+    constructor(full_path){
+      super("dir",full_path);
+      this.files = {};
+    }
+
+  }
+  class File extends FileSystemObject {
+    constructor(full_path){
+      super("file",full_path);
+    }
+
+  }
+
+  function createPostCommand(action, content){
+    return {action:action,content:content};
+  }
+
+  class FileSystemServer {
+    constructor(url, port){
+      this.url = url;
+      this.port = port;
+      this.base = this.url + ":"+this.port+"/";
+    }
+
+    open(filename, callback){
+      function reqListener() {
+        callback(this.responseText);
+      }
+
+      const req = new XMLHttpRequest();
+      req.addEventListener("load", reqListener);
+      req.open("GET", this.base+filename);
+      req.send();
+    }
+
+    save(filepath, fileContents){
+      const req = new XMLHttpRequest();
+      req.addEventListener("load", null);
+      req.open("POST", this.base);
+      req.send(JSON.stringify(
+        createPostCommand(
+          "save",
+          {filepath: filepath, file:fileContents}
+        )
+      ));
+    }
+    delete(filepath){
+      const req = new XMLHttpRequest();
+      req.addEventListener("load", null);
+      req.open("POST", this.base);
+      req.send(JSON.stringify(
+        createPostCommand(
+          "delete",
+          {filepath: filepath}
+        )
+      ));
+    }
+
+    ls(callback){
+      function reqListener() {
+        let a = JSON.parse(this.responseText);
+        console.log(this.responseText);
+        callback(a);
+      }
+
+      const req = new XMLHttpRequest();
+      req.addEventListener("load", reqListener);
+      req.open("GET", this.base+"__get_directory_list");
+      req.send();
+    }
+  }
+
+  class SearchBox {
+    constructor(searchable){
+      this.node = document.createElement("input");
+      this.searchable = searchable;
+      this.node.addEventListener("input",function(){
+          this.updateSearch();
+      });
+
+    }
+    updateSearch(){
+      this.searchable.search(this.node.value);
+    }
+  }
+  class Searchable {
+    search(pattern){
+      throw new Error("NOT IMPLEMENTED")
+    }
+  }
+
+
+  class FileList extends Searchable {
+    constructor(){
+      super();
+      this.node = document.createElement("div");
+    }
+    search(pattern){
+      //do nothing
+    }
+
+    updateNode(){
+
+    }
+  }
+
+  class FileBrowser extends Widget {
+    constructor() {
+      let node = FileBrowser.prototype.createNode(parent);
+      super({ node: node});
+
+      this.searchBox = new SearchBox();
+      node.appendChild(this.searchBox.node);
+
+      this.fileList = document.createElement("div");
+      node.appendChild(this.fileList);
+      //this.fileAndDirectoryList = {obj: new Dir("root","."),};
+      this.server = new FileSystemServer("http://localhost",8080);
+      let that = this;
+      this.server.ls(function(fileStructure){
+        console.log(fileStructure);
+        that.updateFileStructure(fileStructure);
+      });
+
+      this.setFlag(Widget.Flag.DisallowLayout);
+      this.addClass('content');
+      this.currentDir = ["."]; //todo: check that root is always called "."
+      let title_label = "File Browser";
+      let title_caption = "Helps you browse through files";
+      this.title.label = title_label;
+      this.title.closable = true;
+      this.title.caption = title_caption || title_label;
+    }
+
+
+
+    updateFileStructure(base_dir){
+      //fileStructure: {type:"dir"|"file",name:String,[files: []]}
+      if(base_dir.type !== "dir")
+        console.error("bad base dir");
+
+      function getNode(path,obj){
+        if(obj.type === "file"){
+          return new File(path.concat([obj.name]));
+        }
+        let dir = new Dir(path.concat([obj.name]));
+        for(let i = 0; i<obj.files.length; i++){
+          dir.files[obj.files[i].name]=getNode(path.concat([obj.name]),obj.files[i]);
+        }
+        return dir;
+      }
+
+      this.fileStructure = getNode([],base_dir);
+      this.display();
+    }
+    display(){
+      let current = this.fileStructure;
+
+      for(let i = 1; i<this.currentDir.length; i++){
+        current = current.files[this.currentDir[i]];
+      }
+
+      this.fileList.innerHTML = "";
+      console.log(current.files);
+      for(const file of Object.values(current.files)){
+        console.log(file);
+        this.fileList.appendChild(this.getHTMLObject(file));
+      }
+    }
+
+    getFileHTMLObject(fileObj){
+      let that = this;
+      let node = document.createElement("div");
+      node.classList.add(["fileElement"]);
+      let icon = document.createElement("i");
+      icon.classList.add(["fa","fa-solid","fa-file"]);
+      node.appendChild(icon)
+      let name = document.createElement("p");
+      name.innerText = fileObj.name;
+      node.appendChild(name);
+      node.onclick = function(){
+        that.open(fileObj.full_path);
+      }
+      return node;
+    }
+
+    getHTMLObject(fileobj){
+      console.log(fileobj);
+      if(fileobj.type === "dir"){
+        return this.getDirHTMLObject(fileobj);
+      } else {
+        return this.getFileHTMLObject(fileobj);
+      }
+    }
+
+    pathToString(path){
+      let s = path[0];
+      for(let i = 0; i<path.length; i++){
+        s+="/"+path[i];
+      }
+      return s;
+    }
+    open(filename){
+      this.server.open(this.pathToString(filename), function(payload){
+        console.log("Opened file!" + (payload));
+      });
+    }
+
+    openDir(path){
+      console.log(path);
+      this.currentDir = path;
+
+      let that = this;
+
+      this.server.ls(
+        function(fileStructure){
+          that.updateFileStructure(fileStructure);
+        }
+      );
+
+    }
+
+    getDirHTMLObject(fileObj){
+      let that = this;
+      let node = document.createElement("div");
+      node.classList.add(["fileElement"]);
+      let icon = document.createElement("i");
+      icon.classList.add(["fa","fa-solid","fa-folder"]);
+      node.appendChild(icon)
+      let name = document.createElement("p");
+      name.innerText = fileObj.name;
+      node.appendChild(name);
+      node.onclick = function(){
+        that.openDir(fileObj.full_path);
+      }
+      return node;
+    }
+
+  }
+
+  FileBrowser.prototype.createNode = function(){
+    let node = document.createElement('div');
+    node.classList.add('fileBrowserPanel');
+    return node;
   }
 
   class Panel extends Widget {
