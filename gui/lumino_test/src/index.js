@@ -269,38 +269,101 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     }
   }
 
-  class FileBrowser extends Widget {
-    constructor() {
-      let node = FileBrowser.prototype.createNode(parent);
+  class DirectoryNavigation extends Widget{
+    constructor(parent){
+
+      let node = DirectoryNavigation.prototype.createNode(parent);
       super({ node: node});
 
-      this.searchBox = new SearchBox();
-      node.appendChild(this.searchBox.node);
+      this.parent = parent;
+      this.mainDiv = document.createElement("div");
+      node.appendChild(this.mainDiv);
 
-      this.fileList = document.createElement("div");
-      node.appendChild(this.fileList);
-      //this.fileAndDirectoryList = {obj: new Dir("root","."),};
-      this.server = new FileSystemServer("http://localhost",8080);
+
+
+    }
+
+    display(){
+      function sanitize(innerHTML){
+        let a = document.createElement("div");
+        a.innerText = innerHTML;
+        return a.innerHTML;
+      }
       let that = this;
-      this.server.ls(function(fileStructure){
-        console.log(fileStructure);
-        that.updateFileStructure(fileStructure);
-      });
+
+      console.log(this.parent.currentDir);
+      function getDirEl(i){
+        let a =  document.createElement("div");
+        if(i>0){
+          a.innerHTML= sanitize(that.parent.currentDir[i]);
+        } else {
+          let icon = document.createElement("i");
+          icon.classList.add("fa");
+          icon.classList.add("fa-folder");
+          a.appendChild(icon);
+        }
+        a.classList.add("vpe_fb_dir_button")
+        a.onclick = function(){
+          that.parent.openDir(that.parent.currentDir.slice(0,i+1))
+        }
+        return a;
+      }
+
+
+      this.mainDiv.innerHTML = "";
+      for(let i =0; i<this.parent.currentDir.length; i++){
+        console.log(this.parent.currentDir);
+        this.mainDiv.append(getDirEl(i));
+
+        let d = document.createElement("div");
+        d.classList.add("vpe_fb_dir_sep");
+        d.innerText = "/";
+        this.mainDiv.append(d);
+      }
+    }
+  }
+
+  DirectoryNavigation.prototype.createNode = function(){
+    let node = document.createElement('div');
+    node.classList.add('DirectoryNavigation');
+    return node;
+  }
+
+
+  class FileBrowser extends Widget {
+    constructor() {
+      let node = FileBrowser.prototype.createNode();
+      super({ node: node});
 
       this.setFlag(Widget.Flag.DisallowLayout);
       this.addClass('content');
-      this.currentDir = ["."]; //todo: check that root is always called "."
+      this.currentDir = ["."];
       let title_label = "File Browser";
       let title_caption = "Helps you browse through files";
       this.title.label = title_label;
       this.title.closable = true;
       this.title.caption = title_caption || title_label;
+
+      this.searchBox = new SearchBox();
+      node.appendChild(this.searchBox.node);
+      this.directoryNavigation = new DirectoryNavigation(this)
+      node.appendChild(this.directoryNavigation.node);
+
+      this.fileList = document.createElement("div");
+      node.appendChild(this.fileList);
+      this.server = new FileSystemServer("http://localhost",8080);
+      let that = this;
+      this.openDir(this.currentDir);
+      /*
+      this.server.ls(function(fileStructure){
+        that.openDir(fileStructure);
+      });*/
+
     }
 
 
 
     updateFileStructure(base_dir){
-      //fileStructure: {type:"dir"|"file",name:String,[files: []]}
       if(base_dir.type !== "dir")
         console.error("bad base dir");
 
@@ -326,11 +389,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
 
       this.fileList.innerHTML = "";
-      console.log(current.files);
       for(const file of Object.values(current.files)){
-        console.log(file);
         this.fileList.appendChild(this.getHTMLObject(file));
       }
+      this.directoryNavigation.display();
     }
 
     getFileHTMLObject(fileObj){
