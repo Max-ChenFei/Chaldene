@@ -1,0 +1,40 @@
+.vpe_fb_file_obj {
+    white-space: nowrap;
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+}
+
+.vpe_fb_file_obj:hover{
+    background: var(--jp-layout-color2);
+}
+.vpe_fb_file_obj > *{
+    display: inline;
+    padding-left: 1rem;
+}
+
+.DirectoryNavigation{
+    white-space: nowrap;
+    padding-top:0.4rem;
+    padding-bottom: 0.4rem;
+}
+.DirectoryNavigation > *>*{
+    display: inline;
+    padding: 0.1rem;
+}
+.vpe_fb_dir_button:hover{
+    background: var(--jp-layout-color2);
+}
+.vpe_fb{
+    font: 14px Helvetica, Arial, sans-serif;
+    color: var(--jp-ui-font-color1);
+}
+
+.fa-folder:not(.selected *),
+.fa-file:not(.selected *){
+    color: var(--jp-ui-font-color2);
+}
+
+.vpe_fb_file_obj.selected{
+    background: var(--jp-brand-color1);
+    color: var(--jp-ui-inverse-font-color1);
+}

@@ -337,7 +337,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
       this.setFlag(Widget.Flag.DisallowLayout);
       this.addClass('content');
+      this.addClass('vpe_fb');
       this.currentDir = ["."];
+      this.currentSelection = [];
       let title_label = "File Browser";
       let title_caption = "Helps you browse through files";
       this.title.label = title_label;
@@ -351,6 +353,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
       this.fileList = document.createElement("div");
       node.appendChild(this.fileList);
+      this.fileList.classList.add("vpe_fb_filelist");
       this.server = new FileSystemServer("http://localhost",8080);
       let that = this;
       this.openDir(this.currentDir);
@@ -398,7 +401,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     getFileHTMLObject(fileObj){
       let that = this;
       let node = document.createElement("div");
-      node.classList.add(["fileElement"]);
+      node.classList.add("vpe_fb_file_obj");
       let icon = document.createElement("i");
       icon.classList.add("fa");
       icon.classList.add("fa-solid");
@@ -407,7 +410,11 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       let name = document.createElement("p");
       name.innerText = fileObj.name;
       node.appendChild(name);
+
       node.onclick = function(){
+        that.select(node);
+      }
+      node.ondblclick = function(){
         that.open(fileObj.full_path);
       }
       return node;
@@ -452,7 +459,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     getDirHTMLObject(fileObj){
       let that = this;
       let node = document.createElement("div");
-      node.classList.add(["fileElement"]);
+      node.classList.add("vpe_fb_file_obj");
       let icon = document.createElement("i");
       icon.classList.add("fa");
       icon.classList.add("fa-folder");
@@ -461,10 +468,31 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       let name = document.createElement("p");
       name.innerText = fileObj.name;
       node.appendChild(name);
-      node.onclick = function(){
+      node.onclick = function(event){
+        that.select(node,event);
+      }
+      node.ondblclick = function(){
         that.openDir(fileObj.full_path);
       }
       return node;
+    }
+
+    select(node,event){
+      //todo: shift select
+      if(!node.selected){
+        this.unselectAll();
+        node.classList.add("selected");
+        node.selected = true;
+        this.currentSelection.push(node);
+      }
+
+    }
+    unselectAll(){
+      for(let i = 0; i<this.currentSelection.length; i++){
+        this.currentSelection[i].classList.remove("selected");
+        this.currentSelection[i].selected = false;
+      }
+      this.currentSelection = [];
     }
 
   }

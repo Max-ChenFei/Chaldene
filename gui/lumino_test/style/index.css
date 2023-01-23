@@ -21,9 +21,12 @@
 @import 'https://cdn.jsdelivr.net/npm/@lumino/default-theme/style/menubar.css';
 @import 'https://cdn.jsdelivr.net/npm/@lumino/default-theme/style/scrollbar.css';
 @import 'https://cdn.jsdelivr.net/npm/@lumino/default-theme/style/tabbar.css';
+@import './jupyterlab/apputils/style/base.css';
+@import './jupyterlab/theme-light-extension/style/variables.css';
 @import './content.css';
 @import './members_panel.css';
 @import './search_menu.css';
+@import './file_browser.css';
 
 body {
   display: flex;
