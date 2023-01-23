@@ -400,7 +400,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       let node = document.createElement("div");
       node.classList.add(["fileElement"]);
       let icon = document.createElement("i");
-      icon.classList.add(["fa","fa-solid","fa-file"]);
+      icon.classList.add("fa");
+      icon.classList.add("fa-solid");
+      icon.classList.add("fa-file");
       node.appendChild(icon)
       let name = document.createElement("p");
       name.innerText = fileObj.name;
@@ -452,7 +454,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       let node = document.createElement("div");
       node.classList.add(["fileElement"]);
       let icon = document.createElement("i");
-      icon.classList.add(["fa","fa-solid","fa-folder"]);
+      icon.classList.add("fa");
+      icon.classList.add("fa-folder");
+      icon.classList.add("fa-solid");
       node.appendChild(icon)
       let name = document.createElement("p");
       name.innerText = fileObj.name;
