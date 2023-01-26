@@ -198,6 +198,20 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       req.send();
     }
 
+    move(originalFilepath, newFilepath, callback=null){
+
+      const req = new XMLHttpRequest();
+
+      req.addEventListener("load", callback);
+      req.open("POST", this.base);
+      req.send(JSON.stringify(
+        createPostCommand(
+          "move",
+          {src: originalFilepath, dest:newFilepath}
+        )
+      ));
+    }
+
     save(filepath, fileContents){
       const req = new XMLHttpRequest();
       req.addEventListener("load", null);
@@ -221,7 +235,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       ));
     }
 
-    ls(callback){
+    //todo: change GETs to POSTs?
+    listAllDirectories(callback){
       function reqListener() {
         let a = JSON.parse(this.responseText);
         console.log(this.responseText);
@@ -232,6 +247,20 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       req.addEventListener("load", reqListener);
       req.open("GET", this.base+"__get_directory_list");
       req.send();
+    }
+    listSingleDirectory(dir,callback){
+
+      function reqListener() {
+        let a = JSON.parse(this.responseText);
+        console.log(this.responseText);
+        callback(a);
+      }
+
+      const req = new XMLHttpRequest();
+      req.addEventListener("load", reqListener);
+      req.open("GET", this.base+"__get_directory?dir="+JSON.stringify(dir));
+      req.send();
+
     }
   }
 
@@ -335,6 +364,16 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       let node = FileBrowser.prototype.createNode();
       super({ node: node});
 
+      let that = this;
+
+      document.addEventListener("keydown",function(event){
+        if(event.key==="F2"){
+          if(that.currentSelection && that.currentSelection.length>0){
+            that.currentSelection[that.currentSelection.length-1].renameStart(that.server);
+          }
+        }
+      })
+
       this.setFlag(Widget.Flag.DisallowLayout);
       this.addClass('content');
       this.addClass('vpe_fb');
@@ -355,10 +394,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       node.appendChild(this.fileList);
       this.fileList.classList.add("vpe_fb_filelist");
       this.server = new FileSystemServer("http://localhost",8080);
-      let that = this;
       this.openDir(this.currentDir);
       /*
-      this.server.ls(function(fileStructure){
+      this.server.listAllDirectories(function(fileStructure){
         that.openDir(fileStructure);
       });*/
 
@@ -417,18 +455,43 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       node.ondblclick = function(){
         that.open(fileObj.full_path);
       }
+
+      node.name_element = name;
       return node;
     }
 
     getHTMLObject(fileobj){
+      let that = this;
       console.log(fileobj);
+      let node;
       if(fileobj.type === "dir"){
-        return this.getDirHTMLObject(fileobj);
+        node= this.getDirHTMLObject(fileobj);
       } else {
-        return this.getFileHTMLObject(fileobj);
+        node= this.getFileHTMLObject(fileobj);
       }
-    }
 
+
+      node.renameStart = function(){
+        this.isRenaming = true;
+        this.oldName = this.name_element.innerText;
+
+        this.editableName = document.createElement("input");
+
+        this.editableName.addEventListener("change", function(){
+          node.renameEnd();
+        });
+
+        this.name_element.replaceWith(this.editableName);
+
+      }
+      node.renameEnd=function(){
+
+        this.name_element.innerText = this.editableName.value;
+        this.editableName.replaceWith(this.name_element);
+        that.rename(fileobj, this.name_element.innerText);
+      }
+      return node;
+    }
     pathToString(path){
       let s = path[0];
       for(let i = 0; i<path.length; i++){
@@ -436,10 +499,20 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
       return s;
     }
-    open(filename){
-      this.server.open(this.pathToString(filename), function(payload){
+    open(filepath){
+      this.server.open(this.pathToString(filepath), function(payload){
         console.log("Opened file!" + (payload));
       });
+    }
+
+    rename(fileobj,new_name){
+      let filepath = fileobj.full_path;
+      filepath.name = new_name;
+      let a = filepath.slice(0,filepath.length-1) + [new_name];
+      fileobj.full_path = a;
+      console.log(filepath, new_name);
+
+      this.server.move(this.pathToString(filepath),this.pathToString(a));
     }
 
     openDir(path){
@@ -448,7 +521,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
       let that = this;
 
-      this.server.ls(
+      this.server.listAllDirectories(
         function(fileStructure){
           that.updateFileStructure(fileStructure);
         }
@@ -474,8 +547,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       node.ondblclick = function(){
         that.openDir(fileObj.full_path);
       }
+
+      node.name_element = name;
+
       return node;
     }
+
+
 
     select(node,event){
       //todo: shift select
