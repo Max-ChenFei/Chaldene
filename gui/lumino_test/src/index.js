@@ -177,6 +177,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
   }
 
   function createPostCommand(action, content){
+    console.log(content);
     return {action:action,content:content};
   }
 
@@ -207,7 +208,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       req.send(JSON.stringify(
         createPostCommand(
           "move",
-          {src: originalFilepath, dest:newFilepath}
+          {src: originalFilepath, dst:newFilepath}
         )
       ));
     }
@@ -476,18 +477,24 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
         this.oldName = this.name_element.innerText;
 
         this.editableName = document.createElement("input");
+        this.editableName.value = this.oldName;
 
-        this.editableName.addEventListener("change", function(){
+        this.editableName.addEventListener("blur", function(){
           node.renameEnd();
         });
 
         this.name_element.replaceWith(this.editableName);
+        this.editableName.focus();
+        this.editableName.select();
+
 
       }
       node.renameEnd=function(){
-
         this.name_element.innerText = this.editableName.value;
         this.editableName.replaceWith(this.name_element);
+        if(this.oldName===this.editableName.value){
+          return;
+        }
         that.rename(fileobj, this.name_element.innerText);
       }
       return node;
@@ -507,8 +514,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
     rename(fileobj,new_name){
       let filepath = fileobj.full_path;
-      filepath.name = new_name;
-      let a = filepath.slice(0,filepath.length-1) + [new_name];
+      let a = filepath.slice(0,filepath.length-1).concat([new_name]);
       fileobj.full_path = a;
       console.log(filepath, new_name);
 
