@@ -3,6 +3,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
 import json
+import shutil
 
 hostName = "localhost"
 serverPort = 8080
@@ -40,8 +41,13 @@ class MyServer(BaseHTTPRequestHandler):
         post_data = self.rfile.read(content_length)
         result = json.loads(post_data)
         print(result)
+        if(result["action"]=="save"):
+            print("save")
+        elif(result["action"]=="move"):
+            shutil.move(result["content"]["src"],result["content"]["dst"])
+
         self._set_response()
-        self.wfile.write("Success")
+        self.wfile.write(bytes("Success","utf-8"))
 
     def do_GET(self):
         if(self.path=="/__get_directory_list"):
