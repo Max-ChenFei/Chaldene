@@ -269,8 +269,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     constructor(searchable){
       this.node = document.createElement("input");
       this.searchable = searchable;
+      let that = this;
       this.node.addEventListener("input",function(){
-          this.updateSearch();
+          that.updateSearch();
       });
 
     }
@@ -359,6 +360,29 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     return node;
   }
 
+  class SearchableHelper extends Searchable{
+    constructor(callback){
+      super();
+      this.searchPattern = null;
+      this.callback = callback;
+      this.active=false;
+      console.log("Constructing!");
+    }
+    search(pattern){
+      if(this.active){
+        if(pattern.length==0){
+          pattern = null;
+        }
+        this.searchPattern = pattern;
+        this.callback(pattern);
+      }
+    }
+
+    activate(active=true){
+      this.active=active;
+    }
+  }
+
 
   class FileBrowser extends Widget {
     constructor() {
@@ -386,7 +410,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       this.title.closable = true;
       this.title.caption = title_caption || title_label;
 
-      this.searchBox = new SearchBox();
+
+      this.searchable = new SearchableHelper(function(){that.display()});
+      this.searchBox = new SearchBox(that.searchable);
       node.appendChild(this.searchBox.node);
       this.directoryNavigation = new DirectoryNavigation(this)
       node.appendChild(this.directoryNavigation.node);
@@ -395,7 +421,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       node.appendChild(this.fileList);
       this.fileList.classList.add("vpe_fb_filelist");
       this.server = new FileSystemServer("http://localhost",8080);
+
       this.openDir(this.currentDir);
+      this.searchable.activate();
       /*
       this.server.listAllDirectories(function(fileStructure){
         that.openDir(fileStructure);
@@ -432,12 +460,16 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
       this.fileList.innerHTML = "";
       for(const file of Object.values(current.files)){
-        this.fileList.appendChild(this.getHTMLObject(file));
+        let node = this.getHTMLObject(file);
+        if(node==null)
+          continue;
+        this.fileList.appendChild(node);
       }
       this.directoryNavigation.display();
     }
 
     getFileHTMLObject(fileObj){
+
       let that = this;
       let node = document.createElement("div");
       node.classList.add("vpe_fb_file_obj");
@@ -446,8 +478,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       icon.classList.add("fa-solid");
       icon.classList.add("fa-file");
       node.appendChild(icon)
-      let name = document.createElement("p");
-      name.innerText = fileObj.name;
+      let name = this.getFilteredName(fileObj.name);
+      if(name==null){
+        return null;
+      }
       node.appendChild(name);
 
       node.onclick = function(){
@@ -469,6 +503,9 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
         node= this.getDirHTMLObject(fileobj);
       } else {
         node= this.getFileHTMLObject(fileobj);
+      }
+      if(node==null){
+        return null;
       }
 
 
@@ -535,7 +572,49 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
     }
 
+    getFilteredName(str){
+
+      let pattern = this.searchable.searchPattern;
+      function sanitize(innerHTML){
+        let a = document.createElement("div");
+        a.innerText = innerHTML;
+        return a.innerHTML;
+      }
+
+      str=sanitize(str);
+
+
+      if(this.searchable.searchPattern == null){
+        let node = document.createElement("p");
+        node.innerHTML = str;
+        return node;
+      }
+      let search_results = [...str.matchAll(pattern)];
+      if(search_results.length==0){
+        return null;
+      }
+
+      let node = document.createElement("p");
+      let s = "";
+      s+=str.slice(0,search_results[0].index);
+      for(let i = 0;i<search_results.length-1;i++){
+        s+="<b>" +search_results[i][0] + "</b>";
+        s+=str.slice(search_results[i].index + search_results[i][0].length,search_results[i+1].index);
+      }
+      let i = search_results.length-1;
+      s+="<b>" +search_results[i][0] + "</b>";
+      s+=str.slice(search_results[i].index + search_results[i][0].length);
+      node.innerHTML=s;
+      return node;
+
+    }
+
     getDirHTMLObject(fileObj){
+
+      let name = this.getFilteredName(fileObj.name);
+      if(name==null){
+        return null;
+      }
       let that = this;
       let node = document.createElement("div");
       node.classList.add("vpe_fb_file_obj");
@@ -543,9 +622,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       icon.classList.add("fa");
       icon.classList.add("fa-folder");
       icon.classList.add("fa-solid");
-      node.appendChild(icon)
-      let name = document.createElement("p");
-      name.innerText = fileObj.name;
+      node.appendChild(icon);
       node.appendChild(name);
       node.onclick = function(event){
         that.select(node,event);
