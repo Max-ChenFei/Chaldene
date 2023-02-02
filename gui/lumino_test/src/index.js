@@ -70,6 +70,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     window.onresize = function () {
       editor_panel.update();
     };
+    editor_panel.file_browser = fileMenu;
     return editor_panel;
   }
 
@@ -182,11 +183,13 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
   }
 
   class FileSystemServer {
-    constructor(url, port){
+    constructor(url, port, error_callback){
       this.url = url;
       this.port = port;
       this.base = this.url + ":"+this.port+"/";
+      this.error_callback = error_callback;
     }
+
 
     open(filename, callback){
       function reqListener() {
@@ -194,6 +197,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
 
       const req = new XMLHttpRequest();
+      req.addEventListener("error",this.error_callback);
       req.addEventListener("load", reqListener);
       req.open("GET", this.base+filename);
       req.send();
@@ -203,6 +207,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
       const req = new XMLHttpRequest();
 
+      req.addEventListener("error",this.error_callback);
       req.addEventListener("load", callback);
       req.open("POST", this.base);
       req.send(JSON.stringify(
@@ -212,20 +217,36 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
         )
       ));
     }
+    copy(originalFilepath, newFilepath, callback=null){
+
+      const req = new XMLHttpRequest();
+
+      req.addEventListener("error",this.error_callback);
+      req.addEventListener("load", callback);
+      req.open("POST", this.base);
+      req.send(JSON.stringify(
+        createPostCommand(
+          "copy",
+          {src: originalFilepath, dst:newFilepath}
+        )
+      ));
+    }
 
     save(filepath, fileContents){
       const req = new XMLHttpRequest();
+      req.addEventListener("error",this.error_callback);
       req.addEventListener("load", null);
       req.open("POST", this.base);
       req.send(JSON.stringify(
         createPostCommand(
           "save",
-          {filepath: filepath, file:fileContents}
+          {dst: filepath, file:fileContents}
         )
       ));
     }
     delete(filepath){
       const req = new XMLHttpRequest();
+      req.addEventListener("error",this.error_callback);
       req.addEventListener("load", null);
       req.open("POST", this.base);
       req.send(JSON.stringify(
@@ -245,6 +266,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
 
       const req = new XMLHttpRequest();
+      req.addEventListener("error",this.error_callback);
       req.addEventListener("load", reqListener);
       req.open("GET", this.base+"__get_directory_list");
       req.send();
@@ -258,6 +280,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
 
       const req = new XMLHttpRequest();
+      req.addEventListener("error",this.error_callback);
       req.addEventListener("load", reqListener);
       req.open("GET", this.base+"__get_directory?dir="+JSON.stringify(dir));
       req.send();
@@ -420,14 +443,12 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       this.fileList = document.createElement("div");
       node.appendChild(this.fileList);
       this.fileList.classList.add("vpe_fb_filelist");
-      this.server = new FileSystemServer("http://localhost",8080);
+      this.server = new FileSystemServer("http://localhost",8080,function(){that.server_error = true});
 
       this.openDir(this.currentDir);
+
+      //note: i used this a workaround a bug, but I'm not sure it's necessary anymore
       this.searchable.activate();
-      /*
-      this.server.listAllDirectories(function(fileStructure){
-        that.openDir(fileStructure);
-      });*/
 
     }
 
@@ -451,8 +472,27 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       this.fileStructure = getNode([],base_dir);
       this.display();
     }
+    refresh(){
+      this.openDir(this.currentDir);
+    }
+
     display(){
+      let that = this;
       let current = this.fileStructure;
+      if(this.server_error){
+        this.fileList.innerHTML="";
+        let a = document.createElement("p");
+        //todo: better error handling: ie.: if directory does not exist?
+        a.innerText="Server error at " + this.server.base;
+        let b = document.createElement("button");
+        b.innerText="Refresh";
+        b.onclick = function(){
+          that.refresh();
+        }
+        this.fileList.append(a);
+        this.fileList.append(b);
+        return;
+      }
 
       for(let i = 1; i<this.currentDir.length; i++){
         current = current.files[this.currentDir[i]];
@@ -484,9 +524,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
       node.appendChild(name);
 
-      node.onclick = function(){
-        that.select(node);
-      }
       node.ondblclick = function(){
         that.open(fileObj.full_path);
       }
@@ -506,6 +543,10 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       }
       if(node==null){
         return null;
+      }
+
+      node.onclick = function(event){
+        that.select(node,event);
       }
 
 
@@ -534,6 +575,11 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
         }
         that.rename(fileobj, this.name_element.innerText);
       }
+      node.getFileObj=function(){
+        return fileobj;
+      }
+
+      node.draggable = true;
       return node;
     }
     pathToString(path){
@@ -624,9 +670,6 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
       icon.classList.add("fa-solid");
       node.appendChild(icon);
       node.appendChild(name);
-      node.onclick = function(event){
-        that.select(node,event);
-      }
       node.ondblclick = function(){
         that.openDir(fileObj.full_path);
       }
@@ -639,14 +682,20 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
 
 
     select(node,event){
-      //todo: shift select
-      if(!node.selected){
+      //note: currently, shift and ctrl work the same way
+      if(event.ctrlKey || event.shiftKey){
+        if(!node.selected){
+          node.classList.add("selected");
+          node.selected = true;
+          this.currentSelection.push(node);
+        }
+      } else {
         this.unselectAll();
         node.classList.add("selected");
         node.selected = true;
         this.currentSelection.push(node);
-      }
 
+      }
     }
     unselectAll(){
       for(let i = 0; i<this.currentSelection.length; i++){
@@ -654,6 +703,26 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
         this.currentSelection[i].selected = false;
       }
       this.currentSelection = [];
+    }
+
+    copy(){
+      this.clipboard = [];
+      for(let i = 0; i<this.currentSelection.length; i++){
+        this.clipboard.push(this.currentSelection[i]);
+      }
+    }
+
+    paste(){
+      for(let i = 0; i<this.currentSelection.length; i++){
+        let fobj =  this.clipboard[i].getFileObj();
+        let fname = fobj.full_path[fobj.full_path.length-1];
+        let a  = this.currentDir.concat([fname]);
+
+        this.server.copy(
+          this.pathToString(fobj.full_path),
+          this.pathToString(a)
+        );
+      }
     }
 
   }
@@ -855,7 +924,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
         }
       }
       memberEl.classList.add('memberEl');
-      memberEl.draggable = true;
+      memberEl. able = true;
       memberEl.in_panel = this;
       memberEl.data = member;
       memberEl.ondblclick = function(){
@@ -1443,7 +1512,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     return null
   }
 
-  function createCommands(focus_tracker){
+  function createCommands(editor,focus_tracker){
     commands.addCommand('file:new',{
       label: "New",
       mnemonic: 0,
@@ -1481,6 +1550,21 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
         //focus_tracker.focusd_graph_editor.scene.undo_history.redo();
       }
     });
+
+    commands.addCommand('filebrowser:copy', {
+      label: "copy",
+      mnemonic: 0,
+      execute: function(){
+        editor.file_browser.copy();
+      }
+    });
+    commands.addCommand('filebrowser:paste', {
+      label: "paste",
+      mnemonic: 0,
+      execute: function(){
+        editor.file_browser.paste();
+      }
+    });
   }
   let editor_panel;
 
@@ -1508,7 +1592,7 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     Widget.attach(menu_bar, document.body);
     Widget.attach(editor_panel, document.body);
     //let focus_tracker = new EditorFocusTracker(editor_panel);
-    createCommands(/*focus_tracker*/);
+    createCommands(editor_panel,/*focus_tracker*/);
     examples();
 
     //todo: abstract away in a CreateContextMenu function
@@ -1516,6 +1600,8 @@ define(['@lumino/commands', '@lumino/widgets'], function (lumino_commands, lumin
     c.addItem({command:"file:new",selector:".content"});
     c.addItem({command:"file:load",selector:"*"});
     c.addItem({command:"members:delete",selector:".memberEl"});
+    c.addItem({command:"filebrowser:copy",selector:".vpe_fb"});
+    c.addItem({command:"filebrowser:paste",selector:".vpe_fb"});
 
     document.addEventListener('contextmenu', function (event) {
       if (c.open(event)) {

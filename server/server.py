@@ -42,9 +42,48 @@ class MyServer(BaseHTTPRequestHandler):
         result = json.loads(post_data)
         print(result)
         if(result["action"]=="save"):
-            print("save")
+           os.makedirs(os.path.dirname(result["content"]["dst"]), exist_ok=True)
+           f=open(result["content"]["dst"],"w")
+           f.write(result["content"]["file"])
+           f.close()
+
         elif(result["action"]=="move"):
+            os.makedirs(os.path.dirname(os.path.normpath(result["content"]["dst"])), exist_ok=True)
             shutil.move(result["content"]["src"],result["content"]["dst"])
+
+        elif(result["action"]=="copy"):
+            print("dst: ",os.path.dirname(os.path.normpath(result["content"]["dst"])))
+
+            norm_dest_dir = os.path.dirname(os.path.normpath(result["content"]["dst"]))
+            if(len(norm_dest_dir)!=0):
+                os.makedirs(norm_dest_dir, exist_ok=True)
+
+
+            i=0
+            help = result["content"]["dst"]
+            while(os.path.exists(help)):
+                i=i+1
+                if(not os.path.isdir(result["content"]["dst"])):
+                    s = result["content"]["dst"]
+                    ext = s.rfind(".")
+                    if(ext<len(os.path.dirname(s))):
+                        help = s + "("+str(i)+")"
+
+                    help = s[0:ext]+"("+str(i)+")" + s[ext:]
+                else:
+                    help = result["content"]["dst"]+"("+str(i)+")"
+            result["content"]["dst"] = help;
+            print("Paste:", result["content"]["dst"])
+            if(os.path.isdir(result["content"]["src"])):
+                shutil.copytree(
+                    os.path.normpath(result["content"]["src"]),
+                    os.path.normpath(result["content"]["dst"])
+                )
+            else:
+                shutil.copy(
+                    os.path.normpath(result["content"]["src"]),
+                    os.path.normpath(result["content"]["dst"])
+                )
 
         self._set_response()
         self.wfile.write(bytes("Success","utf-8"))

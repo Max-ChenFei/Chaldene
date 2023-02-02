@@ -2,6 +2,7 @@
     white-space: nowrap;
     padding-top: 0.4em;
     padding-bottom: 0.4em;
+    user-select: none;
 }
 
 .vpe_fb_file_obj:hover{
